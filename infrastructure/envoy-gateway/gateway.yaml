@@ -21,3 +21,6 @@ spec:
         group: ""
         name: hackcorp-host-secret
         namespace: cert-manager
+    allowedRoutes:
+      namespaces:
+        from: All
