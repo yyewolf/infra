@@ -23,3 +23,12 @@ You can do so using :
 ```bash
 $ ssh-keygen -t ed25519
 ```
+
+### Terraform
+
+Once that's done, you can easily bootup everything with these two :
+
+```bash
+$ terraform plan
+$ terraform apply
+```
