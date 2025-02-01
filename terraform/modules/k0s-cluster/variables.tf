@@ -3,6 +3,7 @@ variable "hosts" {
   type = list(object({
     role                = string
     private_ip_address  = string
+    floating_ip_address = string
   }))
 }
 

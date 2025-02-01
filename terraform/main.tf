@@ -72,8 +72,6 @@ module "worker" {
     floating_ip_pool = var.network_floating_ip_pool
   }
 
-  user_data = data.cloudinit_config.worker.rendered
-
   depends_on = [module.bootstrap, module.network, module.security_groups]
 }
 
