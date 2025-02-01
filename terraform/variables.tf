@@ -80,6 +80,10 @@ variable "worker_flavor_id" {
 #       Flux          #
 #######################
 
+variable "gpg_private_key" {
+  description = "Path to the GPG private key"
+}
+
 variable "repository_url" {
   description = "URL of the Git repository"
 }

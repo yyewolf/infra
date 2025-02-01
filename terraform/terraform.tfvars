@@ -1,5 +1,6 @@
 public_key_pair_path = "./files/keys/ssh.pub"
 private_key_pair_path = "./files/keys/ssh"
+gpg_private_key = "./files/keys/gpg.asc"
 
 network_external_id = "34a684b8-2889-4950-b08e-c33b3954a307" # This is the floating ip network id on openstack
 network_dns_servers = [ "1.1.1.1", "9.9.9.9" ] 

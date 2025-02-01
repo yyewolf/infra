@@ -1,3 +1,7 @@
+locals {
+  gpg_private_key = file(var.gpg_private_key)
+}
+
 resource "helm_release" "this" {
   name = "flux2"
 
@@ -8,6 +12,21 @@ resource "helm_release" "this" {
   create_namespace = true
   wait             = true
 }
+
+
+resource "kubernetes_secret_v1" "this" {
+  metadata {
+    name      = "sops-gpg"
+    namespace = "flux-system"
+  }
+
+  data = {
+    "sops.asc" = local.gpg_private_key
+  }
+
+  depends_on = [helm_release.this]
+}
+
 
 resource "helm_release" "sync" {
   name = "infra"
@@ -55,5 +74,15 @@ resource "helm_release" "sync" {
     value = "flux"
   }
 
-  depends_on = [helm_release.this]
+  set {
+    name = "kustomization.spec.decryption.provider"
+    value = "sops"
+  }
+
+  set {
+    name  = "kustomization.spec.decryption.secretRef.name"
+    value = "sops-gpg"
+  }
+
+  depends_on = [kubernetes_secret_v1.this]
 }

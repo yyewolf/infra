@@ -101,6 +101,7 @@ module "k0s-cluster" {
 module "flux-bootstrap" {
   source         = "./modules/flux-bootstrap"
   repository_url = var.repository_url
+  gpg_private_key = var.gpg_private_key
 
   cluster_config = module.k0s-cluster.kubeconfig
 }
