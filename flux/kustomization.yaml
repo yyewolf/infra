@@ -8,4 +8,5 @@ resources:
   - infrastructure/gateway-api-crd.yaml
   - infrastructure/envoy-gateway.yaml
   - infrastructure/cilium.yaml
+  - infrastructure/kube-prom-stack.yaml
   - infrastructure/hello-world.yaml
