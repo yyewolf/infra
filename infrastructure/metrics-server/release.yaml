@@ -1,0 +1,21 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: metrics-server
+  namespace: flux-system
+spec:
+  interval: 10m
+  targetNamespace: kube-system
+  releaseName: metrics-server
+  chart:
+    spec:
+      chart: metrics-server
+      version: 3.12.0  # Check for latest version if needed
+      sourceRef:
+        kind: HelmRepository
+        name: metrics-server
+  upgrade:
+    cleanupOnFail: true
+  values:
+    args:
+      - --kubelet-insecure-tls  # Useful for self-signed kubelet certificates

@@ -10,3 +10,4 @@ resources:
   - infrastructure/cilium.yaml
   - infrastructure/kube-prom-stack.yaml
   - infrastructure/hello-world.yaml
+  - infrastructure/metrics-server.yaml
