@@ -3,7 +3,7 @@ kind: Kustomization
 namespace: cert-manager
 
 resources:
-  - namespace.yaml
-  - repository.yaml
-  - release.yaml
-  - certs
+  - issuer.yaml
+  - key-sops.yaml
+  - certificate-hackcorp.yaml
+  - reference-grant.yaml

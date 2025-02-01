@@ -1,0 +1,23 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: main
+spec:
+  gatewayClassName: main
+  listeners:
+  - protocol: HTTP
+    port: 80
+    name: main-http
+    allowedRoutes:
+      namespaces:
+        from: All
+  - protocol: HTTPS
+    port: 443
+    name: main-https
+    tls:
+      mode: Terminate
+      certificateRefs:
+      - kind: Secret
+        group: ""
+        name: hackcorp-host-secret
+        namespace: cert-manager
