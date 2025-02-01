@@ -5,3 +5,4 @@ namespace: flux-system
 resources:
   - infrastructure/cert-manager.yaml
   - infrastructure/cloud-controller-manager.yaml
+  - infrastructure/gateway-api-crd.yaml
