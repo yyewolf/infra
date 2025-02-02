@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Secret
+metadata:
+    name: tailscale-values
+stringData:
+    values.yaml: ENC[AES256_GCM,data:BZpKZu3UcRdL0FrDKb27CFvhn35fAv2tMf8Cn/qaDO2umwZrPoDtTinRRvclMtmiEcLZ1CLLL9BOZTvTYPDNK26xkOe7NIzvE54+dDUhjaHMZiEEElLX1XodaqUvV1nPpDkp08daDZMwT2SNVcN27IeKFW0=,iv:afhm5Ya3Xw/aq0HcXtOzZJR3CGfTgf5snCO2QbJbYh0=,tag:rw6sXzu+hQu7KdAoOGNuTQ==,type:str]
+sops:
+    kms: []
+    gcp_kms: []
+    azure_kv: []
+    hc_vault: []
+    age: []
+    lastmodified: "2025-02-02T18:13:32Z"
+    mac: ENC[AES256_GCM,data:5XAnDiEDxbGmtNa5vHgk2GALIZ2qtxLgRCsefWEOIcuDpL5flz9kUlXH1Q/Id4XzePAsIbT4dhJ4Xt0CA/oLFDcy3Om1zBKtVDHJJGlLa3H41lLRi3B7tAYjq0G9GuKuPNCS+oNVwfwaj21YIQzIggoPWxjyYcB+/Bdlq3baVOo=,iv:jtm6msxNRDtcPQx9efnIcWmcbKCKzuZTs/Y+ngn1whc=,tag:ojoMa4+cepqA7mDO4ycS0A==,type:str]
+    pgp:
+        - created_at: "2025-02-02T18:13:32Z"
+          enc: |-
+            -----BEGIN PGP MESSAGE-----
+
+            hF4D6rJQTzBUCVESAQdATZ0lN/+2WegNzYkmlPJyIUwclpb4vTNB8Ypfh8sATg0w
+            IG7ILrBbLfaZxX1L2o2AX1Rf1R1D0gg9LqNz/PelydIjWAWEJ5VA4mgMffORvkVx
+            0l4BoNVVHZa8YxxB15w7RoPQs5jClpyxZd6cEOeNZ4dy7tJLtkf/CQLiXQuTwGXg
+            hVAH8/VkDhLOZxFrVgOUD1h0yyhHGawJIY41RRkK34kG/KKzoiBalFp5yq5bWX0F
+            =FX/W
+            -----END PGP MESSAGE-----
+          fp: 459895EB0A5F446D3831E99F95F6A162E4A71B06
+        - created_at: "2025-02-02T18:13:32Z"
+          enc: |-
+            -----BEGIN PGP MESSAGE-----
+
+            hF4D8q6e3Tem1ZoSAQdAI/2rYrfC/hwx3h3GbSpF42B5wOty0J/aGCMJ7yb3xgww
+            yn45pVYgxdnWx2Nw3m6o1sdMOIXZnOBQ0tCo/7vFm+rrFvHBAszm/J6XyHj5K6+w
+            0l4B0tNV8lFyTl5dwZkCgRhE9NUp8ABCDt9KjGSXuG3c6SeQC2lR4L6FhPRavYu3
+            o99eL09Khtzt3cNKroT5qArTuJEeU8fJKVA5MB1//ysnkYOFhOO+dw+NyrL6dIEA
+            =fTWE
+            -----END PGP MESSAGE-----
+          fp: DF7F5D62376A57228F35FE4C665F8C5B8E0732E5
+    encrypted_regex: ^(data|stringData|secrets)$
+    version: 3.9.2

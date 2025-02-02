@@ -5,3 +5,8 @@ metadata:
   namespace: envoy-system
 spec:
   mergeGateways: true
+  provider:
+    type: Kubernetes
+    kubernetes:
+      envoyService:
+        externalTrafficPolicy: Cluster
