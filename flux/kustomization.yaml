@@ -7,7 +7,6 @@ resources:
   - infrastructure/cloud-controller-manager.yaml
   - infrastructure/gateway-api-crd.yaml
   - infrastructure/envoy-gateway.yaml
-  - infrastructure/cilium.yaml
   - infrastructure/kube-prom-stack.yaml
   - infrastructure/hello-world.yaml
   - infrastructure/metrics-server.yaml
