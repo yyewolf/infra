@@ -21,7 +21,7 @@ spec:
       hostIPC: true
       containers:
       - name: asteria-node
-        image: busybox
+        image: ubuntu:latest
         securityContext:
           privileged: true
         volumeMounts:

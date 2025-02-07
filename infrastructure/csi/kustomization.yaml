@@ -1,10 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-namespace: tailscale
+namespace: kube-system
 
 resources:
-  - namespace.yaml
-  - values-sops.yaml
   - release.yaml
   - repository.yaml
-  - home1.yaml
