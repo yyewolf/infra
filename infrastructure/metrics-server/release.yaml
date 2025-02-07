@@ -4,7 +4,7 @@ metadata:
   name: metrics-server
   namespace: flux-system
 spec:
-  interval: 10m
+  interval: 30m
   targetNamespace: kube-system
   releaseName: metrics-server
   chart:

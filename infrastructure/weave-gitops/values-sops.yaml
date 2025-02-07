@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Secret
+metadata:
+    name: weavegitops-values
+stringData:
+    values.yaml: ENC[AES256_GCM,data:ld00rXj8Do/KKpGaYs/OTvtCMUjvD00OUN3ldjgnKxMJGhmvMlm2vX5uR54msVR8LdAl6sfLhVF61LADj/baJS+ZI3Em428Ql6Oi23J+/GyBufAH053lC72N9m6aiOVgw5llwegRtn1oNZjiEwjFFD2XgTSMSw6WPo2T0KoGyyJFhC/+6WVzf7WbgM0AvuNOnTPgIAoa6lwCmfWgFsnrLzJzCyL1v2tNbaNaNnRABErBtPuNyf3x19gFyig3utrxA0FLyGePArPFzUQxFPHoYBkCqmrVqFKH/+c9vNasD03+R+F5GWP/76gBZFZRhJgnVtnZu8JHoHTWRghIq6DPqiIzQ8yrebsYZFoEbgLYbYLx81sbJ9ht+epNjAvBHySbhdKE3oaIG11DDAOnPjLqjxahOfC6lTHLgSlf/tfGRsIWgfUijBxObEQdBhsesEnQFKq+jqSvDQjy8wf21dpQCZfN3O9TqJVYrD2gtmp1Ig==,iv:VRpJ99/Uh+aSJaWTT7halEbHplsuw3CPjirJaOWB5VQ=,tag:PgE6TpzvcBgOEC0D4tHTow==,type:str]
+sops:
+    kms: []
+    gcp_kms: []
+    azure_kv: []
+    hc_vault: []
+    age: []
+    lastmodified: "2025-02-07T16:51:29Z"
+    mac: ENC[AES256_GCM,data:LOzWSvJS5uJWOoniOGwiI53fp04cAGiFkz/cCXC5gl/ljo9m4N1xdzy9zjSgJAefEkOvUCsR6w6oEHqKFKPexCoL1Qw2PAoeag5J2/R9pwFXbsdHzfv1pcCrrAdKp7+8ZlVuxr1KoPMjeMGSZndrQUQEge+yCrvMvL+cuBj865E=,iv:UGrAhCOnEyToxBOZc1k7CsONrMdm5xs61K+5+41jqfg=,tag:vfPiHci4OSHoXEoIoT3hNQ==,type:str]
+    pgp:
+        - created_at: "2025-02-07T16:51:29Z"
+          enc: |-
+            -----BEGIN PGP MESSAGE-----
+
+            hF4D6rJQTzBUCVESAQdA/i4VTtXLezQBd5m8JGIMkWpAYOcodWKtbT7GYXAFgiow
+            0qQLOD8OKoD9imRKe4J8/Wja+BA8cZC9okceOLdBz/lz28IgJo1xmVy7J8+mkI+8
+            0l4BXqQh+3z6f+XtylM+4fprj+AdcU7jYX9VwGpDzwT8LPeKlSsLgEnXnnuyXcbd
+            yFob5pO5FzbTIk60cfjKiKNbtLgF1INRQAY34IBkliVHHkuTbr62X9/g/pwjcIqX
+            =3RAs
+            -----END PGP MESSAGE-----
+          fp: 459895EB0A5F446D3831E99F95F6A162E4A71B06
+        - created_at: "2025-02-07T16:51:29Z"
+          enc: |-
+            -----BEGIN PGP MESSAGE-----
+
+            hF4D8q6e3Tem1ZoSAQdAMJQrWFoTTyATa7wuZxdd3wJJOgkKsxEboHDVVaD68Fsw
+            Yaeh8inNQsRLG2nZiSJBvKdrpAvhZikt80551DbJCJoQuYRABoluASQQ2p1yw6SH
+            0l4Be5m9UoJqFriWxZq64kdg67qe8Wz2G5LxblULP+rkJ+ief8Qc4IN6HlTNIZnr
+            TNa2FCFjuEYXkBLxiGWxyh5ELjB3P5PolCLahyrrh9dU6ToqWoV/Z25WUpwUcqGX
+            =YmVc
+            -----END PGP MESSAGE-----
+          fp: DF7F5D62376A57228F35FE4C665F8C5B8E0732E5
+    encrypted_regex: ^(data|stringData|secrets)$
+    version: 3.9.2

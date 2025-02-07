@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Secret
+metadata:
+    name: webhook-token
+stringData:
+    token: ENC[AES256_GCM,data:78GRwE98I4w5/jW4gWNWLrt/RPFyiw==,iv:i1OPRIAa0lQ0ozD7FvlCHzuZueMNZ55NivtwcbSGTFU=,tag:myuVvQi3QaIs0bIhANNWyw==,type:str]
+sops:
+    kms: []
+    gcp_kms: []
+    azure_kv: []
+    hc_vault: []
+    age: []
+    lastmodified: "2025-02-07T16:51:49Z"
+    mac: ENC[AES256_GCM,data:73VUSUJpF8sITATPOc1w7zkJ7FSr7Jxw/RICpklxRTil5Pkac+GbE3xyeEavAM8i3sAluLJIvzBMixeoh/B7shrRK8Rv2UBHzdj34JmDpHPKQhOsSDzSO9ARX5GWzmw3Xqpy7WrIShf+h66fI2Hv3kGIXdycm/xAbFtnLZwgIyA=,iv:uImIq/u/xsgHHGRGIu5SbptFngc7dffCHEprxjSep1c=,tag:mL+FmF+JDPVIRzRfTJz+6g==,type:str]
+    pgp:
+        - created_at: "2025-02-07T16:51:49Z"
+          enc: |-
+            -----BEGIN PGP MESSAGE-----
+
+            hF4D6rJQTzBUCVESAQdAyc7vo9UZsuek/+67N9Kok1btDJWje5USHVzqpytcXgIw
+            JkYMIIUAZaBs7JiZyo8PTRav8QFNkQZJaTm0yudxNii5H4S/gGB0YOEtp6a+Qfr3
+            0l4Bg+O8rfcCEwmNUF9Rmr7GbEuXIOHgZIoeAQktoiefruSOmf3D2/5WkLGC08WI
+            BbZy0u9+mW7Fs2ebL6A69TKsooZoc0w7t+pp4Z7ibep7kBqm0YI76muzHaQx07uR
+            =YPMO
+            -----END PGP MESSAGE-----
+          fp: 459895EB0A5F446D3831E99F95F6A162E4A71B06
+        - created_at: "2025-02-07T16:51:49Z"
+          enc: |-
+            -----BEGIN PGP MESSAGE-----
+
+            hF4D8q6e3Tem1ZoSAQdABAYiK5eOcCzsPRlab0cqoRPJIxpAQ8K6Wa96Ugi49gMw
+            ByJ7ffyrb0I0AU5W5CnFiqIAmyeZ/tlkpEcSybz/wJYy88Ldu1zg8aDJfo0fj10U
+            0l4BywdpgqRNyYE3IZH00sParOIdm3h+yoxdr2VFu9zWeQzsVJGmovQBp5tDUmYu
+            PMpSoJS5MtvBzCMILFGYX+lqZlkuvYPfBEJBgh9XlWttDDbFiQn92Lv99xSuNjs5
+            =5tHs
+            -----END PGP MESSAGE-----
+          fp: DF7F5D62376A57228F35FE4C665F8C5B8E0732E5
+    encrypted_regex: ^(data|stringData|secrets)$
+    version: 3.9.2

@@ -10,3 +10,5 @@ resources:
   - infrastructure/kube-prom-stack.yaml
   - infrastructure/hello-world.yaml
   - infrastructure/metrics-server.yaml
+  - infrastructure/weave-gitops.yaml
+  - infrastructure/flux-webhook.yaml
