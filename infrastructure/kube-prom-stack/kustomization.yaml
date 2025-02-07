@@ -4,7 +4,7 @@ namespace: monitoring
 
 resources:
   - namespace.yaml
-  - values-sops.tmp.yaml
+  - values-sops.yaml
   - repository.yaml
   - release.yaml
   - route.yaml
