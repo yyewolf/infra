@@ -7,29 +7,21 @@ spec:
   listeners:
   - protocol: HTTP
     port: 80
+    hostname: "hackcorp.net"
     name: main-http
-    hostname: hackcorp.net
+    allowedRoutes:
+      namespaces:
+        from: All
+  - protocol: HTTP
+    port: 80
+    hostname: "*.hackcorp.net"
+    name: main-http-w
     allowedRoutes:
       namespaces:
         from: All
   - protocol: HTTPS
     port: 443
     name: main-https
-    hostname: hackcorp.net
-    tls:
-      mode: Terminate
-      certificateRefs:
-      - kind: Secret
-        group: ""
-        name: hackcorp-host-secret
-        namespace: cert-manager
-    allowedRoutes:
-      namespaces:
-        from: All
-  - protocol: HTTPS
-    port: 443
-    name: main-https-w
-    hostname: '*.hackcorp.net'
     tls:
       mode: Terminate
       certificateRefs:
