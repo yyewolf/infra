@@ -10,6 +10,10 @@ terraform {
       source = "hashicorp/cloudinit"
       version = "2.3.4"
     }
+    infomaniak = {
+      source = "Infomaniak/infomaniak"
+      version = "1.0.2"
+    }
   }
 }
 

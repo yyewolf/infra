@@ -1,7 +1,7 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: weave-gitops
+  name: cert-manager
 spec:
   decryption:
     provider: sops
@@ -15,4 +15,4 @@ spec:
   sourceRef:
     kind: GitRepository
     name: infra
-  path: ./infrastructure/weave-gitops
+  path: ./infrastructure/cert-manager/certs

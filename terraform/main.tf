@@ -1,99 +1,27 @@
-module "bootstrap" {
-  source = "./modules/bootstrap"
+resource "infomaniak_kaas" "kluster" {
+  public_cloud_id         = var.infomaniak.cloud_id
+  public_cloud_project_id = var.infomaniak.project_id
 
-  public_key_pair_name = "k0s"
-  public_key_pair_path = var.public_key_pair_path
+  name               = var.cluster_name
+  pack_name          = var.cluster_type
+  kubernetes_version = var.cluster_version
+  region             = var.cluster_region
 }
 
-module "network" {
-  source = "./modules/network"
-
-  name                = "k0s"
-  cidr                = var.network_cidr_v4
-  external_network_id = var.network_external_id
-  dns_servers         = var.network_dns_servers
-
-  depends_on = [module.bootstrap]
+output "kluster_kubeconfig" {
+  value = infomaniak_kaas.kluster.kubeconfig
+  sensitive = true
 }
 
-module "security_groups" {
-  source = "./modules/security-groups"
+resource "infomaniak_kaas_instance_pool" "instance_pool" {
+  public_cloud_id         = infomaniak_kaas.kluster.public_cloud_id
+  public_cloud_project_id = infomaniak_kaas.kluster.public_cloud_project_id
+  kaas_id                 = infomaniak_kaas.kluster.id
 
-  cidr = var.network_cidr_v4
-}
-
-module "control_plane" {
-  source = "./modules/instance"
-  count  = var.control_plane_number
-
-  name      = "k0s-control-plane${count.index}"
-  image_id  = var.control_plane_image_id
-  flavor_id = var.control_plane_flavor_id
-
-  public_key_pair  = module.bootstrap.public_key_pair_name
-  private_key_pair = var.private_key_pair_path
-  ssh_login_name   = var.ssh_login_name
-
-  security_groups = [
-    module.security_groups.ssh_name,
-    module.security_groups.control_plane_api_name,
-    module.security_groups.controller_name,
-    module.security_groups.worker_name
-  ]
-
-  network = {
-    name             = module.network.name
-    floating_ip_pool = var.network_floating_ip_pool
-  }
-
-  depends_on = [module.bootstrap, module.network, module.security_groups]
-}
-
-module "worker" {
-  source = "./modules/instance"
-  count  = var.worker_number
-
-  name      = "k0s-worker${count.index}"
-  image_id  = var.worker_image_id
-  flavor_id = var.worker_flavor_id
-
-  public_key_pair  = module.bootstrap.public_key_pair_name
-  private_key_pair = var.private_key_pair_path
-  ssh_login_name   = var.ssh_login_name
-
-  security_groups = [
-    module.security_groups.ssh_name,
-    module.security_groups.worker_name,
-    module.security_groups.http_name
-  ]
-
-  network = {
-    name             = module.network.name
-    floating_ip_pool = var.network_floating_ip_pool
-  }
-
-  depends_on = [module.bootstrap, module.network, module.security_groups]
-}
-
-module "k0s-cluster" {
-  source = "./modules/k0s-cluster"
-
-  private_key_pair_path = var.private_key_pair_path
-  ssh_login_name        = var.ssh_login_name
-  hosts = concat(
-    [for instance in module.control_plane : {
-      role                = "controller"
-      private_ip_address  = instance.access_ip_v4
-      floating_ip_address = instance.floating_ip_address
-    }],
-    [for instance in module.worker : {
-      role                = "worker"
-      private_ip_address  = instance.access_ip_v4
-      floating_ip_address = instance.floating_ip_address
-    }]
-  )
-
-  depends_on = [module.bootstrap, module.network, module.security_groups, module.control_plane, module.worker]
+  name              = var.pool_name
+  flavor_name       = var.pool_type
+  min_instances     = var.pool_min
+  availability_zone = var.pool_az
 }
 
 module "flux-bootstrap" {
@@ -101,14 +29,5 @@ module "flux-bootstrap" {
   repository_url = var.repository_url
   gpg_private_key = var.gpg_private_key
 
-  cluster_config = module.k0s-cluster.kubeconfig
-}
-
-module "os-cloud-secret" {
-  source = "./modules/os-cloud-secret"
-
-  openstack_auth_url         = var.openstack_auth_url
-  cluster_config             = module.k0s-cluster.kubeconfig
-  network_external_id        = var.network_external_id
-  network_internal_subnet_id = module.network.subnet_id
+  cluster_config = infomaniak_kaas.kluster.kubeconfig
 }

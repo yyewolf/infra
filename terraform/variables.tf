@@ -1,79 +1,61 @@
 #######################
-#      Bootstrap      #
+#      Kluster        #
 #######################
-variable "public_key_pair_path" {
-  description = "Path to the public key used for SSH access"
+variable "infomaniak" {
+  description = "Infomaniak informations"
+  type = object({
+    cloud_id   = number
+    project_id = number
+  })
+  nullable  = false
 }
 
-variable "private_key_pair_path" {
-  description = "Path to the private key used for SSH access"
+variable "cluster_name" {
+  description = "Cluster name"
+  type        = string
+  nullable    = false
 }
 
-variable "ssh_login_name" {
-  description = "Name of the user to use for SSH access"
+variable "cluster_region" {
+  description = "Cluster region"
+  type        = string
+  default     = "dc4-a"
 }
 
-variable "openstack_auth_url" {
-  description = "URL of the OpenStack authentication endpoint"
+variable "cluster_type" {
+  description = "Cluster type"
+  type        = string
+  default     = "shared"
 }
 
-#######################
-#       Network       #
-#######################
-variable "network_cidr_v4" {
-  description = "CIDR of the network"
-  default     = "192.168.10.0/24"
+variable "cluster_version" {
+  description = "Cluster version"
+  type        = string
+  default     = "1.31"
 }
 
-variable "network_cidr_v6" {
-  description = "CIDR of the network"
-  default     = "fd00:10::/64"
+variable "pool_name" {
+  description = "Pool instance name"
+  type        = string
+  default     = "name"
 }
 
-variable "network_floating_ip_pool" {
-  description = "Name of the floating IP pool"
-  default     = "public"
+variable "pool_type" {
+  description = "Pool instance type"
+  type        = string
+  default     = "a1-ram2-disk20-perf1"
 }
 
-variable "network_external_id" {
-  description = "ID of the external network"
+variable "pool_min" {
+  description = "Minimum pool instance number"
+  type        = number
+  default     = 3
 }
 
-variable "network_dns_servers" {
-  description = "List of DNS servers"
-  type        = list(string)
-}
-
-#######################
-#    Control Plane    #
-#######################
-variable "control_plane_number" {
-  description = "Number of control plane instances"
-  default     = 1
-}
-
-variable "control_plane_image_id" {
-  description = "ID of the image to use for the control plane instance"
-}
-
-variable "control_plane_flavor_id" {
-  description = "ID of the flavor to use for the control plane instance"
-}
-
-#######################
-#        Worker       #
-#######################
-variable "worker_number" {
-  description = "Number of worker instances"
-  default     = 1
-}
-
-variable "worker_image_id" {
-  description = "ID of the image to use for the worker instance"
-}
-
-variable "worker_flavor_id" {
-  description = "ID of the flavor to use for the worker instance"
+variable "pool_az" {
+  description = "Pool instance availability zone"
+  type        = string
+  default     = "az-2"
 }
 
 #######################
