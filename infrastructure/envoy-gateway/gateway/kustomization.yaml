@@ -3,6 +3,6 @@ kind: Kustomization
 namespace: envoy-system
 
 resources:
-  - namespace.yaml
-  - repository.yaml
-  - release.yaml
+  - envoy-proxy.yaml
+  - gateway-class.yaml
+  - gateway.yaml

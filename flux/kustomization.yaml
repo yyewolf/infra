@@ -4,9 +4,10 @@ namespace: flux-system
 
 resources:
   - infrastructure/cert-manager.yaml
-  - infrastructure/cloud-controller-manager.yaml
+  - infrastructure/cert-manager-certs.yaml
   - infrastructure/gateway-api-crd.yaml
   - infrastructure/envoy-gateway.yaml
+  - infrastructure/envoy-gateway-config.yaml
   - infrastructure/kube-prom-stack.yaml
   - infrastructure/hello-world.yaml
   - infrastructure/metrics-server.yaml
