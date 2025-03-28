@@ -9,4 +9,7 @@ spec:
     type: Kubernetes
     kubernetes:
       envoyService:
+        annotations:
+          loadbalancer.openstack.org/proxy-protocol: "true"
+          loadbalancer.openstack.org/keep-floatingip: "true"
         externalTrafficPolicy: Cluster
