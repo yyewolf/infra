@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stirlingpdf
+  labels:
+    app: stirlingpdf
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: stirlingpdf
+  template:
+    metadata:
+      labels:
+        app: stirlingpdf
+    spec:
+      containers:
+        - name: stirlingpdf
+          image: ghcr.io/stirling-tools/stirling-pdf:0.45.0-ultra-lite
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DOCKER_ENABLE_SECURITY
+              value: "true"
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
