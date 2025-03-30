@@ -14,3 +14,4 @@ resources:
   - infrastructure/weave-gitops.yaml
   - infrastructure/flux-webhook.yaml
   - infrastructure/stirlingpdf.yaml
+  - infrastructure/cyberchef.yaml
