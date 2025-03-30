@@ -8,3 +8,4 @@ resources:
   - gateway.yaml
   - client-traffic-policy.yaml
   - http-to-https.yaml
+  - podMonitor.yaml
