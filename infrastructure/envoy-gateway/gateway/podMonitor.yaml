@@ -5,7 +5,7 @@ metadata:
 spec:
   selector:
     matchLabels:
-      ateway.envoyproxy.io/owning-gatewayclass: main
+      gateway.envoyproxy.io/owning-gatewayclass: main
   podMetricsEndpoints:
   - portNumber: 19001
     path: /stats/prometheus
