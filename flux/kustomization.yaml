@@ -15,3 +15,4 @@ resources:
   - infrastructure/flux-webhook.yaml
   - infrastructure/stirlingpdf.yaml
   - infrastructure/cyberchef.yaml
+  - infrastructure/juice-shop.yaml

@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: juice-shop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: juice-shop
+      version: v1
+  template:
+    metadata:
+      annotations:
+        io.kubernetes.cri-o.userns-mode: "auto:size=65536"
+      labels:
+        app: juice-shop
+    spec:
+      automountServiceAccountToken: false
+      runtimeClassName: sysbox-runc
+      containers:
+        - image: bkimminich/juice-shop
+          imagePullPolicy: IfNotPresent
+          name: juice-shop
+          resources:
+            limits:
+              cpu: 300m
+              memory: 400Mi
+            requests:
+              cpu: 300m
+              memory: 400Mi
+
+
