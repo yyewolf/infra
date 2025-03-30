@@ -6,6 +6,7 @@ spec:
   parentRefs:
   - name: main
     namespace: envoy-system
+    sectionName: https
   hostnames:
     - "hackcorp.net"
   rules:

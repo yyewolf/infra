@@ -6,6 +6,7 @@ spec:
   parentRefs:
   - name: main
     namespace: envoy-system
+    sectionName: https
   hostnames:
     - "grafana.hackcorp.net"
   rules:
