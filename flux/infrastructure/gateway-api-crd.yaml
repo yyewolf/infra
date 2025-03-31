@@ -16,4 +16,4 @@ spec:
   sourceRef:
     kind: GitRepository
     name: infra
-  path: ./infrastructure/gateway-api-crd
+  path: ./infrastructure/tools/gateway-api-crd

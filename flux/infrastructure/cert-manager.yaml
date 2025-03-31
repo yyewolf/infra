@@ -15,4 +15,4 @@ spec:
   sourceRef:
     kind: GitRepository
     name: infra
-  path: ./infrastructure/cert-manager
+  path: ./infrastructure/tools/cert-manager

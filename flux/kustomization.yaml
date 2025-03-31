@@ -4,7 +4,7 @@ namespace: flux-system
 
 resources:
   - infrastructure/cert-manager.yaml
-  - infrastructure/cert-manager-certs.yaml
+  - infrastructure/certificates.yaml
   - infrastructure/gateway-api-crd.yaml
   - infrastructure/envoy-gateway.yaml
   - infrastructure/envoy-gateway-config.yaml
@@ -16,3 +16,5 @@ resources:
   - infrastructure/stirlingpdf.yaml
   - infrastructure/cyberchef.yaml
   - infrastructure/juice-shop.yaml
+  - infrastructure/tailscale-operator.yaml
+  - infrastructure/tailscale.yaml

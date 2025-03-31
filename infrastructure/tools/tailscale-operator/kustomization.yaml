@@ -3,4 +3,7 @@ kind: Kustomization
 namespace: tailscale
 
 resources:
-  - dk1.yaml
+  - namespace.yaml
+  - values-sops.yaml
+  - release.yaml
+  - repository.yaml
