@@ -7,7 +7,7 @@ resources:
   - infrastructure/certificates.yaml
   - infrastructure/gateway-api-crd.yaml
   - infrastructure/envoy-gateway.yaml
-  - infrastructure/envoy-gateway-config.yaml
+  - infrastructure/gateway.yaml
   - infrastructure/kube-prom-stack.yaml
   - infrastructure/hello-world.yaml
   - infrastructure/metrics-server.yaml
