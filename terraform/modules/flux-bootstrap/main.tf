@@ -53,6 +53,11 @@ resource "helm_release" "sync" {
     value = "main"
   }
 
+  set {
+    name  = "gitRepository.spec.recurseSubmodules"
+    value = true
+  }
+
   ## Kustomization Repository
   set {
     name  = "kustomization.spec.interval"

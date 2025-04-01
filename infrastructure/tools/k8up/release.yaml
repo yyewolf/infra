@@ -16,4 +16,5 @@ spec:
   values:
     k8up:
       envVars:
-        BACKUP_SKIP_WITHOUT_ANNOTATION: "true"
+        - name: BACKUP_SKIP_WITHOUT_ANNOTATION
+          value: "true"
