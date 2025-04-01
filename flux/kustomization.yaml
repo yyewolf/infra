@@ -18,3 +18,5 @@ resources:
   - infrastructure/juice-shop.yaml
   - infrastructure/tailscale-operator.yaml
   - infrastructure/tailscale.yaml
+  - infrastructure/k8up-crd.yaml
+  - infrastructure/k8up.yaml

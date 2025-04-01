@@ -1,0 +1,19 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: k8up
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: k8up
+      version: "*"
+      sourceRef:
+        kind: HelmRepository
+        name: k8up
+      interval: 12h
+  values:
+    k8up:
+      envVars:
+        BACKUP_SKIP_WITHOUT_ANNOTATION: "true"
