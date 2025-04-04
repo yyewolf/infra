@@ -1,0 +1,15 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: keda
+  namespace: flux-system
+spec:
+  interval: 30m
+  targetNamespace: keda
+  releaseName: keda
+  chart:
+    spec:
+      chart: keda
+      sourceRef:
+        kind: HelmRepository
+        name: kedacore

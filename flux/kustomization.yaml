@@ -21,3 +21,4 @@ resources:
   - infrastructure/k8up-crd.yaml
   - infrastructure/k8up.yaml
   - infrastructure/postgresql.yaml
+  - infrastructure/keda.yaml
