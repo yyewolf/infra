@@ -7,3 +7,4 @@ resources:
   - keda-repository.yaml
   - keda-release.yaml
   - keda-http-release.yaml
+  - grants
