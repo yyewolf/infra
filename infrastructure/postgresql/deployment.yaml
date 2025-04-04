@@ -11,6 +11,9 @@ spec:
     metadata:
       labels:
         app: postgres
+      annotations:
+        k8up.io/backupcommand: sh -c 'pg_dump --user=postgres --clean'
+        k8up.io/file-extension: .sql
     spec:
       containers:
         - name: postgres
@@ -27,13 +30,6 @@ spec:
             - name: postgres-storage
               subPath: data
               mountPath: /var/lib/postgresql/data
-          resources:
-            limits:
-              cpu: 750m
-              memory: 512Mi
-            requests:
-              cpu: 750m
-              memory: 512Mi
       volumes:
         - name: postgres-storage
           persistentVolumeClaim:

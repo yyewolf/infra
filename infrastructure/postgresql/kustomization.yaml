@@ -7,3 +7,4 @@ resources:
   - secret-sops.yaml
   - deployment.yaml
   - pvc.yaml
+  - ../backup
