@@ -5,4 +5,4 @@ namespace: postgresql
 resources:
   - deployment.yaml
   - service.yaml
-  - ingress.yaml
+  - httpscaledobject.yaml

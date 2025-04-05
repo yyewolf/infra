@@ -8,9 +8,9 @@ spec:
     - http:
         paths:
           - path: /
-            pathType: Exact
+            pathType: Prefix
             backend:
               service:
-                name: pgadmin
+                name: keda-add-ons-http-interceptor-proxy
                 port:
-                  name: http
+                  number: 8080

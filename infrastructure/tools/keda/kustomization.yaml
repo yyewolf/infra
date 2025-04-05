@@ -8,3 +8,4 @@ resources:
   - keda-release.yaml
   - keda-http-release.yaml
   - grants
+  - ingresses

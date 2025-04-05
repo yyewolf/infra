@@ -17,12 +17,25 @@ spec:
           image: dpage/pgadmin4:9.2
           ports:
             - containerPort: 80
-          envFrom:
-            - secretRef:
-                name: postgres-secret
+          env:
+            - name: PGADMIN_DEFAULT_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: pgadmin-email
+            - name: PGADMIN_DEFAULT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: pgadmin-password
+            - name: PGADMIN_SERVER_JSON_FILE
+              value: /volume/secret/servers.json
           volumeMounts:
             - name: pgadmin-storage
               mountPath: /var/lib/pgadmin
+            - name: postgres-secret
+              readOnly: true
+              mountPath: /volume/secret
           resources:
             requests:
               cpu: 0m
@@ -33,3 +46,9 @@ spec:
       volumes:
         - name: pgadmin-storage
           emptyDir: {}
+        - name: postgres-secret
+          secret:
+            secretName: postgres-secret
+            items:
+              - key: servers.json
+                path: servers.json
