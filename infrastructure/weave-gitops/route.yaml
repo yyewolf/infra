@@ -4,17 +4,18 @@ metadata:
   name: weave-gitops
 spec:
   parentRefs:
-  - name: main
-    namespace: envoy-system
-    sectionName: https
+    - name: main
+      namespace: envoy-system
+      sectionName: https
   hostnames:
     - "flux.hackcorp.net"
   rules:
     - backendRefs:
         - group: ""
           kind: Service
-          name: weave-gitops
-          port: 9001
+          name: keda-add-ons-http-interceptor-proxy
+          namespace: keda
+          port: 8080
           weight: 1
       matches:
         - path:

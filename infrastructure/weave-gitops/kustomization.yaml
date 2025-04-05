@@ -7,3 +7,4 @@ resources:
   - release.yaml
   - values-sops.yaml
   - route.yaml
+  - httpscaledobject.yaml

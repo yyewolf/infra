@@ -4,3 +4,6 @@ namespace: keda
 
 resources:
   - hello-world.yaml
+  - stirlingpdf.yaml
+  - flux-system.yaml
+  - juice-shop.yaml

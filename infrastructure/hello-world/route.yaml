@@ -4,9 +4,9 @@ metadata:
   name: backend
 spec:
   parentRefs:
-  - name: main
-    namespace: envoy-system
-    sectionName: https
+    - name: main
+      namespace: envoy-system
+      sectionName: https
   hostnames:
     - "hackcorp.net"
   rules:
