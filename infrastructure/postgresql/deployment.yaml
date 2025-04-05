@@ -30,6 +30,10 @@ spec:
             - name: postgres-storage
               subPath: data
               mountPath: /var/lib/postgresql/data
+          resources:
+            limits:
+              cpu: 500m
+              memory: 400Mi
       volumes:
         - name: postgres-storage
           persistentVolumeClaim:
