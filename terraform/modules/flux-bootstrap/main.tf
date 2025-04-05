@@ -71,7 +71,7 @@ resource "helm_release" "sync" {
 
   set {
     name  = "kustomization.spec.wait"
-    value = "true"
+    value = "false"
   }
 
   set {

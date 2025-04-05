@@ -7,7 +7,6 @@ spec:
   failedJobsHistoryLimit: 1
   successfulJobsHistoryLimit: 1
   concurrencyPolicy: Forbid
-  startingDeadlineSeconds: 0
   jobTemplate:
     spec:
       ttlSecondsAfterFinished: 3600
