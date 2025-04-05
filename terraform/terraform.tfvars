@@ -9,6 +9,6 @@ cluster_name = "kastor"
 cluster_version = "1.31"
 cluster_type = "dedicated_4"
 pool_name = "rondin"
-pool_type = "a2-ram4-disk20-perf1"
+pool_type = "a2-ram4-disk50-perf1"
 
 repository_url = "https://github.com/yyewolf/infra"
