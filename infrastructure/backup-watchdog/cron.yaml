@@ -1,0 +1,54 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: k8up-backup-status-report
+spec:
+  schedule: "0 7 * * *"  # At 7 AM every day
+  failedJobsHistoryLimit: 1
+  successfulJobsHistoryLimit: 1
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 0
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 3600
+      template:
+        spec:
+          serviceAccountName: k8up-reader
+          restartPolicy: OnFailure
+          containers:
+            - name: backup-status
+              image: bitnami/kubectl:latest  # Uses kubectl
+              env:
+                - name: NOTIFY_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: notify-url
+                      key: URL
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+                  echo "Collecting backup statuses..."
+
+                  message="> Backup Statuses\n\n"
+                  message="${message}Status | Namespace | Creation Time\n\n"
+                  for ns in $(kubectl get ns -o jsonpath='{.items[*].metadata.name}'); do
+                    latest=$(kubectl get backups.k8up.io -n "$ns" --sort-by=.metadata.creationTimestamp -o json 2>/dev/null | jq -r '.items[-1]')
+                    if [ "$latest" != "null" ]; then
+                      name=$(echo "$latest" | jq -r '.metadata.name')
+                      time=$(echo "$latest" | jq -r '.metadata.creationTimestamp' || echo "N/A")
+                      status=$(echo "$latest" | jq -r '.status.conditions | map(select(.type == "Completed")) | .[0].reason' || echo "N/A")
+                      if [[ "$status" == "Succeeded" ]]; then
+                        status="OK"
+                      elif [[ "$status" == "Failed" ]]; then
+                        status="NOK"
+                      else
+                        status="?"
+                      fi
+                      message="${message}${status} - ${name} - ${time}\n"
+                    fi
+                  done
+                  encoded=$(echo -e "$message" | jq -s -R -r @uri)
+                  cleaned=$(echo "$encoded" | sed -E 's/(%0A)+$//')
+                  curl -s "${URL}&msg=${cleaned}" -v

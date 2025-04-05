@@ -22,3 +22,4 @@ resources:
   - infrastructure/k8up.yaml
   - infrastructure/postgresql.yaml
   - infrastructure/keda.yaml
+  - infrastructure/backup-watchdog.yaml
