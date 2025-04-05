@@ -9,7 +9,7 @@ kind: ClusterRole
 metadata:
   name: k8up-backup-reader
 rules:
-  - apiGroups: ["backups.k8up.io"]
+  - apiGroups: ["k8up.io"]
     resources: ["backups"]
     verbs: ["get", "list", "watch"]
   - apiGroups: [""]

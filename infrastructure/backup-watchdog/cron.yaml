@@ -13,10 +13,10 @@ spec:
       template:
         spec:
           serviceAccountName: k8up-reader
-          restartPolicy: OnFailure
+          restartPolicy: Never
           containers:
             - name: backup-status
-              image: bitnami/kubectl:latest  # Uses kubectl
+              image: lachlanevenson/k8s-kubectl
               env:
                 - name: NOTIFY_URL
                   valueFrom:
@@ -27,9 +27,10 @@ spec:
                 - /bin/sh
                 - -c
                 - |
+                  apk add --no-cache curl jq
                   set -e
                   echo "Collecting backup statuses..."
-
+                  
                   message="> Backup Statuses\n\n"
                   message="${message}Status | Namespace | Creation Time\n\n"
                   for ns in $(kubectl get ns -o jsonpath='{.items[*].metadata.name}'); do
@@ -50,4 +51,7 @@ spec:
                   done
                   encoded=$(echo -e "$message" | jq -s -R -r @uri)
                   cleaned=$(echo "$encoded" | sed -E 's/(%0A)+$//')
-                  curl -s "${URL}&msg=${cleaned}" -v
+                  echo "Sending message to notify URL..."
+                  echo "Message: $message"
+                  echo "${NOTIFY_URL}&msg=${cleaned}" 
+                  curl "${NOTIFY_URL}&msg=${cleaned}" 
