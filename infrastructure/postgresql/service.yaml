@@ -3,10 +3,9 @@ kind: Service
 metadata:
   name: pgadmin
 spec:
-  type: LoadBalancer
-  loadBalancerClass: tailscale
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
   selector:
     app: pgadmin
-  ports:
-    - port: 80
-      targetPort: 80
