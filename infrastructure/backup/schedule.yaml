@@ -17,8 +17,8 @@ spec:
       key: repoPassword
   backup:
     schedule: '0 3 * * *'
-    failedJobsHistoryLimit: 2
-    successfulJobsHistoryLimit: 2
+    failedJobsHistoryLimit: 1
+    successfulJobsHistoryLimit: 1
   check:
     schedule: '0 1 * * *'
   prune:
