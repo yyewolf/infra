@@ -23,6 +23,9 @@ spec:
             - name: DOCKER_ENABLE_SECURITY
               value: "true"
           resources:
+            requests:
+              cpu: 0m
+              memory: 0Mi
             limits:
               cpu: 400m
               memory: 750Mi

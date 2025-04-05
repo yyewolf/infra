@@ -24,6 +24,9 @@ spec:
             - name: pgadmin-storage
               mountPath: /var/lib/pgadmin
           resources:
+            requests:
+              cpu: 0m
+              memory: 0Mi
             limits:
               cpu: 500m
               memory: 400Mi
