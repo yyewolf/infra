@@ -36,7 +36,6 @@ spec:
                   for ns in $(kubectl get ns -o jsonpath='{.items[*].metadata.name}'); do
                     latest=$(kubectl get backups.k8up.io -n "$ns" --sort-by=.metadata.creationTimestamp -o json 2>/dev/null | jq -r '.items[-1]')
                     if [ "$latest" != "null" ]; then
-                      name=$(echo "$latest" | jq -r '.metadata.name')
                       time=$(echo "$latest" | jq -r '.metadata.creationTimestamp' || echo "N/A")
                       status=$(echo "$latest" | jq -r '.status.conditions | map(select(.type == "Completed")) | .[0].reason' || echo "N/A")
                       if [[ "$status" == "Succeeded" ]]; then
@@ -46,7 +45,7 @@ spec:
                       else
                         status="?"
                       fi
-                      message="${message}${status} - ${name} - ${time}\n"
+                      message="${message}${status} - ${ns} - ${time}\n"
                     fi
                   done
                   encoded=$(echo -e "$message" | jq -s -R -r @uri)

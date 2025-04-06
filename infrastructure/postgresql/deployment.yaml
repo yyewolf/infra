@@ -12,7 +12,7 @@ spec:
       labels:
         app: postgres
       annotations:
-        k8up.io/backupcommand: sh -c 'pg_dump --user=postgres --clean'
+        k8up.io/backupcommand: sh -c 'pg_dumpall --user=postgres --clean'
         k8up.io/file-extension: .sql
     spec:
       containers:

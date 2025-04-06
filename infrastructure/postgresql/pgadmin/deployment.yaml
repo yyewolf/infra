@@ -30,6 +30,8 @@ spec:
                   key: pgadmin-password
             - name: PGADMIN_SERVER_JSON_FILE
               value: /volume/secret/servers.json
+            - name: PGADMIN_CONFIG_ENABLE_SERVER_PASS_EXEC_CMD
+              value: "True"
           volumeMounts:
             - name: pgadmin-storage
               mountPath: /var/lib/pgadmin
