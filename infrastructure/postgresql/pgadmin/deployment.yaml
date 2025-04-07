@@ -32,6 +32,14 @@ spec:
               value: /volume/secret/servers.json
             - name: PGADMIN_CONFIG_ENABLE_SERVER_PASS_EXEC_CMD
               value: "True"
+          startupProbe:
+            httpGet:
+              path: /
+              port: 80
+            failureThreshold: 30
+            periodSeconds: 5
+            timeoutSeconds: 5
+            successThreshold: 1
           volumeMounts:
             - name: pgadmin-storage
               mountPath: /var/lib/pgadmin

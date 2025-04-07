@@ -14,6 +14,11 @@ spec:
         kind: HelmRepository
         name: kedacore
   values:
+    crds:
+      install: false
+    images:
+      operator: ghcr.io/yyewolf/http-add-on-operator
+      interceptor: ghcr.io/yyewolf/http-add-on-interceptor
     operator:
       resources:
         requests:
@@ -30,7 +35,8 @@ spec:
           cpu: 0m
           memory: 0Mi
     interceptor:
-      responseHeaderTimeout: 120s
+      replicas:
+        waitTimeout: 2s
       resources:
         requests:
           cpu: 0m

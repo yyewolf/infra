@@ -1,0 +1,96 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: caddy-config
+data:
+  Caddyfile: |
+    :80 {
+        root * /srv
+        file_server
+        templates
+
+        respond /is_still_booting_up "yes it is" 200
+    }
+
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>{{.Host}} is booting up</title>
+        <style>
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                margin: 0;
+                background: linear-gradient(-45deg, #ff9a9e, #fad0c4, #fad0c4, #fbc2eb, #a18cd1);
+                background-size: 400% 400%;
+                animation: backgroundShift 10s ease infinite;
+            }
+
+            h1 {
+                font-size: 2.5rem;
+                color: white;
+                background: linear-gradient(90deg, #ff6a00, #ee0979, #ff6a00);
+                background-size: 200% auto;
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                animation: pulse 1.5s ease-in-out infinite, gradientFlow 3s linear infinite;
+            }
+
+            @keyframes pulse {
+                0%, 100% {
+                    transform: scale(1);
+                    opacity: 1;
+                }
+                50% {
+                    transform: scale(1.05);
+                    opacity: 0.85;
+                }
+            }
+
+            @keyframes gradientFlow {
+                0% {
+                    background-position: 0% center;
+                }
+                100% {
+                    background-position: 200% center;
+                }
+            }
+
+            @keyframes backgroundShift {
+                0% {
+                    background-position: 0% 50%;
+                }
+                50% {
+                    background-position: 100% 50%;
+                }
+                100% {
+                    background-position: 0% 50%;
+                }
+            }
+        </style>
+        <script>
+            async function checkBootStatus() {
+                try {
+                    const res = await fetch('/is_still_booting_up');
+                    const text = await res.text();
+                    if (text.trim() !== "yes it is") {
+                        location.reload();
+                    }
+                } catch (err) {
+                    console.error("Error checking boot status:", err);
+                    // Optionally retry anyway
+                }
+            }
+
+            setInterval(checkBootStatus, 2000); // every 2 seconds
+        </script>
+    </head>
+    <body>
+        <h1>{{.Host}} is booting up....</h1>
+    </body>
+    </html>

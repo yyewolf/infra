@@ -13,6 +13,9 @@ spec:
     name: pgadmin
     service: pgadmin
     port: 80
+  fallbackTargetRef:
+    service: service-fallback
+    port: 80
   replicas:
     min: 0
     max: 1

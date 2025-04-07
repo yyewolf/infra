@@ -6,6 +6,7 @@ resources:
   - namespace.yaml
   - keda-repository.yaml
   - keda-release.yaml
+  - keda-http-crd.yaml
   - keda-http-release.yaml
   - grants
   - ingresses

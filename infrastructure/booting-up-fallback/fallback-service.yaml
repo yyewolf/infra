@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-fallback
+spec:
+  type: ExternalName
+  externalName: caddy.booting-up.svc.cluster.local
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
