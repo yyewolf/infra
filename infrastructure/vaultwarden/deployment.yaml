@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vaultwarden
+  labels:
+    app: vaultwarden
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vaultwarden
+  template:
+    metadata:
+      labels:
+        app: vaultwarden
+    spec:
+      containers:
+        - name: vaultwarden
+          image: vaultwarden/server:latest
+          envFrom:
+            - secretRef:
+                name: vaultwarden-secret
+          volumeMounts:
+            - name: vaultwarden-data
+              mountPath: /data
+          resources:
+            requests:
+              memory: "0"
+              cpu: "0"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+      volumes:
+        - name: vaultwarden-data
+          persistentVolumeClaim:
+            claimName: vaultwarden-pvc

@@ -52,19 +52,32 @@ data:
             }
         </style>
         <script>
-            async function checkBootStatus() {
+            // sleep function 
+            function sleep(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+
+            async function checkIfStillBootingUp() {
                 try {
                     const res = await fetch('/is_still_booting_up');
                     const text = await res.text();
-                    if (text.trim() !== "yes it is") {
-                        location.reload();
-                    }
+                    return text.trim() === "yes it is";
                 } catch (err) {
-                    console.error("Error checking boot status:", err);
+                    return false;
                 }
             }
 
-            setInterval(checkBootStatus, 2000);
+            async function checkBootStatus() {
+                while (true) {
+                    const stillBooting = await checkIfStillBootingUp();
+                    if (!stillBooting) {
+                        window.location.reload();
+                        break;
+                    }
+                    
+                    await sleep(250);
+                }
+            }
         </script>
     </head>
     <body>

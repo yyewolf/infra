@@ -24,3 +24,4 @@ resources:
   - infrastructure/keda.yaml
   - infrastructure/backup-watchdog.yaml
   - infrastructure/booting-up.yaml
+  - infrastructure/vaultwarden.yaml
