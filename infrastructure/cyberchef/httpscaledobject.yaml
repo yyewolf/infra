@@ -1,18 +1,18 @@
 apiVersion: http.keda.sh/v1alpha1
 kind: HTTPScaledObject
 metadata:
-  name: weave-gitops
+  name: cyberchef
 spec:
   hosts:
-    - flux.hackcorp.net
+    - hackcorp.net
   pathPrefixes:
     - /
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: weave-gitops
-    service: weave-gitops
-    port: 9001
+    name: cyberchef
+    service: cyberchef
+    port: 80
   fallbackTargetRef:
     service: service-fallback
     port: 80

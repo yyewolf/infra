@@ -8,3 +8,4 @@ resources:
   - route.yaml
   - service.yaml
   - httpscaledobject.yaml
+  - ../booting-up-fallback

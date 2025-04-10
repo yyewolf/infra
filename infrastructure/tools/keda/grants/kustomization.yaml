@@ -7,3 +7,4 @@ resources:
   - stirlingpdf.yaml
   - flux-system.yaml
   - juice-shop.yaml
+  - cyberchef.yaml

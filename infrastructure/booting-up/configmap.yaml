@@ -78,6 +78,8 @@ data:
                     await sleep(250);
                 }
             }
+            
+            checkBootStatus();
         </script>
     </head>
     <body>

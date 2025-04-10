@@ -7,3 +7,5 @@ resources:
   - deployment.yaml
   - route.yaml
   - service.yaml
+  - httpscaledobject.yaml
+  - ../booting-up-fallback
