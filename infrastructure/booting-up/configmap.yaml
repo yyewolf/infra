@@ -9,7 +9,14 @@ data:
         file_server
         templates
 
+        # Special endpoint
         respond /is_still_booting_up "yes it is" 200
+
+        # Redirect everything else to /index.html
+        handle {
+            rewrite * /index.html
+            file_server
+        }
     }
 
   index.html: |

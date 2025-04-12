@@ -1,17 +1,17 @@
 apiVersion: http.keda.sh/v1alpha1
 kind: HTTPScaledObject
 metadata:
-  name: cyberchef
+  name: caddy
 spec:
   hosts:
-    - kebab.hackcorp.net
+    - capsule.hackcorp.net
   pathPrefixes:
     - /
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: cyberchef
-    service: cyberchef
+    name: caddy
+    service: caddy
     port: 80
   fallbackTargetRef:
     service: service-fallback

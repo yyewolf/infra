@@ -26,3 +26,4 @@ resources:
   - infrastructure/booting-up.yaml
   - infrastructure/vaultwarden.yaml
   - infrastructure/nfs.yaml
+  - infrastructure/capsule.yaml

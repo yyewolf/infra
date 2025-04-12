@@ -8,3 +8,4 @@ resources:
   - flux-system.yaml
   - juice-shop.yaml
   - cyberchef.yaml
+  - capsule.yaml

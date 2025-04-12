@@ -12,7 +12,7 @@ spec:
     kind: Deployment
     name: stirlingpdf
     service: stirlingpdf
-    port: 80
+    port: 8080
   fallbackTargetRef:
     service: service-fallback
     port: 80

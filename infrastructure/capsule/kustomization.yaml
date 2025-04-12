@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: capsule
+
+resources:
+  - namespace.yaml
+  - deployment.yaml
+  - service.yaml
+  - httpscaledobject.yaml
+  - route.yaml
+  - ../booting-up-fallback
+
+configMapGenerator:
+- name: caddy-config
+  files:
+  - cm/Caddyfile
+  - cm/index.html

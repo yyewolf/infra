@@ -17,8 +17,10 @@ spec:
     crds:
       install: false
     images:
+      tag: main
       operator: ghcr.io/yyewolf/http-add-on-operator
       interceptor: ghcr.io/yyewolf/http-add-on-interceptor
+      scaler: ghcr.io/yyewolf/http-add-on-scaler
     operator:
       resources:
         requests:
