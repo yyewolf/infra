@@ -13,7 +13,7 @@ spec:
     name: stirlingpdf
     service: stirlingpdf
     port: 8080
-  fallbackTargetRef:
+  coldStartTimeoutFailoverRef:
     service: service-fallback
     port: 80
   replicas:

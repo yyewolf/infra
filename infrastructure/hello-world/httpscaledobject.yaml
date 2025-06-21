@@ -14,7 +14,7 @@ spec:
     name: backend
     service: backend
     port: 3000
-  fallbackTargetRef:
+  coldStartTimeoutFailoverRef:
     service: service-fallback
     port: 80
   replicas:

@@ -60,8 +60,8 @@ spec:
           spec:
             description: HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
             properties:
-              fallbackTargetRef:
-                description: (optional) The name of the fallback service to route
+              coldStartTimeoutFailoverRef:
+                description: (optional) The name of the failover service to route
                   HTTP requests to when the target is not available
                 properties:
                   port:
@@ -74,6 +74,12 @@ spec:
                   service:
                     description: The name of the service to route to
                     type: string
+                  timeoutSeconds:
+                    default: 30
+                    description: The timeout in seconds to wait before routing to
+                      the failover service
+                    format: int32
+                    type: integer
                 required:
                 - service
                 type: object
