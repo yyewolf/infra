@@ -16,6 +16,7 @@ spec:
   coldStartTimeoutFailoverRef:
     service: service-fallback
     port: 80
+    timeoutSeconds: 2
   replicas:
     min: 0
     max: 1
