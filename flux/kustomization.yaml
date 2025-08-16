@@ -27,3 +27,4 @@ resources:
   - infrastructure/vaultwarden.yaml
   - infrastructure/nfs.yaml
   - infrastructure/capsule.yaml
+  - infrastructure/satisfactory.yaml
