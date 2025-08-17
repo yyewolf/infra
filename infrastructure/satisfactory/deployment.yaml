@@ -53,6 +53,9 @@ spec:
             requests:
               cpu: 0m
               memory: 0Mi
+            limits:
+              cpu: 3
+              memory: 8Gi
       volumes:
         - name: config
           hostPath:
