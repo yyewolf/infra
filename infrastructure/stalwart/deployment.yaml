@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stalwart
+  labels:
+    app: stalwart
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: stalwart
+  template:
+    metadata:
+      labels:
+        app: stalwart
+    spec:
+      nodeSelector:
+        location: home1
+      tolerations:
+        - key: "PrivateNode"
+          operator: "Equal"
+          value: "home1"
+      containers:
+        - name: stalwart
+          image: stalwartlabs/stalwart:latest
+          ports:
+            - name: smtp
+              protocol: TCP
+              containerPort: 25
+            - name: submission
+              protocol: TCP
+              containerPort: 587
+            - name: smtps
+              protocol: TCP
+              containerPort: 465
+            - name: imap
+              protocol: TCP
+              containerPort: 143
+            - name: imaps
+              protocol: TCP
+              containerPort: 993
+            - name: sieve
+              protocol: TCP
+              containerPort: 4190
+          volumeMounts:
+            - name: stalwart-data
+              mountPath: /opt/stalwart
+            - name: hackcorp-net
+              mountPath: /certs/hackcorp.net
+              readOnly: true
+            - name: yewolf-fr
+              mountPath: /certs/yewolf.fr
+              readOnly: true
+          resources:
+            requests:
+              cpu: 0m
+              memory: 0Mi
+            limits:
+              cpu: 1
+              memory: 2Gi
+      volumes:
+        - name: stalwart-data
+          hostPath:
+            path: /media/disk/stalwart
+            type: Directory
+        - name: hackcorp-net
+          secret:
+            secretName: mail.hackcorp.net
+        - name: yewolf-fr
+          secret:
+            secretName: mail.yewolf.fr

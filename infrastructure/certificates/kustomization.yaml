@@ -3,6 +3,7 @@ kind: Kustomization
 namespace: cert-manager
 
 resources:
+  - issuer-yewolf.yaml
   - issuer.yaml
   - key-sops.yaml
   - certificate-hackcorp.yaml

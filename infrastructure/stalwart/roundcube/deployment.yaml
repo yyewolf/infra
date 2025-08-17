@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: roundcube
+  labels:
+    app: roundcube
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: roundcube
+  template:
+    metadata:
+      labels:
+        app: roundcube
+    spec:
+      containers:
+        - name: roundcube
+          image: roundcube/roundcubemail:latest
+          ports:
+            - containerPort: 80
+          env:
+            - name: ROUNDCUBEMAIL_DEFAULT_HOST
+              value: "ssl://mail.hackcorp.net"
+            - name: ROUNDCUBEMAIL_DEFAULT_PORT
+              value: "993"
+            - name: ROUNDCUBEMAIL_SMTP_SERVER
+              value: "tls://mail.hackcorp.net"
+            - name: ROUNDCUBEMAIL_SMTP_PORT
+              value: "587"
+            - name: ROUNDCUBEMAIL_SMTP_USER
+              value: "%u"
+            - name: ROUNDCUBEMAIL_SMTP_PASS
+              value: "%p"
+          resources:
+            requests:
+              cpu: 0m
+              memory: 0Mi
+            limits:
+              cpu: 1
+              memory: 1Gi

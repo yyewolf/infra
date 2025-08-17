@@ -28,3 +28,4 @@ resources:
   - infrastructure/nfs.yaml
   - infrastructure/capsule.yaml
   - infrastructure/satisfactory.yaml
+  - infrastructure/stalwart.yaml

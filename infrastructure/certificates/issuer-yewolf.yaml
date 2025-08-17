@@ -1,18 +1,18 @@
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
-  name: hackcorp
+  name: yewolf
 spec:
   acme:
     email: contact+le@yewolf.fr
     server: https://acme-v02.api.letsencrypt.org/directory
     privateKeySecretRef:
-      name: hackcorp
+      name: yewolf
     solvers:
     - selector:
         dnsZones:
-          - "hackcorp.net"
-          - "*.hackcorp.net"
+          - "yewolf.fr"
+          - "*.yewolf.fr"
       dns01:
         rfc2136:
           nameserver: 84.247.140.244:53
