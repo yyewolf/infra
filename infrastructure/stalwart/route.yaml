@@ -12,6 +12,9 @@ spec:
     - "autoconfig.hackcorp.net"
     - "autodiscover.hackcorp.net"
     - "mta-sts.hackcorp.net"
+    - "autoconfig.yewolf.fr"
+    - "autodiscover.yewolf.fr"
+    - "mta-sts.yewolf.fr"
   rules:
     - backendRefs:
         - group: ""

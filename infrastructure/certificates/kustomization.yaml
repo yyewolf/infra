@@ -7,4 +7,5 @@ resources:
   - issuer.yaml
   - key-sops.yaml
   - certificate-hackcorp.yaml
+  - certificate-yewolf.yaml
   - reference-grant.yaml

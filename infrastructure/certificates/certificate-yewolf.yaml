@@ -1,0 +1,29 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: yewolf.fr
+spec:
+  secretName: yewolf.fr
+  privateKey:
+    algorithm: RSA
+    encoding: PKCS1
+    size: 4096
+
+  duration: 2160h # 90d
+  renewBefore: 360h # 15d
+
+  isCA: false
+  usages:
+    - server auth
+    - client auth
+
+  subject:
+    organizations:
+      - yewolf
+  dnsNames:
+    - 'yewolf.fr'
+    - '*.yewolf.fr'
+
+  issuerRef:
+    name: yewolf
+    kind: ClusterIssuer

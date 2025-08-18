@@ -21,6 +21,10 @@ spec:
         group: ""
         name: hackcorp-host-secret
         namespace: cert-manager
+      - kind: Secret
+        group: ""
+        name: yewolf.fr
+        namespace: cert-manager
     allowedRoutes:
       namespaces:
         from: All
