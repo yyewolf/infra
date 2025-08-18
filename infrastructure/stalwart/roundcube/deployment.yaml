@@ -19,6 +19,9 @@ spec:
           image: roundcube/roundcubemail:latest
           ports:
             - containerPort: 80
+          envFrom:
+            - secretRef:
+                name: roundcube-env
           env:
             - name: ROUNDCUBEMAIL_DEFAULT_HOST
               value: "ssl://mail.hackcorp.net"
@@ -32,6 +35,7 @@ spec:
               value: "%u"
             - name: ROUNDCUBEMAIL_SMTP_PASS
               value: "%p"
+            - name: ROUNDCUBEMAIL_DB_DSNW
           resources:
             requests:
               cpu: 0m
