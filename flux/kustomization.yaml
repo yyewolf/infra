@@ -25,8 +25,8 @@ resources:
   - infrastructure/backup-watchdog.yaml
   - infrastructure/booting-up.yaml
   - infrastructure/vaultwarden.yaml
-  - infrastructure/nfs.yaml
   - infrastructure/capsule.yaml
   - infrastructure/satisfactory.yaml
   - infrastructure/stalwart.yaml
   - infrastructure/portfolio.yaml
+  - infrastructure/joplin.yaml

@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: joplin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: joplin
+  template:
+    metadata:
+      labels:
+        app: joplin
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - image: docker.io/joplin/server:latest
+          imagePullPolicy: IfNotPresent
+          name: joplin
+          envFrom:
+            - secretRef:
+                name: joplin-secret
+          resources:
+            requests:
+              cpu: 0m
+              memory: 0Mi
+            limits:
+              cpu: 200m
+              memory: 600Mi

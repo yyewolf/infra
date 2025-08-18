@@ -1,7 +1,7 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: nfs
+  name: joplin
 spec:
   decryption:
     provider: sops
@@ -14,4 +14,4 @@ spec:
   sourceRef:
     kind: GitRepository
     name: infra
-  path: ./infrastructure/tools/nfs
+  path: ./infrastructure/joplin
