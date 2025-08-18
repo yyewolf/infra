@@ -9,3 +9,5 @@ resources:
   - certificate-hackcorp.yaml
   - certificate-yewolf.yaml
   - reference-grant.yaml
+  - infomaniak-sops.yaml
+  - infomaniak.yaml

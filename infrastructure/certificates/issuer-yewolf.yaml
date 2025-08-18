@@ -9,15 +9,12 @@ spec:
     privateKeySecretRef:
       name: yewolf
     solvers:
-    - selector:
-        dnsZones:
-          - "yewolf.fr"
-          - "*.yewolf.fr"
+    - selector: {}
       dns01:
-        rfc2136:
-          nameserver: 84.247.140.244:53
-          tsigKeyName: cluster
-          tsigAlgorithm: HMACSHA512
-          tsigSecretSecretRef:
-           name: tsig-secret
-           key: tsig-secret-key
+        webhook:
+          groupName: acme.infomaniak.com
+          solverName: infomaniak
+          config:
+            apiTokenSecretRef:
+              name: infomaniak-api-credentials
+              key: api-token
