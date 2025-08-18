@@ -24,11 +24,11 @@ spec:
                 name: roundcube-env
           env:
             - name: ROUNDCUBEMAIL_DEFAULT_HOST
-              value: "ssl://mail.hackcorp.net"
+              value: "ssl://mail.yewolf.fr"
             - name: ROUNDCUBEMAIL_DEFAULT_PORT
               value: "993"
             - name: ROUNDCUBEMAIL_SMTP_SERVER
-              value: "tls://mail.hackcorp.net"
+              value: "tls://mail.yewolf.fr"
             - name: ROUNDCUBEMAIL_SMTP_PORT
               value: "587"
             - name: ROUNDCUBEMAIL_SMTP_USER
@@ -42,4 +42,4 @@ spec:
               memory: 0Mi
             limits:
               cpu: 1
-              memory: 1Gi
+              memory: 500Mi

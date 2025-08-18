@@ -8,10 +8,10 @@ spec:
     namespace: envoy-system
     sectionName: https
   hostnames:
-    - "stalwart.hackcorp.net"
     - "autoconfig.hackcorp.net"
     - "autodiscover.hackcorp.net"
     - "mta-sts.hackcorp.net"
+    - "stalwart.yewolf.fr"
     - "autoconfig.yewolf.fr"
     - "autodiscover.yewolf.fr"
     - "mta-sts.yewolf.fr"

@@ -8,6 +8,7 @@ spec:
     namespace: envoy-system
     sectionName: https
   hostnames:
+    - "mail.yewolf.fr"
     - "mail.hackcorp.net"
   rules:
     - backendRefs:
