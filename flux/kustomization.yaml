@@ -29,3 +29,4 @@ resources:
   - infrastructure/capsule.yaml
   - infrastructure/satisfactory.yaml
   - infrastructure/stalwart.yaml
+  - infrastructure/portfolio.yaml

@@ -1,0 +1,24 @@
+apiVersion: http.keda.sh/v1alpha1
+kind: HTTPScaledObject
+metadata:
+  name: portfolio
+spec:
+  hosts:
+    - yewolf.fr
+    - portfolio.hackcorp.net
+  pathPrefixes:
+    - /
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: portfolio
+    service: portfolio
+    port: 80
+  coldStartTimeoutFailoverRef:
+    service: service-fallback
+    port: 80
+    timeoutSeconds: 2
+  replicas:
+    min: 0
+    max: 1
+  scaledownPeriod: 300
