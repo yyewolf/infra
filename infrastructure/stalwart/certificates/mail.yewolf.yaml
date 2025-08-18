@@ -26,5 +26,5 @@ spec:
     - 'smtp.yewolf.fr'
 
   issuerRef:
-    name: yewolf
+    name: infomaniak
     kind: ClusterIssuer

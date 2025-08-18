@@ -25,5 +25,5 @@ spec:
     - '*.hackcorp.net'
 
   issuerRef:
-    name: hackcorp
+    name: infomaniak
     kind: ClusterIssuer
