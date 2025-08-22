@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: pgadmin
-          image: dpage/pgadmin4:9.2@sha256:52cb72a9e3da275324ca0b9bb3891021366d501aad375db34584a7bca8ce02ff
+          image: dpage/pgadmin4:9.7@sha256:5929bac24d91b5d7219686c8d66a703cd5851a498620bca4f5e4263873b015c0
           ports:
             - containerPort: 80
           env:
