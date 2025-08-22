@@ -3,15 +3,22 @@
   "extends": [
     "config:best-practices"
   ],
-  "docker": {
-    "enabled": true
-  },
   "kubernetes": {
-    "managerFilePatterns": ["/.*\\.yaml$/"]
+    "managerFilePatterns": [
+      "/.*\\.yaml$/"
+    ]
   },
   "packageRules": [
     {
-      "matchManagers": ["docker"],
+      "matchCategories": [
+        "docker"
+      ],
+      "enabled": true
+    },
+    {
+      "matchManagers": [
+        "docker"
+      ],
       "enabled": true,
       "groupName": "docker dependencies"
     }
