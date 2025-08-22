@@ -50,7 +50,7 @@ spec:
     spec:
       containers:
         - name: worker
-          image: docker.io/ccarney16/pterodactyl-panel:v1.11.4@sha256:6bff625e3ef82874aaff665e6995b0554dab05527f3c497fb44f0a693a0349c9
+          image: docker.io/ccarney16/pterodactyl-panel:v1.11.11@sha256:0fa94427829b77027d1658d75e272e02f810ded0ecaf85392758b47727fabd31
           command: ["p:worker"]
           envFrom:
             - secretRef:
@@ -92,7 +92,7 @@ spec:
     spec:
       containers:
         - name: cron
-          image: docker.io/ccarney16/pterodactyl-panel:v1.11.4@sha256:6bff625e3ef82874aaff665e6995b0554dab05527f3c497fb44f0a693a0349c9
+          image: docker.io/ccarney16/pterodactyl-panel:v1.11.11@sha256:0fa94427829b77027d1658d75e272e02f810ded0ecaf85392758b47727fabd31
           command: ["p:cron"]
           envFrom:
             - secretRef:
@@ -139,7 +139,7 @@ spec:
     spec:
       containers:
         - name: panel
-          image: docker.io/ccarney16/pterodactyl-panel:v1.11.4@sha256:6bff625e3ef82874aaff665e6995b0554dab05527f3c497fb44f0a693a0349c9
+          image: docker.io/ccarney16/pterodactyl-panel:v1.11.11@sha256:0fa94427829b77027d1658d75e272e02f810ded0ecaf85392758b47727fabd31
           envFrom:
             - secretRef:
                 name: env-secret
