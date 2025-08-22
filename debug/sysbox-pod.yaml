@@ -10,6 +10,6 @@ spec:
   runtimeClassName: sysbox-runc
   containers:
   - name: ubu-bio-systemd-docker
-    image: registry.nestybox.com/nestybox/ubuntu-bionic-systemd-docker
+    image: registry.nestybox.com/nestybox/ubuntu-bionic-systemd-docker@sha256:19d72caebdb4dbd3e3b77363b0d4a4f56511803947e72976310c704c11967774
     command: ["/sbin/init"]
   restartPolicy: Never

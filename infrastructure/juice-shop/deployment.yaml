@@ -17,7 +17,7 @@ spec:
       automountServiceAccountToken: false
       runtimeClassName: sysbox-runc
       containers:
-        - image: bkimminich/juice-shop
+        - image: bkimminich/juice-shop@sha256:89337a9b216106f276ecc9875800c4c9c47b9d89b8a785b1111d5c94a0fed5c2
           imagePullPolicy: IfNotPresent
           name: juice-shop
           resources:
