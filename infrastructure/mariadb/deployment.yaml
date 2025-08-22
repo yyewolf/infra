@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mariadb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mariadb
+  template:
+    metadata:
+      labels:
+        app: mariadb
+      annotations:
+        k8up.io/backupcommand: sh -c 'mysqldump -u root -p"$MYSQL_ROOT_PASSWORD" --all-databases'
+        k8up.io/file-extension: .sql
+    spec:
+      nodeSelector:
+        location: home1
+      tolerations:
+        - key: "PrivateNode"
+          operator: "Equal"
+          value: "home1"
+      containers:
+      - name: mariadb
+        image: mariadb:11
+        env:
+          - name: MYSQL_ROOT_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: mariadb-secret
+                key: password
+        ports:
+        - containerPort: 3306
+        volumeMounts:
+        - name: mariadb-storage
+          mountPath: /var/lib/mysql
+      volumes:
+      - name: mariadb-storage
+        hostPath:
+          path: /media/disk/mariadb
+          type: DirectoryOrCreate

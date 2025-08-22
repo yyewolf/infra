@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pterodactyl-nginx-config
+  namespace: pterodactyl
+data:
+  20-tls-config.sh: |
+    #!/bin/bash
+    export CADDY_APP_URL=:8080

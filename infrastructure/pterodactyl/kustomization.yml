@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: pterodactyl
+
+resources:
+  - namespace.yaml
+  - config.yaml
+  - secret-sops.yaml
+  - env-secret-sops.yaml
+  - deployment.yaml
+  - service.yaml
+  - route.yaml
+  - ../booting-up-fallback

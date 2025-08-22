@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pterodactyl-panel
+spec:
+  selector:
+    app: pterodactyl
+    component: panel
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pterodactyl-redis
+spec:
+  selector:
+    app: pterodactyl
+    component: redis
+  ports:
+    - port: 6379
+      targetPort: 6379
+      protocol: TCP

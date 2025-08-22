@@ -30,3 +30,5 @@ resources:
   - infrastructure/stalwart.yaml
   - infrastructure/portfolio.yaml
   - infrastructure/joplin.yaml
+  - infrastructure/mariadb.yaml
+  - infrastructure/pterodactyl.yaml

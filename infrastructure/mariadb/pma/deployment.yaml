@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: phpmyadmin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: phpmyadmin
+  template:
+    metadata:
+      labels:
+        app: phpmyadmin
+    spec:
+      containers:
+      - name: phpmyadmin
+        image: phpmyadmin:5
+        ports:
+        - containerPort: 80
+        env:
+        - name: PMA_ABSOLUTE_URI
+          value: https://keda-phpmyadmin-ingress.tail5ec535.ts.net
+        - name: PMA_HOST
+          value: mariadb   # service name of your MariaDB instance

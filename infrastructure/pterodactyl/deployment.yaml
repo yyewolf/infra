@@ -1,0 +1,169 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pterodactyl-redis
+  labels:
+    app: pterodactyl
+    component: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pterodactyl
+      component: redis
+  template:
+    metadata:
+      labels:
+        app: pterodactyl
+        component: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:alpine
+          args: ["--save", "", "--appendonly", "no"]
+          resources:
+            requests:
+              cpu: "0"
+              memory: "0"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pterodactyl-worker
+  labels:
+    app: pterodactyl
+    component: worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pterodactyl
+      component: worker
+  template:
+    metadata:
+      labels:
+        app: pterodactyl
+        component: worker
+    spec:
+      containers:
+        - name: worker
+          image: docker.io/ccarney16/pterodactyl-panel:v1.11.4
+          command: ["p:worker"]
+          envFrom:
+            - secretRef:
+                name: env-secret
+          volumeMounts:
+            - name: conf-secret
+              mountPath: /data/pterodactyl.conf
+              subPath: pterodactyl.conf
+          resources:
+            requests:
+              cpu: "0"
+              memory: "0"
+            limits:
+              cpu: "300m"
+              memory: "256Mi"
+      volumes:
+        - name: conf-secret
+          secret:
+            secretName: conf-secret
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pterodactyl-cron
+  labels:
+    app: pterodactyl
+    component: cron
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pterodactyl
+      component: cron
+  template:
+    metadata:
+      labels:
+        app: pterodactyl
+        component: cron
+    spec:
+      containers:
+        - name: cron
+          image: docker.io/ccarney16/pterodactyl-panel:v1.11.4
+          command: ["p:cron"]
+          envFrom:
+            - secretRef:
+                name: env-secret
+          volumeMounts:
+            - name: conf-secret
+              mountPath: /data/pterodactyl.conf
+              subPath: pterodactyl.conf
+            - name: cron-tmpfs-logs
+              mountPath: /var/www/html/storage/logs
+          resources:
+            requests:
+              cpu: "0"
+              memory: "0"
+            limits:
+              cpu: "300m"
+              memory: "256Mi"
+      volumes:
+        - name: conf-secret
+          secret:
+            secretName: conf-secret
+        - name: cron-tmpfs-logs
+          emptyDir:
+            medium: Memory
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pterodactyl-panel
+  labels:
+    app: pterodactyl
+    component: panel
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pterodactyl
+      component: panel
+  template:
+    metadata:
+      labels:
+        app: pterodactyl
+        component: panel
+    spec:
+      containers:
+        - name: panel
+          image: docker.io/ccarney16/pterodactyl-panel:v1.11.4
+          envFrom:
+            - secretRef:
+                name: env-secret
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /entrypoint.d/20-tls-config.sh
+              subPath: 20-tls-config.sh
+            - name: conf-secret
+              mountPath: /data/pterodactyl.conf
+              subPath: pterodactyl.conf
+          resources:
+            requests:
+              cpu: "0"
+              memory: "0"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+      volumes:
+        - name: nginx-config
+          configMap:
+            defaultMode: 0755
+            name: pterodactyl-nginx-config
+        - name: conf-secret
+          secret:
+            secretName: conf-secret

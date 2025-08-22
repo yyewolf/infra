@@ -9,6 +9,8 @@ spec:
   hostnames:
     - "*.hackcorp.net" 
     - "hackcorp.net"
+    - "*.yewolf.fr" 
+    - "yewolf.fr"
   rules:
     - filters:
         - type: RequestRedirect
