@@ -16,7 +16,7 @@ spec:
     spec:
       serviceAccountName: backend
       containers:
-        - image: gcr.io/k8s-staging-gateway-api/echo-basic:v20231214-v1.0.0-140-gf544a46e
+        - image: gcr.io/k8s-staging-gateway-api/echo-basic:v20231214-v1.0.0-140-gf544a46e@sha256:22f6999b51e1198b0a8f94fde7b1baed41119e57eeb799425d4af9616b840cdf
           imagePullPolicy: IfNotPresent
           name: backend
           ports:

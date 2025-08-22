@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: roundcube
-          image: roundcube/roundcubemail:latest
+          image: roundcube/roundcubemail:latest@sha256:d78d0cb94100c0b6377f422f671bf9c68c3939bdda3a64efebef108a77edcbbb
           ports:
             - containerPort: 80
           envFrom:

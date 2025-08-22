@@ -16,7 +16,7 @@ spec:
           restartPolicy: Never
           containers:
             - name: backup-status
-              image: lachlanevenson/k8s-kubectl
+              image: lachlanevenson/k8s-kubectl@sha256:6e16ad356091ddfc95cd90fb7145b927531b45798e89d397a4c5e8fb64f8a5f5
               env:
                 - name: NOTIFY_URL
                   valueFrom:

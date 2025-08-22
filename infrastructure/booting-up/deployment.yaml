@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: caddy
-          image: caddy
+          image: caddy@sha256:133b5eb7ef9d42e34756ba206b06d84f4e3eb308044e268e182c2747083f09de
           ports:
             - containerPort: 80
           volumeMounts:
