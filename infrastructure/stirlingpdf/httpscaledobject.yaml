@@ -5,6 +5,7 @@ metadata:
 spec:
   hosts:
     - pdf.hackcorp.net
+    - pdf.yewolf.fr
   pathPrefixes:
     - /
   scaleTargetRef:

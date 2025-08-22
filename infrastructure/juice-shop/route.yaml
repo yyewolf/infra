@@ -9,6 +9,7 @@ spec:
     sectionName: https
   hostnames:
     - "juice.hackcorp.net"
+    - "juice.yewolf.fr"
   rules:
     - backendRefs:
         - group: ""

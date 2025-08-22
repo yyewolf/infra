@@ -5,6 +5,7 @@ metadata:
 spec:
   hosts:
     - flux.hackcorp.net
+    - flux.yewolf.fr
   pathPrefixes:
     - /
   scaleTargetRef:

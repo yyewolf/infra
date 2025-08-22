@@ -5,6 +5,7 @@ metadata:
 spec:
   hosts:
     - juice.hackcorp.net
+    - juice.yewolf.fr
   pathPrefixes:
     - /
   scaleTargetRef:

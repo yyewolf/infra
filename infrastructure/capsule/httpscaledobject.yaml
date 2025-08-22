@@ -5,6 +5,7 @@ metadata:
 spec:
   hosts:
     - capsule.hackcorp.net
+    - capsule.yewolf.fr
   pathPrefixes:
     - /
   scaleTargetRef:

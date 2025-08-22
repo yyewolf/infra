@@ -9,6 +9,7 @@ spec:
     sectionName: https
   hostnames:
     - "capsule.hackcorp.net"
+    - capsule.yewolf.fr
   rules:
     - backendRefs:
         - group: ""

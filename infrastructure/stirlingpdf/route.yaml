@@ -9,6 +9,7 @@ spec:
       sectionName: https
   hostnames:
     - "pdf.hackcorp.net"
+    - "pdf.yewolf.fr"
   rules:
     - backendRefs:
         - group: ""

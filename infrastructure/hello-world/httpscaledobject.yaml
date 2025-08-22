@@ -6,6 +6,7 @@ metadata:
 spec:
   hosts:
     - hackcorp.net
+    - test.yewolf.fr
   pathPrefixes:
     - /
   scaleTargetRef:

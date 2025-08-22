@@ -5,6 +5,7 @@ metadata:
 spec:
   hosts:
     - kebab.hackcorp.net
+    - kebab.yewolf.fr
   pathPrefixes:
     - /
   scaleTargetRef:

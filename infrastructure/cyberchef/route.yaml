@@ -9,6 +9,7 @@ spec:
     sectionName: https
   hostnames:
     - "kebab.hackcorp.net"
+    - "kebab.yewolf.fr"
   rules:
     - backendRefs:
         - group: ""

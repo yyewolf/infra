@@ -9,6 +9,7 @@ spec:
       sectionName: https
   hostnames:
     - "flux.hackcorp.net"
+    - "flux.yewolf.fr"
   rules:
     - backendRefs:
         - group: ""

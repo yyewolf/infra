@@ -9,6 +9,7 @@ spec:
       sectionName: https
   hostnames:
     - "vaultwarden.hackcorp.net"
+    - "vaultwarden.yewolf.fr"
   rules:
     - backendRefs:
         - group: ""

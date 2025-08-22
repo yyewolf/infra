@@ -9,6 +9,7 @@ spec:
     sectionName: https
   hostnames:
     - "grafana.hackcorp.net"
+    - "grafana.yewolf.fr"
   rules:
     - backendRefs:
         - group: ""

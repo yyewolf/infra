@@ -9,6 +9,7 @@ spec:
     sectionName: https
   hostnames:
     - "flux-webhook.hackcorp.net"
+    - "flux-webhook.yewolf.fr"
   rules:
     - backendRefs:
         - group: ""
