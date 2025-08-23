@@ -137,6 +137,10 @@ spec:
         app: pterodactyl
         component: panel
     spec:
+      hostAliases:
+        - ip: "10.96.42.42"
+          hostnames:
+          - "saubian.tail5ec535.ts.net"
       containers:
         - name: panel
           image: docker.io/ccarney16/pterodactyl-panel:v1.11.11@sha256:0fa94427829b77027d1658d75e272e02f810ded0ecaf85392758b47727fabd31

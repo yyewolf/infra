@@ -6,3 +6,5 @@ resources:
   - home1.yaml
   - home1-ip.yaml
   - dk1.yaml
+  - saubian.yaml
+  - saubian-svc.yaml

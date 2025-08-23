@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: saubian-tailscale-service
+  namespace: tailscale
+  labels:
+    app: saubian-tailscale
+spec:
+  clusterIP: 10.96.42.42
+  ports:
+    - protocol: TCP
+      port: 443
+      targetPort: 443
+  selector:
+    tailscale.com/managed: "true"
+    tailscale.com/parent-resource: saubian
