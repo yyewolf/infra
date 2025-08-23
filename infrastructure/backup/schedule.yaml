@@ -16,13 +16,13 @@ spec:
       name: backup-secret
       key: repoPassword
   backup:
-    schedule: '0 3 * * *'
+    schedule: '@daily-random'
     failedJobsHistoryLimit: 1
     successfulJobsHistoryLimit: 1
   check:
-    schedule: '0 1 * * *'
+    schedule: '@daily-random'
   prune:
-    schedule: '0 1 * * *'
+    schedule: '@daily-random'
     retention:
       keepLast: 5
       keepDaily: 1
