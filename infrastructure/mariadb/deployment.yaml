@@ -12,7 +12,7 @@ spec:
       labels:
         app: mariadb
       annotations:
-        k8up.io/backupcommand: sh -c 'mysqldump -u root -p"$MYSQL_ROOT_PASSWORD" --all-databases'
+        k8up.io/backupcommand: sh -c 'mariadb-dump -u root -p"$MYSQL_ROOT_PASSWORD" --all-databases --single-transaction --quick --lock-tables=false > database.sql'
         k8up.io/file-extension: .sql
     spec:
       nodeSelector:
@@ -35,6 +35,13 @@ spec:
         volumeMounts:
         - name: mariadb-storage
           mountPath: /var/lib/mysql
+        resources:
+          requests:
+            cpu: 0m
+            memory: 0Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
       volumes:
       - name: mariadb-storage
         hostPath:
