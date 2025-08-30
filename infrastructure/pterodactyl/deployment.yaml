@@ -59,6 +59,8 @@ spec:
             - name: conf-secret
               mountPath: /data/pterodactyl.conf
               subPath: pterodactyl.conf
+            - name: logs
+              mountPath: /var/www/html/storage/logs
           resources:
             requests:
               cpu: "0"
@@ -70,6 +72,9 @@ spec:
         - name: conf-secret
           secret:
             secretName: conf-secret
+        - name: logs
+          emptyDir: 
+            medium: Memory
 ---
 apiVersion: apps/v1
 kind: Deployment
