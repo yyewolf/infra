@@ -48,6 +48,10 @@ spec:
         app: pterodactyl
         component: worker
     spec:
+      securityContext:
+        runAsUser: 500
+        runAsGroup: 500
+        fsGroup: 500
       containers:
         - name: worker
           image: docker.io/ccarney16/pterodactyl-panel:v1.11.11@sha256:0fa94427829b77027d1658d75e272e02f810ded0ecaf85392758b47727fabd31
@@ -61,6 +65,14 @@ spec:
               subPath: pterodactyl.conf
             - name: logs
               mountPath: /var/www/html/storage/logs
+            - name: app
+              mountPath: /var/www/html/storage/app
+            - name: cache
+              mountPath: /var/www/html/storage/framework/cache
+            - name: sessions
+              mountPath: /var/www/html/storage/framework/sessions
+            - name: views
+              mountPath: /var/www/html/storage/framework/views
           resources:
             requests:
               cpu: "0"
@@ -75,6 +87,14 @@ spec:
         - name: logs
           emptyDir: 
             medium: Memory
+        - name: cache
+          emptyDir: {}
+        - name: sessions
+          emptyDir: {}
+        - name: views
+          emptyDir: {}
+        - name: app
+          emptyDir: {}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -108,6 +128,12 @@ spec:
               subPath: pterodactyl.conf
             - name: cron-tmpfs-logs
               mountPath: /var/www/html/storage/logs
+            - name: cache
+              mountPath: /var/www/html/storage/framework/cache
+            - name: sessions
+              mountPath: /var/www/html/storage/framework/sessions
+            - name: views
+              mountPath: /var/www/html/storage/framework/views
           resources:
             requests:
               cpu: "0"
@@ -122,6 +148,12 @@ spec:
         - name: cron-tmpfs-logs
           emptyDir:
             medium: Memory
+        - name: cache
+          emptyDir: {}
+        - name: sessions
+          emptyDir: {}
+        - name: views
+          emptyDir: {}
 ---
 apiVersion: apps/v1
 kind: Deployment
