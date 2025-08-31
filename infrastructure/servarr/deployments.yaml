@@ -1,0 +1,565 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sonarr
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sonarr
+  template:
+    metadata:
+      labels:
+        app: sonarr
+    spec:
+      automountServiceAccountToken: false
+      nodeSelector:
+        location: home1
+      tolerations:
+        - key: "PrivateNode"
+          operator: "Equal"
+          value: "home1"
+      containers:
+        - name: sonarr
+          image: lscr.io/linuxserver/sonarr:latest
+          ports:
+            - containerPort: 8989
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "Europe/Paris"
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: downloads
+              mountPath: /downloads
+            - name: media
+              mountPath: /tv
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: config
+          hostPath:
+            path: /media/disk/servarr/config/sonarr
+            type: DirectoryOrCreate
+        - name: downloads
+          hostPath:
+            path: /media/disk/servarr/downloads
+            type: DirectoryOrCreate
+        - name: media
+          hostPath:
+            path: /media/disk/servarr/media/tv
+            type: DirectoryOrCreate
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: radarr
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: radarr
+  template:
+    metadata:
+      labels:
+        app: radarr
+    spec:
+      automountServiceAccountToken: false
+      nodeSelector:
+        location: home1
+      tolerations:
+        - key: "PrivateNode"
+          operator: "Equal"
+          value: "home1"
+      containers:
+        - name: radarr
+          image: lscr.io/linuxserver/radarr:latest
+          ports:
+            - containerPort: 7878
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "Europe/Paris"
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: downloads
+              mountPath: /downloads
+            - name: media
+              mountPath: /movies
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: config
+          hostPath:
+            path: /media/disk/servarr/config/radarr
+            type: DirectoryOrCreate
+        - name: downloads
+          hostPath:
+            path: /media/disk/servarr/downloads
+            type: DirectoryOrCreate
+        - name: media
+          hostPath:
+            path: /media/disk/servarr/media/movies
+            type: DirectoryOrCreate
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prowlarr
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prowlarr
+  template:
+    metadata:
+      labels:
+        app: prowlarr
+    spec:
+      automountServiceAccountToken: false
+      nodeSelector:
+        location: home1
+      tolerations:
+        - key: "PrivateNode"
+          operator: "Equal"
+          value: "home1"
+      containers:
+        - name: prowlarr
+          image: lscr.io/linuxserver/prowlarr:latest
+          ports:
+            - containerPort: 9696
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "Europe/Paris"
+          volumeMounts:
+            - name: config
+              mountPath: /config
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: config
+          hostPath:
+            path: /media/disk/servarr/config/prowlarr
+            type: DirectoryOrCreate
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qbittorrent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: qbittorrent
+  template:
+    metadata:
+      labels:
+        app: qbittorrent
+    spec:
+      automountServiceAccountToken: false
+      nodeSelector:
+        location: home1
+      tolerations:
+        - key: "PrivateNode"
+          operator: "Equal"
+          value: "home1"
+      containers:
+        - name: qbittorrent-openvpn
+          image: mirror.gcr.io/jovalle/qbittorrent-openvpn:v0.3.1
+          securityContext:
+            capabilities:
+              add:
+                - NET_ADMIN
+            privileged: true
+          ports:
+            - containerPort: 8080
+            - containerPort: 6881
+              protocol: TCP
+            - containerPort: 6881
+              protocol: UDP
+          env:
+            # User and Group IDs
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "Europe/Paris"
+            # Kubernetes cluster configuration
+            - name: K8S_CLUSTER
+              value: "yes"
+            - name: K8S_POD_CIDR
+              value: "10.64.0.0/16"
+            - name: K8S_SVC_CIDR
+              value: "10.96.0.0/16"
+            # LAN configuration (adjust to your local network)
+            - name: LAN_CIDR
+              value: "192.168.1.0/24"
+            # VPN configuration
+            - name: VPN_ENABLED
+              value: "yes"
+            - name: KUBERNETES_ENABLED
+              value: "yes"
+            - name: VPN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: nordvpn-secret
+                  key: username
+            - name: VPN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nordvpn-secret
+                  key: password
+                  
+            - name: OPENVPN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: nordvpn-secret
+                  key: username
+            - name: OPENVPN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nordvpn-secret
+                  key: password
+            # DNS configuration
+            - name: NAME_SERVERS
+              value: "8.8.8.8,8.8.4.4"
+            # Debug (optional)
+            - name: DEBUG
+              value: "no"
+            # File permissions
+            - name: UMASK
+              value: "002"
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: downloads
+              mountPath: /downloads
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 60
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+      volumes:
+        - name: config
+          hostPath:
+            path: /media/disk/servarr/config/qbittorrent
+            type: DirectoryOrCreate
+        - name: downloads
+          hostPath:
+            path: /media/disk/servarr/downloads
+            type: DirectoryOrCreate
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nvidia-device-plugin-daemonset
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      name: nvidia-device-plugin-ds
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        name: nvidia-device-plugin-ds
+    spec:
+      priorityClassName: system-node-critical
+      nodeSelector:
+        location: home1
+      tolerations:
+        - key: "PrivateNode"
+          operator: "Equal"
+          value: "home1"
+      containers:
+      - image: nvcr.io/nvidia/k8s-device-plugin:v0.17.1
+        name: nvidia-device-plugin-ctr
+        resources:
+          requests:
+            cpu: 50m
+            memory: 10Mi
+          limits:
+            cpu: 50m
+            memory: 200Mi
+        env:
+          - name: FAIL_ON_INIT_ERROR
+            value: "false"
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+        volumeMounts:
+        - name: device-plugin
+          mountPath: /var/lib/kubelet/device-plugins
+      volumes:
+      - name: device-plugin
+        hostPath:
+          path: /var/lib/kubelet/device-plugins
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jellyfin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jellyfin
+  template:
+    metadata:
+      labels:
+        app: jellyfin
+    spec:
+      automountServiceAccountToken: false
+      nodeSelector:
+        location: home1
+      tolerations:
+        - key: "PrivateNode"
+          operator: "Equal"
+          value: "home1"
+      containers:
+        - name: jellyfin
+          image: lscr.io/linuxserver/jellyfin:latest
+          ports:
+            - containerPort: 8096
+              # hostPort: 25252
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "Europe/Paris"
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: media-tv
+              mountPath: /data/tv
+              readOnly: true
+            - name: media-movies
+              mountPath: /data/movies
+              readOnly: true
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 3000m
+              memory: 5Gi
+              nvidia.com/gpu: 1
+      volumes:
+        - name: config
+          hostPath:
+            path: /media/disk/servarr/config/jellyfin
+            type: DirectoryOrCreate
+        - name: media-tv
+          hostPath:
+            path: /media/disk/servarr/media/tv
+            type: DirectoryOrCreate
+        - name: media-movies
+          hostPath:
+            path: /media/disk/servarr/media/movies
+            type: DirectoryOrCreate
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jellyseerr
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jellyseerr
+  template:
+    metadata:
+      labels:
+        app: jellyseerr
+    spec:
+      automountServiceAccountToken: false
+      nodeSelector:
+        location: home1
+      tolerations:
+        - key: "PrivateNode"
+          operator: "Equal"
+          value: "home1"
+      containers:
+        - name: jellyseerr
+          image: mirror.gcr.io/fallenbagel/jellyseerr:latest
+          ports:
+            - containerPort: 5055
+          env:
+            - name: LOG_LEVEL
+              value: "debug"
+            - name: TZ
+              value: "Europe/Paris"
+          volumeMounts:
+            - name: config
+              mountPath: /app/config
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: config
+          hostPath:
+            path: /media/disk/servarr/config/jellyseerr
+            type: DirectoryOrCreate
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flaresolverr
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flaresolverr
+  template:
+    metadata:
+      labels:
+        app: flaresolverr
+    spec:
+      automountServiceAccountToken: false
+      nodeSelector:
+        location: home1
+      tolerations:
+        - key: "PrivateNode"
+          operator: "Equal"
+          value: "home1"
+      containers:
+        - name: flaresolverr
+          image: ghcr.io/flaresolverr/flaresolverr:latest
+          ports:
+            - containerPort: 8191
+          env:
+            - name: LOG_LEVEL
+              value: "info"
+            - name: LOG_HTML
+              value: "false"
+            - name: CAPTCHA_SOLVER
+              value: "none"
+            - name: TZ
+              value: "Europe/Paris"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bazarr
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bazarr
+  template:
+    metadata:
+      labels:
+        app: bazarr
+    spec:
+      automountServiceAccountToken: false
+      nodeSelector:
+        location: home1
+      tolerations:
+        - key: "PrivateNode"
+          operator: "Equal"
+          value: "home1"
+      containers:
+        - name: bazarr
+          image: lscr.io/linuxserver/bazarr:latest
+          ports:
+            - containerPort: 6767
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "Europe/Paris"
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: media-tv
+              mountPath: /tv
+            - name: media-movies
+              mountPath: /movies
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: config
+          hostPath:
+            path: /media/disk/servarr/config/bazarr
+            type: DirectoryOrCreate
+        - name: media-tv
+          hostPath:
+            path: /media/disk/servarr/media/tv
+            type: DirectoryOrCreate
+        - name: media-movies
+          hostPath:
+            path: /media/disk/servarr/media/movies
+            type: DirectoryOrCreate

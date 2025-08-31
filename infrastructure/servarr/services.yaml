@@ -1,0 +1,96 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: sonarr
+spec:
+  ports:
+    - port: 80
+      targetPort: 8989
+  selector:
+    app: sonarr
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: radarr
+spec:
+  ports:
+    - port: 80
+      targetPort: 7878
+  selector:
+    app: radarr
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prowlarr
+spec:
+  ports:
+    - port: 80
+      targetPort: 9696
+  selector:
+    app: prowlarr
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qbittorrent
+spec:
+  ports:
+    - name: web
+      port: 80
+      targetPort: 8080
+    - name: torrent-tcp
+      port: 6881
+      targetPort: 6881
+      protocol: TCP
+    - name: torrent-udp
+      port: 6881
+      targetPort: 6881
+      protocol: UDP
+  selector:
+    app: qbittorrent
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jellyfin
+spec:
+  ports:
+    - port: 80
+      targetPort: 8096
+  selector:
+    app: jellyfin
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jellyseerr
+spec:
+  ports:
+    - port: 80
+      targetPort: 5055
+  selector:
+    app: jellyseerr
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bazarr
+spec:
+  ports:
+    - port: 80
+      targetPort: 6767
+  selector:
+    app: bazarr
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flaresolverr
+spec:
+  ports:
+    - port: 80
+      targetPort: 8191
+  selector:
+    app: flaresolverr

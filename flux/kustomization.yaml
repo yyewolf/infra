@@ -32,3 +32,4 @@ resources:
   - infrastructure/joplin.yaml
   - infrastructure/mariadb.yaml
   - infrastructure/pterodactyl.yaml
+  - infrastructure/servarr.yaml
