@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: caddy
-          image: caddy@sha256:4163a5c7b7631707956db4057720ec75de429992d5e3aa518d54872c01644dbe
+          image: mirror.gcr.io/caddy@sha256:4163a5c7b7631707956db4057720ec75de429992d5e3aa518d54872c01644dbe
           ports:
             - containerPort: 80
           volumeMounts:

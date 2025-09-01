@@ -23,7 +23,7 @@ spec:
           value: "home1"
       containers:
         - name: satisfactory
-          image: wolveix/satisfactory-server:latest@sha256:464d11e36e10a2399bd2faaf1057a0825ac62a71ebdb6ee7e8a449584116945c
+          image: mirror.gcr.io/wolveix/satisfactory-server:latest@sha256:464d11e36e10a2399bd2faaf1057a0825ac62a71ebdb6ee7e8a449584116945c
           imagePullPolicy: Always
           ports:
             - containerPort: 7777

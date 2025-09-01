@@ -23,7 +23,7 @@ spec:
           value: "home1"
       containers:
       - name: mariadb
-        image: mariadb:12@sha256:b30cc65b57a11a2e791ad5c06284e599fe9f1bf3fe9081a88d85bcf36389be4a
+        image: mirror.gcr.io/mariadb:12@sha256:b30cc65b57a11a2e791ad5c06284e599fe9f1bf3fe9081a88d85bcf36389be4a
         env:
           - name: MYSQL_ROOT_PASSWORD
             valueFrom:

@@ -14,7 +14,7 @@ spec:
     spec:
       automountServiceAccountToken: false
       containers:
-        - image: docker.io/joplin/server:latest@sha256:a2d68c8128185147f709702e8988ed2e42c57c4cf0db3cf78b378dfc28a5ba26
+        - image: mirror.gcr.io/joplin/server:latest@sha256:a2d68c8128185147f709702e8988ed2e42c57c4cf0db3cf78b378dfc28a5ba26
           imagePullPolicy: IfNotPresent
           name: joplin
           envFrom:
