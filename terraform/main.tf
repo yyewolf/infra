@@ -12,16 +12,26 @@ output "kluster_kubeconfig" {
   value = infomaniak_kaas.kluster.kubeconfig
   sensitive = true
 }
-
-resource "infomaniak_kaas_instance_pool" "instance_pool" {
+resource "infomaniak_kaas_instance_pool" "rondin" {
   public_cloud_id         = infomaniak_kaas.kluster.public_cloud_id
   public_cloud_project_id = infomaniak_kaas.kluster.public_cloud_project_id
   kaas_id                 = infomaniak_kaas.kluster.id
 
-  name              = var.pool_name
+  name              = "rondin"
   flavor_name       = var.pool_type
   min_instances     = var.pool_min
-  availability_zone = var.pool_az
+  availability_zone = "az-1"
+}
+
+resource "infomaniak_kaas_instance_pool" "rondeux" {
+  public_cloud_id         = infomaniak_kaas.kluster.public_cloud_id
+  public_cloud_project_id = infomaniak_kaas.kluster.public_cloud_project_id
+  kaas_id                 = infomaniak_kaas.kluster.id
+
+  name              = "rondeux"
+  flavor_name       = var.pool_type
+  min_instances     = var.pool_min
+  availability_zone = "az-2"
 }
 
 module "flux-bootstrap" {

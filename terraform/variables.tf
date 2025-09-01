@@ -34,12 +34,6 @@ variable "cluster_version" {
   default     = "1.31"
 }
 
-variable "pool_name" {
-  description = "Pool instance name"
-  type        = string
-  default     = "name"
-}
-
 variable "pool_type" {
   description = "Pool instance type"
   type        = string

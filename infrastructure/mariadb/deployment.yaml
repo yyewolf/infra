@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mariadb
+  name: mariadb-2
 spec:
   replicas: 1
   selector:
@@ -12,7 +12,7 @@ spec:
       labels:
         app: mariadb
       annotations:
-        k8up.io/backupcommand: sh -c 'mariadb-dump -u root -p"$MYSQL_ROOT_PASSWORD" --all-databases --single-transaction --quick --lock-tables=false > database.sql'
+        k8up.io/backupcommand: sh -c 'mariadb-dump -u root -p"$MYSQL_ROOT_PASSWORD" --all-databases --single-transaction --quick --lock-tables=false'
         k8up.io/file-extension: .sql
     spec:
       nodeSelector:
@@ -45,5 +45,5 @@ spec:
       volumes:
       - name: mariadb-storage
         hostPath:
-          path: /media/disk/mariadb
+          path: /media/disk/mariadb2
           type: DirectoryOrCreate

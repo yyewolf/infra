@@ -6,7 +6,6 @@ resources:
   - namespace.yaml
   - secret-sops.yaml
   - pvc.yaml
-  - disruption.yaml
   - deployment.yaml
   - service.yaml
   - route.yaml
