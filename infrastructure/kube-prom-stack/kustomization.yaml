@@ -8,3 +8,4 @@ resources:
   - repository.yaml
   - release.yaml
   - route.yaml
+  - ./alerts
