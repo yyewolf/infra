@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mariadb-2
+  name: mariadb
 spec:
   replicas: 1
   selector:
@@ -45,5 +45,5 @@ spec:
       volumes:
       - name: mariadb-storage
         hostPath:
-          path: /media/disk/mariadb2
+          path: /media/disk/mariadb
           type: DirectoryOrCreate
