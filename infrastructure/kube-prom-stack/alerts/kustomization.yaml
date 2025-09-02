@@ -1,4 +1,2 @@
 resources:
-  - secret-sops.yaml
-  - alertmanager-discord.yaml
   - ready-alert.yaml
