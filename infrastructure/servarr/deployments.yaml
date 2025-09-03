@@ -21,7 +21,7 @@ spec:
           value: "home1"
       containers:
         - name: sonarr
-          image: lscr.io/linuxserver/sonarr:latest
+          image: lscr.io/linuxserver/sonarr:latest@sha256:e00e87e0e7c24fdc992093756f120a6ab292790b6a637ff3641bf813091cd726
           ports:
             - containerPort: 8989
           env:
@@ -83,7 +83,7 @@ spec:
           value: "home1"
       containers:
         - name: radarr
-          image: lscr.io/linuxserver/radarr:latest
+          image: lscr.io/linuxserver/radarr:latest@sha256:3ebb31bce86870dbcc15a5db3fba8864e302310cb2adb70476b0b64c1b3dc6dc
           ports:
             - containerPort: 7878
           env:
@@ -145,7 +145,7 @@ spec:
           value: "home1"
       containers:
         - name: prowlarr
-          image: lscr.io/linuxserver/prowlarr:latest
+          image: lscr.io/linuxserver/prowlarr:latest@sha256:4f2a6d597845b2f3e19284b1d982b3e0b4bd7c22472c2979c956aa198b83f472
           ports:
             - containerPort: 9696
           env:
@@ -369,7 +369,7 @@ spec:
           value: "home1"
       containers:
         - name: jellyfin
-          image: lscr.io/linuxserver/jellyfin:latest
+          image: lscr.io/linuxserver/jellyfin:latest@sha256:104ca69d833f1b9bc0efe55f56e8202b7b374f1b38431da91757e551e26ca96e
           ports:
             - containerPort: 8096
               # hostPort: 25252
@@ -435,7 +435,7 @@ spec:
           value: "home1"
       containers:
         - name: jellyseerr
-          image: mirror.gcr.io/fallenbagel/jellyseerr:latest
+          image: mirror.gcr.io/fallenbagel/jellyseerr:latest@sha256:4538137bc5af902dece165f2bf73776d9cf4eafb6dd714670724af8f3eb77764
           ports:
             - containerPort: 5055
           env:
@@ -483,7 +483,7 @@ spec:
           value: "home1"
       containers:
         - name: flaresolverr
-          image: ghcr.io/flaresolverr/flaresolverr:latest
+          image: ghcr.io/flaresolverr/flaresolverr:latest@sha256:ab535d1fef5d7f1654c2756949798442ae4bbecee99d4338128aa137fd8eca0e
           ports:
             - containerPort: 8191
           env:
@@ -526,7 +526,7 @@ spec:
           value: "home1"
       containers:
         - name: bazarr
-          image: lscr.io/linuxserver/bazarr:latest
+          image: lscr.io/linuxserver/bazarr:latest@sha256:f9cb78eaec1d77017f5c3e5b7aa07106fe4433a77fd902d01e91213f7c991499
           ports:
             - containerPort: 6767
           env:
