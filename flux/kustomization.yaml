@@ -33,3 +33,4 @@ resources:
   - infrastructure/mariadb.yaml
   - infrastructure/pterodactyl.yaml
   - infrastructure/servarr.yaml
+  - infrastructure/album.yaml

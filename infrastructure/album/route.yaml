@@ -1,0 +1,22 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: immich
+spec:
+  parentRefs:
+  - name: main
+    namespace: envoy-system
+    sectionName: https
+  hostnames:
+    - "album.yewolf.fr"
+  rules:
+    - backendRefs:
+        - group: ""
+          kind: Service
+          name: immich-server
+          port: 2283
+          weight: 1
+      matches:
+        - path:
+            type: PathPrefix
+            value: /

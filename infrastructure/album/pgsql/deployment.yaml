@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+      annotations:
+        k8up.io/backupcommand: sh -c 'pg_dumpall --user=postgres --clean'
+        k8up.io/file-extension: .sql
+    spec:
+      tolerations:
+        - key: "PrivateNode"
+          operator: "Equal"
+          value: "home1"
+      containers:
+        - name: postgres
+          image: ghcr.io/tensorchord/pgvecto-rs:pg16-v0.3.0
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: password
+          volumeMounts:
+            - name: postgres-storage
+              subPath: data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              cpu: 0m
+              memory: 0Mi
+            # limits:
+              # cpu: 500m
+              # memory: 4000Mi
+      volumes:
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: pgsql-storage

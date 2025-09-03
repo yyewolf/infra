@@ -1,0 +1,43 @@
+apiVersion: k8up.io/v1
+kind: PodConfig
+metadata:
+  name: podconfig
+spec:
+  template:
+    spec:
+      tolerations:
+        - key: "PrivateNode"
+          operator: "Equal"
+          value: "home1"
+      containers: []
+---
+apiVersion: k8up.io/v1
+kind: Schedule
+metadata:
+  name: schedule
+spec:
+  backend:
+    rest:
+      url: http://dk1.tailscale.svc:8000
+      userSecretRef:
+        name: backup-secret
+        key: username
+      passwordSecretReg:
+        name: backup-secret
+        key: password
+    repoPasswordSecretRef:
+      name: backup-secret
+      key: repoPassword
+  backup:
+    schedule: '20 13 * * *'
+    podConfigRef:
+      name: podconfig
+    failedJobsHistoryLimit: 1
+    successfulJobsHistoryLimit: 1
+  check:
+    schedule: '@daily-random'
+  prune:
+    schedule: '@daily-random'
+    retention:
+      keepLast: 5
+      keepDaily: 1

@@ -1,0 +1,20 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: immich
+spec:
+  interval: 5m
+  chart:
+    spec:
+      chart: immich
+      version: "*"
+      sourceRef:
+        kind: HelmRepository
+        name: immich-charts
+        namespace: album
+  install:
+    createNamespace: true
+  valuesFrom:
+    - kind: ConfigMap
+      name: immich-values
+      valuesKey: values.yaml
