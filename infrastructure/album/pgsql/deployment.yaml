@@ -21,7 +21,7 @@ spec:
           value: "home1"
       containers:
         - name: postgres
-          image: ghcr.io/tensorchord/pgvecto-rs:pg16-v0.3.0
+          image: ghcr.io/tensorchord/pgvecto-rs:pg16-v0.3.0@sha256:b89f8ddbb28400d428d3c5e3e860f578cde85ad8e78544a8b687b97937cfc50b
           ports:
             - containerPort: 5432
           env:
