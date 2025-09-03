@@ -17,7 +17,7 @@ spec:
       automountServiceAccountToken: false
       runtimeClassName: sysbox-runc
       containers:
-        - image: mirror.gcr.io/bkimminich/juice-shop@sha256:89337a9b216106f276ecc9875800c4c9c47b9d89b8a785b1111d5c94a0fed5c2
+        - image: mirror.gcr.io/bkimminich/juice-shop@sha256:c6f965f8929c2c43676e3ac55cd19d482c0084400195db07ed7513a04f3468b5
           imagePullPolicy: IfNotPresent
           name: juice-shop
           resources:
