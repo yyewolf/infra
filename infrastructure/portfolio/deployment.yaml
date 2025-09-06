@@ -14,7 +14,7 @@ spec:
     spec:
       automountServiceAccountToken: false
       containers:
-        - image: ghcr.io/yyewolf/portfolio:main@sha256:0f72935c19514df1bc7275a4049b730cf33fb2d79c810e053d0ca3aa8d213d4c
+        - image: ghcr.io/yyewolf/portfolio:main@sha256:9513250151130e7a588664e9c2b7068204026591656126d129e808b8dde67b53
           imagePullPolicy: IfNotPresent
           name: portfolio
           resources:
@@ -27,6 +27,6 @@ spec:
           readinessProbe:
             httpGet:
               path: /
-              port: 3000
-            initialDelaySeconds: 10
-            periodSeconds: 5
+              port: 80
+            initialDelaySeconds: 1
+            periodSeconds: 1
