@@ -11,7 +11,7 @@ spec:
   volumeMode: Filesystem
   storageClassName: ml-hostpath
   hostPath:
-    path: /media/disk/immich-ml
+    path: /tank/album/immich-ml
     type: DirectoryOrCreate
   nodeAffinity:
     required:

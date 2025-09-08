@@ -10,7 +10,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   storageClassName: pgsql-hostpath
   hostPath:
-    path: /media/disk/pg-immich
+    path: /tank/album/pg-immich
     type: DirectoryOrCreate
   nodeAffinity:
     required:

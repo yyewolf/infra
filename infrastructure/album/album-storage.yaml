@@ -10,7 +10,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   storageClassName: album-hostpath
   hostPath:
-    path: /media/disk/immich
+    path: /tank/album/immich
     type: DirectoryOrCreate
   nodeAffinity:
     required:
