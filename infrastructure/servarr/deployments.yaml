@@ -48,15 +48,15 @@ spec:
       volumes:
         - name: config
           hostPath:
-            path: /media/disk/servarr/config/sonarr
+            path: /tank/servarr/config/sonarr
             type: DirectoryOrCreate
         - name: downloads
           hostPath:
-            path: /media/disk/servarr/downloads
+            path: /tank/servarr/downloads
             type: DirectoryOrCreate
         - name: media
           hostPath:
-            path: /media/disk/servarr/media/tv
+            path: /tank/servarr/media/tv
             type: DirectoryOrCreate
 
 ---
@@ -110,15 +110,15 @@ spec:
       volumes:
         - name: config
           hostPath:
-            path: /media/disk/servarr/config/radarr
+            path: /tank/servarr/config/radarr
             type: DirectoryOrCreate
         - name: downloads
           hostPath:
-            path: /media/disk/servarr/downloads
+            path: /tank/servarr/downloads
             type: DirectoryOrCreate
         - name: media
           hostPath:
-            path: /media/disk/servarr/media/movies
+            path: /tank/servarr/media/movies
             type: DirectoryOrCreate
 
 ---
@@ -168,7 +168,7 @@ spec:
       volumes:
         - name: config
           hostPath:
-            path: /media/disk/servarr/config/prowlarr
+            path: /tank/servarr/config/prowlarr
             type: DirectoryOrCreate
 
 ---
@@ -291,11 +291,11 @@ spec:
       volumes:
         - name: config
           hostPath:
-            path: /media/disk/servarr/config/qbittorrent
+            path: /tank/servarr/config/qbittorrent
             type: DirectoryOrCreate
         - name: downloads
           hostPath:
-            path: /media/disk/servarr/downloads
+            path: /tank/servarr/downloads
             type: DirectoryOrCreate
 ---
 apiVersion: apps/v1
@@ -400,15 +400,15 @@ spec:
       volumes:
         - name: config
           hostPath:
-            path: /media/disk/servarr/config/jellyfin
+            path: /tank/servarr/config/jellyfin
             type: DirectoryOrCreate
         - name: media-tv
           hostPath:
-            path: /media/disk/servarr/media/tv
+            path: /tank/servarr/media/tv
             type: DirectoryOrCreate
         - name: media-movies
           hostPath:
-            path: /media/disk/servarr/media/movies
+            path: /tank/servarr/media/movies
             type: DirectoryOrCreate
 
 ---
@@ -456,7 +456,7 @@ spec:
       volumes:
         - name: config
           hostPath:
-            path: /media/disk/servarr/config/jellyseerr
+            path: /tank/servarr/config/jellyseerr
             type: DirectoryOrCreate
 
 ---
@@ -553,13 +553,13 @@ spec:
       volumes:
         - name: config
           hostPath:
-            path: /media/disk/servarr/config/bazarr
+            path: /tank/servarr/config/bazarr
             type: DirectoryOrCreate
         - name: media-tv
           hostPath:
-            path: /media/disk/servarr/media/tv
+            path: /tank/servarr/media/tv
             type: DirectoryOrCreate
         - name: media-movies
           hostPath:
-            path: /media/disk/servarr/media/movies
+            path: /tank/servarr/media/movies
             type: DirectoryOrCreate
