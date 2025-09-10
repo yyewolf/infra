@@ -22,7 +22,7 @@ spec:
           value: "home1"
       containers:
         - name: stalwart
-          image: stalwartlabs/stalwart:latest@sha256:e682677f83ebb44632e41684db293fd46db8ff94487cef3b894b5c668b448716
+          image: stalwartlabs/stalwart:latest@sha256:da4b39025874153ed54d12253d5af4a58898aefa728b23d0cc89ff9461fe6871
           ports:
             - name: smtp
               protocol: TCP
