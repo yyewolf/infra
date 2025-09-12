@@ -35,3 +35,4 @@ resources:
   - infrastructure/servarr.yaml
   - infrastructure/album.yaml
   - infrastructure/droneci.yaml
+  - infrastructure/registry.yaml

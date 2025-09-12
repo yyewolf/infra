@@ -1,0 +1,93 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: harbor
+spec:
+  interval: 5m
+  chart:
+    spec:
+      chart: harbor
+      version: 1.17.2
+      sourceRef:
+        kind: HelmRepository
+        name: harbor
+  values:
+    expose:
+      type: clusterIP
+      clusterIP:
+        name: harbor
+      tls:
+        enabled: false
+    externalURL: https://registry.yewolf.fr
+    persistence:
+      enabled: true
+      persistentVolumeClaim:
+        registry:
+          existingClaim: registry-storage
+          subPath: registry
+        chartmuseum:
+          existingClaim: registry-storage
+          subPath: chartmuseum
+        jobservice:
+          existingClaim: registry-storage
+          subPath: jobservice
+        database:
+          existingClaim: registry-storage
+          subPath: database
+        redis:
+          existingClaim: registry-storage
+          subPath: redis
+        trivy:
+          existingClaim: registry-storage
+          subPath: trivy
+    containerSecurityContext:
+      privileged: false
+      allowPrivilegeEscalation: false
+      seccompProfile:
+        type: RuntimeDefault
+      runAsNonRoot: true
+      capabilities:
+        drop:
+          - ALL
+    core:
+      tolerations:
+        - key: PrivateNode
+          operator: Equal
+          value: home1
+    jobservice:
+      tolerations:
+        - key: PrivateNode
+          operator: Equal
+          value: home1
+    registry:
+      tolerations:
+        - key: PrivateNode
+          operator: Equal
+          value: home1
+    chartmuseum:
+      tolerations:
+        - key: PrivateNode
+          operator: Equal
+          value: home1
+    portal:
+      tolerations:
+        - key: PrivateNode
+          operator: Equal
+          value: home1
+    database:
+      internal:
+        tolerations:
+          - key: PrivateNode
+            operator: Equal
+            value: home1
+    redis:
+      internal:
+        tolerations:
+          - key: PrivateNode
+            operator: Equal
+            value: home1
+    trivy:
+      tolerations:
+        - key: PrivateNode
+          operator: Equal
+          value: home1
