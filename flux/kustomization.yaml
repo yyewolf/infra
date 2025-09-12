@@ -34,3 +34,4 @@ resources:
   - infrastructure/pterodactyl.yaml
   - infrastructure/servarr.yaml
   - infrastructure/album.yaml
+  - infrastructure/droneci.yaml
