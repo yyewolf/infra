@@ -483,7 +483,7 @@ spec:
           value: "home1"
       containers:
         - name: flaresolverr
-          image: ghcr.io/flaresolverr/flaresolverr:latest@sha256:ab535d1fef5d7f1654c2756949798442ae4bbecee99d4338128aa137fd8eca0e
+          image: ghcr.io/flaresolverr/flaresolverr:latest@sha256:5379a9209c86870558d77c8cdf7efdf300aecf0447617a05dc77e0491d53f34c
           ports:
             - containerPort: 8191
           env:
