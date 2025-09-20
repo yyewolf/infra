@@ -34,10 +34,8 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /config
-            - name: downloads
-              mountPath: /downloads
-            - name: media
-              mountPath: /tv
+            - name: data
+              mountPath: /data
           resources:
             requests:
               cpu: 100m
@@ -50,15 +48,10 @@ spec:
           hostPath:
             path: /tank/servarr/config/sonarr
             type: DirectoryOrCreate
-        - name: downloads
+        - name: data
           hostPath:
-            path: /tank/servarr/downloads
-            type: DirectoryOrCreate
-        - name: media
-          hostPath:
-            path: /tank/servarr/media/tv
-            type: DirectoryOrCreate
-
+            path: /tank/servarr
+            type: Directory
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -96,10 +89,8 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /config
-            - name: downloads
-              mountPath: /downloads
-            - name: media
-              mountPath: /movies
+            - name: data
+              mountPath: /data
           resources:
             requests:
               cpu: 100m
@@ -112,15 +103,10 @@ spec:
           hostPath:
             path: /tank/servarr/config/radarr
             type: DirectoryOrCreate
-        - name: downloads
+        - name: data
           hostPath:
-            path: /tank/servarr/downloads
-            type: DirectoryOrCreate
-        - name: media
-          hostPath:
-            path: /tank/servarr/media/movies
-            type: DirectoryOrCreate
-
+            path: /tank/servarr
+            type: Directory
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -208,24 +194,20 @@ spec:
             - containerPort: 6881
               protocol: UDP
           env:
-            # User and Group IDs
             - name: PUID
               value: "1000"
             - name: PGID
               value: "1000"
             - name: TZ
               value: "Europe/Paris"
-            # Kubernetes cluster configuration
             - name: K8S_CLUSTER
               value: "yes"
             - name: K8S_POD_CIDR
               value: "10.64.0.0/16"
             - name: K8S_SVC_CIDR
               value: "10.96.0.0/16"
-            # LAN configuration (adjust to your local network)
             - name: LAN_CIDR
               value: "192.168.1.0/24"
-            # VPN configuration
             - name: VPN_ENABLED
               value: "yes"
             - name: KUBERNETES_ENABLED
@@ -240,7 +222,6 @@ spec:
                 secretKeyRef:
                   name: nordvpn-secret
                   key: password
-                  
             - name: OPENVPN_USER
               valueFrom:
                 secretKeyRef:
@@ -251,20 +232,17 @@ spec:
                 secretKeyRef:
                   name: nordvpn-secret
                   key: password
-            # DNS configuration
             - name: NAME_SERVERS
               value: "8.8.8.8,8.8.4.4"
-            # Debug (optional)
             - name: DEBUG
               value: "no"
-            # File permissions
             - name: UMASK
               value: "002"
           volumeMounts:
             - name: config
               mountPath: /config
-            - name: downloads
-              mountPath: /downloads
+            - name: data
+              mountPath: /data
           resources:
             requests:
               cpu: 100m
@@ -293,10 +271,10 @@ spec:
           hostPath:
             path: /tank/servarr/config/qbittorrent
             type: DirectoryOrCreate
-        - name: downloads
+        - name: data
           hostPath:
-            path: /tank/servarr/downloads
-            type: DirectoryOrCreate
+            path: /tank/servarr
+            type: Directory
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -374,7 +352,6 @@ spec:
           image: lscr.io/linuxserver/jellyfin:latest@sha256:0844d7504c018b0b0b898914a3c48d9dfa76d8f51ac49d8c66a1108944743fe4
           ports:
             - containerPort: 8096
-              # hostPort: 25252
           env:
             - name: PUID
               value: "1000"
@@ -385,10 +362,8 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /config
-            - name: media-tv
-              mountPath: /data/tv
-            - name: media-movies
-              mountPath: /data/movies
+            - name: data
+              mountPath: /data
           resources:
             requests:
               cpu: 200m
@@ -402,15 +377,10 @@ spec:
           hostPath:
             path: /tank/servarr/config/jellyfin
             type: DirectoryOrCreate
-        - name: media-tv
+        - name: data
           hostPath:
-            path: /tank/servarr/media/tv
-            type: DirectoryOrCreate
-        - name: media-movies
-          hostPath:
-            path: /tank/servarr/media/movies
-            type: DirectoryOrCreate
-
+            path: /tank/servarr
+            type: Directory
 ---
 apiVersion: apps/v1
 kind: Deployment

@@ -4,15 +4,10 @@ metadata:
     name: grafana-values
 type: Opaque
 stringData:
-    values.yaml: ENC[AES256_GCM,data:Nw/tpEvGc8YkcTRmTX/luY+3GdEir134IE2fkHSrmT7Tx4EIYIiehm73Nqrh2oISYlSwUSxvAsTH9i9HNuj9pgBD+WPR4yftffZo+gOntnNIMjDDFBMj8+5tyMJjavs5skXgvQjemIJt7HOAxrwlThBMSbvheZOywdfVUB6o+bx/YmWdSKsA8TMdD7fvlbGe4gdrDPZ4jjjUlkTvxxBl6x5K3Ru3twSc+eh6AVFFrwCK1Au/D9xdGVww4X2lJDBPZ5wzYp/UQh4Lc7xXjNpag1QHd2H7FoUy6m8hEAVM0/5mbxIGcdQXhKfZ5exrEd5sLXxX+S+XY0cBSat15LsBzHcOIAMU1/dUs+LEFBKaq/BSILw1vBdfv+3Q7GFGA6/q5Wk98Pyl9S6y6GCmblQyqWzl3iW8j7Y67mB3iqhLw2sbYG0ZOZfnjyKSw68K9AX2nQXTKXrUlvv7MVaJKci5ws/qtgT0RdoXrWMtch7oJwRgdpPVWMmpfDQ9yeZpzQiqv+6DjBk4vQRjvgpbT1lvSV5+WxZUPphqcKtLui0PrdhP5+HygFvRYGu1F6/du6HHr55MF/ihqaUO02Cv9Rt7xZfT++Xd5VrMDGaEjt+sOn1MaoPjBrqrfnrjmcFCrjBd5QZUZJ/iLahxDdQTaKPin5EwNmCTdSM/OvbohFVUi7gj38iVcdx82hQD6Rj4ld2eNyRJR5ELYwrhr2dz56+fKdXHjuhD6xrGtTb1ttZFCPYfhY8QtZVDgCt95eJblmAptdCMdHeAJAJAr1y7U2+X7jzcB18oDE9equqTLY1nh35MEGebYkf0Qgulo7R1xK1CCDwWjI2+zNAqi00rBvHrbh+c73ocTVnLRzi65YVW62pSVQFOeGpzaQHO4zfeAP43PDO35G5PEqyyEMrqMoHcwtByuR2AkFgy0W2zFcjSMin5Q6EkqFP9TgzYXggzCsdQk8WlS+FkOmcE6J5VGENYqJ5bv2yWOa4jiDcLAoRcphY25X+Ai5PGcZrdKX4CJ7tBHPduCNC0FjlvbbQo02kmgcpqQbHcl45n/2UY7OfR1yPGIEZ7ZnU0TWnSLw7VSVIRRF24F4PS5OZjwx+SMbaTjaWrGt03FQXtWkwfEBf+zjtB/wzplp9RP2osNlT09FuL9RMNadn+yCyeARAYTgEb/H1cTLyvqy1Bp5cnBpdmVdzV8VdP5EPj2Ou/UII8XyXSsmRx6H2GyXHkfob9wIyGGF2kmk6e7PId626a6jdBY7nJqDpvIdpmEnqICANFQuprvamM7pFCrGEh3a2Q6Z/lUsVQuYpsT3kMfVSQBAfIIjKbOFw0LdtmeBjBBj7gz/m6lxwmAsSmA7WMVxbWFcgNLAbEUZcm82I8tfZFggPVym7YrgiD/7NZXp0MIwHm3EE+3jWqnPaNe680H/J+AyHGAs8DC0vIdtGF3MLpabqhLw==,iv:tuKZ/b+79Y/7xzERcRYahvJ5QFiHG91NBGPqG/AAb3Y=,tag:7tYqp5X12Vr8lUX8sOScTA==,type:str]
+    values.yaml: ENC[AES256_GCM,data:WCNg1Anp+AuqYghOxJQ9RVpceBo0A6HEDt98WWheFDpFqdcVv43SOYkkHC6cP/WxXdm/tQ2fg+PQxjr5WdET1az1+kSbOjzzkDnyuT1cM12akPjchFgUSSMCaC1FlQWBYRAIJ0fcVMjaUkoHyMUPMAu/5IO7sZKVPs6OeqGAPAAeRwyae5v559gvwHGkpWn1UfnYPfo0MEsNnHFKeTKWEEFlKXCsBfNj6/synK255sIuusH9CZcr0QBhXKo3PYleUGbP0xlEa1HvUfAOLVjQQoeg5oc9YFX9BUgYX3dQoVFI7C0pBWWxcvTzMMkhQFSyNFN+1wnK54TLLTNAYudPJWMUhbDrxMTtTzpo6nI0gSGyVqqxXcAEJeKLiCoF0M13mn6fJ7PFZDti1HDnH43zRf799+jl0w0r9l9HYosK9nwr1bIdIof7DqFfOLlwSkqBMBhl+RO4AIhtiuuy4EXmVfoareTXG9VK5DFKky12ywTq/eUh3UPAMd/rRLhVk1q8I0zpHLN6wNvy7+OxEGWVa6ZKR+3WsTFH1C94eTAKrR2nyFx9ob+f45twdUpgPNi3uIx5zueHDPnqMW+VIn6ATl9l1WsTfwytb0V8+NEb48gFN76pOaieNx0SSuFHsavVSvRZhiPOkypcbgcfjRks9LSZ99KAqocj1KtBT0xlc16EUqIH1dAeOB4/y2h4IcjLjXZyU4jQ1d1rzLummNHSCz9mCd60GfAqFY2i4bLCAo7GBcFEaTz0FFbouxsYVxfAFJ1HQK+z2JtpjwYjSaB2w/F87Erq9Zs0mhwO/GgLZuDpRwUQCRAlLVxaPOMDHpkv6XlCkorppr3p2Bf6cI/s+2XrhB9o1tfWQohXeY/AUZryQXqx31QgcTqqWZuIGbXuidXvUhWbH5rGHJx5qqTDvrddp2srwAoh4xBCNHOQIt9DWj6PQtYWCmtqhC71KajpYxiSfIMVUIUal7DdivyNADYB/fswGZZpfep8gQfshPHZ58CpCJxmnNRAXsmDN5nKtaBa/bnZ96nPsYV8pUi6cyF7uBZKXKnXz10B8a76kE1s+J2GkzWCrTCCkvzn1YX3P4Hk5pyWO7eprFpPJ7qDTTZb46doZF0U9I8UYP/N8+dSrZnQavbEoPAlUv/Xg/T4EvWeHe3mCh6Ex2z8i6EfDOOMR67Jl1Ksontg7PBe7+FYVzVQ4ZrqcVSKzAz2HNZfBcDb5ggreXvMzxfwyLy2+0M/GsGVkExoJxcI0Fy5acpC+vjszcDN6EuzhaeARgMw9CPt0UgG/cB588q/wzS0yjmD//lNpwuCSU5XRvBvC9eItkdh8XOzsGNOmmufs4HE+RAsfqsdk+dgrBc9bnltb2UmEYHtsT2EN1SYGLYCzeWhOQhtvnOhMqFUtkgTw/irbdsD27oK0cLJKN8aZyU0Amn7A8rYuqkRXsfjZvOvaadJ+5itluzUtKf2izAr5scFHooE2xM9fPFhNLVeCyV+SN5qyzzvwZ4I//9gMXm3ShcAaGzO6w1daQOHLy+zqzVekmV2MW0bErpMyay5o0x/JpaTYhU5/SlytQl0aK12APWjaw4O1hAwT2dwVwz0bD6EIBz6vSBp0WY=,iv:2RBHpVdBzzUkylT76fcxsxswg0bMbIrKIwM9zCjTYVc=,tag:QVtQyNW/iLkaKXp5WvZIig==,type:str]
 sops:
-    kms: []
-    gcp_kms: []
-    azure_kv: []
-    hc_vault: []
-    age: []
-    lastmodified: "2025-09-02T21:51:06Z"
-    mac: ENC[AES256_GCM,data:ybhwnj6arvlZxV1sHyva+juGtBQGVrRkcBRp2iwXpb0lR+QGY/vx8JnvzMEf1EpHZqy0RLfhmD2WTEqDoNRE5U1AhYBHZaTx5pe4sqeRueWB3MwFrBHXlQPKADXgJJN6zIhn/yNCr67XisM/T7x3W5JV++40nc2eR/B2gZ4syUM=,iv:wHPaxxoeKQq9GSCsDbfu+w0vI5SH4noV7fqWKlE0cQg=,tag:EYtZmW4pT4TuiuhbLwguIg==,type:str]
+    lastmodified: "2025-09-20T11:01:57Z"
+    mac: ENC[AES256_GCM,data:ai4IPk4ETtBing1kiVdZchl8hYnT9BUKMtU2m59+6zviv43tuOmQxooZYcwtgtDjt2UN/cuT6J+RdoA1gXSMjPCgtUC58Kz1gmzqibZIV/+UWnPCt1uZS0QNfBR5dFk16dZxnjtKBX/GGXN/QMxgUdFMESPwSxCEPFdGMt3EVVA=,iv:qG0Y2LwDk16jCqWOl5FVxdPENecScNuk2HGmFASHSYM=,tag:EiWcVRVCr5OAemi+AtjmbA==,type:str]
     pgp:
         - created_at: "2025-09-02T21:51:06Z"
           enc: |-
@@ -37,4 +32,4 @@ sops:
             -----END PGP MESSAGE-----
           fp: DF7F5D62376A57228F35FE4C665F8C5B8E0732E5
     encrypted_regex: ^(data|stringData|secrets)$
-    version: 3.9.2
+    version: 3.10.2
