@@ -63,6 +63,8 @@ spec:
       targetCPUUtilizationPercentage: 80
     dind:
       registry: mirror.gcr.io
+      repository: maniator/dind-buildx
+      tag: docker_28.4.0-buildx_0.28.0
     gc:
       registry: mirror.gcr.io
     image:
