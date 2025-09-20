@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    tailscale.com/tailnet-fqdn: lte.tail5ec535.ts.net
+  name: lte
+  namespace: tailscale
+spec:
+  externalName: placeholder   # any value - will be overwritten by operator
+  type: ExternalName

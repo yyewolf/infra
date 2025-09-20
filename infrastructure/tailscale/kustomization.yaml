@@ -8,3 +8,4 @@ resources:
   - dk1.yaml
   - saubian.yaml
   - saubian-svc.yaml
+  - lte.yaml

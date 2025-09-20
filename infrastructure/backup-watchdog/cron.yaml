@@ -23,6 +23,16 @@ spec:
                     secretKeyRef:
                       name: notify-url
                       key: URL
+                - name: TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: notify-url
+                      key: TOKEN
+                - name: PHONE
+                  valueFrom:
+                    secretKeyRef:
+                      name: notify-url
+                      key: PHONE
               command:
                 - /bin/sh
                 - -c
@@ -30,27 +40,34 @@ spec:
                   apk add --no-cache curl jq
                   set -e
                   echo "Collecting backup statuses..."
-                  
-                  message="> Backup Statuses\n\n"
-                  message="${message}Status | Namespace | Creation Time\n\n"
+
+                  today=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+                  message="📦 Backup Status Report\n\n"
+
                   for ns in $(kubectl get ns -o jsonpath='{.items[*].metadata.name}'); do
                     latest=$(kubectl get backups.k8up.io -n "$ns" --sort-by=.metadata.creationTimestamp -o json 2>/dev/null | jq -r '.items[-1]')
                     if [ "$latest" != "null" ]; then
                       time=$(echo "$latest" | jq -r '.metadata.creationTimestamp' || echo "N/A")
                       status=$(echo "$latest" | jq -r '.status.conditions | map(select(.type == "Completed")) | .[0].reason' || echo "N/A")
-                      if [[ "$status" == "Succeeded" ]]; then
-                        status="OK"
-                      elif [[ "$status" == "Failed" ]]; then
-                        status="NOK"
+                      if [ "$status" = "Succeeded" ]; then
+                        emoji="✅"
+                      elif [ "$status" = "Failed" ]; then
+                        emoji="❌"
                       else
-                        status="?"
+                        emoji="❔"
                       fi
-                      message="${message}${status} - ${ns} - ${time}\n"
+                      message="${message}${ns} : ${emoji} (${time})\n"
                     fi
                   done
-                  encoded=$(echo -e "$message" | jq -s -R -r @uri)
-                  cleaned=$(echo "$encoded" | sed -E 's/(%0A)+$//')
-                  echo "Sending message to notify URL..."
-                  echo "Message: $message"
-                  echo "${NOTIFY_URL}&msg=${cleaned}" 
-                  curl "${NOTIFY_URL}&msg=${cleaned}" 
+
+                  # Escape newlines for JSON
+                  payload=$(printf '%s' "$message" | sed ':a;N;$!ba;s/\n/\\n/g')
+
+                  echo "Sending message to Discord..."
+                  printf "Message:\n%s\n" "$message"
+                  curl -s -H "Content-Type: application/json" \
+                       -H "Authorization: $TOKEN" \
+                       -X POST \
+                       -d "{\"message\": \"$payload\", \"number\": \"$PHONE\"}" \
+                       "$NOTIFY_URL"
