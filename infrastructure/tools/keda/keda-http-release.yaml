@@ -10,17 +10,18 @@ spec:
   chart:
     spec:
       chart: keda-add-ons-http
+      version: v0.11.0
       sourceRef:
         kind: HelmRepository
         name: kedacore
   values:
     crds:
-      install: false
-    images:
-      tag: main
-      operator: ghcr.io/yyewolf/http-add-on-operator
-      interceptor: ghcr.io/yyewolf/http-add-on-interceptor
-      scaler: ghcr.io/yyewolf/http-add-on-scaler
+      install: true
+    # images:
+    #   tag: main
+    #   operator: ghcr.io/yyewolf/http-add-on-operator
+    #   interceptor: ghcr.io/yyewolf/http-add-on-interceptor
+    #   scaler: ghcr.io/yyewolf/http-add-on-scaler
     operator:
       resources:
         requests:
