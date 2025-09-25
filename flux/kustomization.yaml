@@ -6,40 +6,44 @@ resources:
   # External (for other ppl) resources
   - infrastructure/external/nounoursdestavernes.yaml # uptime monitoring for @nounoursdestavernes
 
-  # Monitoring
-  - infrastructure/monitoring/matomo.yaml
+  # Running on home1 node
+  - infrastructure/databases/home1/mariadb.yaml
 
-  # Unsorted (infrastructure)
-  - infrastructure/cert-manager.yaml
-  - infrastructure/certificates.yaml
-  - infrastructure/gateway-api-crd.yaml
-  - infrastructure/envoy-gateway.yaml
-  - infrastructure/gateway.yaml
-  - infrastructure/kube-prom-stack.yaml
-  - infrastructure/hello-world.yaml
-  - infrastructure/metrics-server.yaml
-  - infrastructure/weave-gitops.yaml
-  - infrastructure/flux-webhook.yaml
-  - infrastructure/stirlingpdf.yaml
-  - infrastructure/cyberchef.yaml
-  - infrastructure/juice-shop.yaml
-  - infrastructure/tailscale-operator.yaml
-  - infrastructure/tailscale.yaml
-  - infrastructure/k8up-crd.yaml
-  - infrastructure/k8up.yaml
-  - infrastructure/postgresql.yaml
-  - infrastructure/keda.yaml
-  - infrastructure/backup-watchdog.yaml
-  - infrastructure/booting-up.yaml
-  - infrastructure/vaultwarden.yaml
-  - infrastructure/capsule.yaml
-  - infrastructure/satisfactory.yaml
-  - infrastructure/stalwart.yaml
-  - infrastructure/portfolio.yaml
-  - infrastructure/joplin.yaml
-  - infrastructure/mariadb.yaml
-  - infrastructure/pterodactyl.yaml
-  - infrastructure/servarr.yaml
-  - infrastructure/album.yaml
-  - infrastructure/droneci.yaml
-  - infrastructure/registry.yaml
+  - infrastructure/software/home1/album.yaml
+  - infrastructure/software/home1/droneci.yaml
+  - infrastructure/software/home1/satisfactory.yaml
+  - infrastructure/software/home1/servarr.yaml
+  - infrastructure/software/home1/stalwart.yaml
+  - infrastructure/software/home1/registry.yaml
+
+  # Running anywhere else on the cluster
+  - infrastructure/backbone/backups/backup-watchdog.yaml
+  - infrastructure/backbone/backups/k8up-crd.yaml
+  - infrastructure/backbone/backups/k8up.yaml
+  - infrastructure/backbone/certs/cert-manager.yaml
+  - infrastructure/backbone/certs/certificates.yaml
+  - infrastructure/backbone/gateway/envoy-gateway.yaml
+  - infrastructure/backbone/gateway/gateway-api-crd.yaml
+  - infrastructure/backbone/gateway/gateway.yaml
+  - infrastructure/backbone/tailscale/tailscale-operator.yaml
+  - infrastructure/backbone/tailscale/tailscale.yaml
+  - infrastructure/backbone/utility/booting-up.yaml
+  - infrastructure/backbone/utility/flux-webhook.yaml
+  - infrastructure/backbone/utility/keda.yaml
+  - infrastructure/backbone/utility/metrics-server.yaml
+
+  - infrastructure/monitoring/cluster/matomo.yaml
+  - infrastructure/monitoring/cluster/kube-prom-stack.yaml
+
+  - infrastructure/databases/cluster/postgresql.yaml
+  
+  - infrastructure/software/cluster/capsule.yaml
+  - infrastructure/software/cluster/cyberchef.yaml
+  - infrastructure/software/cluster/hello-world.yaml
+  - infrastructure/software/cluster/joplin.yaml
+  - infrastructure/software/cluster/juice-shop.yaml
+  - infrastructure/software/cluster/portfolio.yaml
+  - infrastructure/software/cluster/pterodactyl.yaml
+  - infrastructure/software/cluster/stirlingpdf.yaml
+  - infrastructure/software/cluster/vaultwarden.yaml
+  - infrastructure/software/cluster/weave-gitops.yaml
