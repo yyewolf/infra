@@ -15,4 +15,4 @@ spec:
   sourceRef:
     kind: GitRepository
     name: infra
-  path: ./infrastructure/servarr
+  path: ./applications/software/home1/servarr

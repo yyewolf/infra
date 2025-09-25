@@ -14,4 +14,4 @@ spec:
   sourceRef:
     kind: GitRepository
     name: infra
-  path: ./infrastructure/registry
+  path: ./applications/software/home1/registry

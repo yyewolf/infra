@@ -15,4 +15,4 @@ spec:
   sourceRef:
     kind: GitRepository
     name: infra
-  path: ./infrastructure/tools/k8up-crd
+  path: ./applications/backbone/backups/k8up-crd

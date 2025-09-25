@@ -15,4 +15,4 @@ spec:
   sourceRef:
     kind: GitRepository
     name: infra
-  path: ./infrastructure/droneci
+  path: ./applications/software/home1/droneci

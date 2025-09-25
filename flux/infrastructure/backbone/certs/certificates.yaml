@@ -15,4 +15,4 @@ spec:
   sourceRef:
     kind: GitRepository
     name: infra
-  path: ./infrastructure/certificates
+  path: ./applications/backbone/certs/certificates

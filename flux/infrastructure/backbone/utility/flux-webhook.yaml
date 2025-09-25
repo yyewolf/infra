@@ -15,4 +15,4 @@ spec:
   sourceRef:
     kind: GitRepository
     name: infra
-  path: ./infrastructure/flux-webhook
+  path: ./applications/backbone/utility/flux-webhook

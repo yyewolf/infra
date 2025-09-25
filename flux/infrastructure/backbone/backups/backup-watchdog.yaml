@@ -15,4 +15,4 @@ spec:
   sourceRef:
     kind: GitRepository
     name: infra
-  path: ./infrastructure/backup-watchdog
+  path: ./applications/backbone/backups/backup-watchdog

@@ -15,4 +15,4 @@ spec:
   sourceRef:
     kind: GitRepository
     name: infra
-  path: ./infrastructure/kube-prom-stack
+  path: ./applications/monitoring/cluster/kube-prom-stack

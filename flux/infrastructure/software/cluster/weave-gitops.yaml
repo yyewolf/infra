@@ -14,4 +14,4 @@ spec:
   sourceRef:
     kind: GitRepository
     name: infra
-  path: ./infrastructure/weave-gitops
+  path: ./applications/software/cluster/weave-gitops

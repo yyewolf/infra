@@ -14,4 +14,4 @@ spec:
   sourceRef:
     kind: GitRepository
     name: infra
-  path: ./infrastructure/postgresql
+  path: ./applications/databases/cluster/postgresql

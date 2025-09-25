@@ -15,4 +15,4 @@ spec:
   sourceRef:
     kind: GitRepository
     name: infra
-  path: ./infrastructure/tailscale
+  path: ./applications/backbone/tailscale/tailscale
