@@ -4,7 +4,10 @@ namespace: flux-system
 
 resources:
   # External (for other ppl) resources
-  - external/nounoursdestavernes.yaml # uptime monitoring for @nounoursdestavernes
+  - infrastructure/external/nounoursdestavernes.yaml # uptime monitoring for @nounoursdestavernes
+
+  # Monitoring
+  - infrastructure/monitoring/matomo.yaml
 
   # Unsorted (infrastructure)
   - infrastructure/cert-manager.yaml

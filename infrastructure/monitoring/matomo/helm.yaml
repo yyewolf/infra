@@ -1,0 +1,37 @@
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: matomo
+spec:
+  interval: 1h
+  type: oci
+  url: oci://registry-1.docker.io/digitalist
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: matomo
+spec:
+  interval: 5m
+  chart:
+    spec:
+      chart: matomo
+      sourceRef:
+        kind: HelmRepository
+        name: matomo
+        namespace: matomo
+  values:
+    global:
+      imageRegistry: mirror.gcr.io
+    matomo:
+      imageRegistry: mirror.gcr.io
+    db:
+      hostname: mariadb.mariadb.svc
+      password:
+        secretKeyRef:
+          name: matomo-secret
+          key: dbPassword
+      name: matomo
+      username: matomo
+      prefix: matomo_
