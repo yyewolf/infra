@@ -19,7 +19,7 @@ spec:
         fsGroup: 1000
       containers:
         - name: uptime-kuma
-          image: louislam/uptime-kuma:2.0.0-beta.4
+          image: louislam/uptime-kuma:2.0.0-beta.4@sha256:128685b2fb6e6caa4765220edb4458e107bb2b26af7ba43c320df8e3c3ea8e92
           imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:
