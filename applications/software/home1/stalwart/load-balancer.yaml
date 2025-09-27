@@ -11,11 +11,8 @@ spec:
   externalTrafficPolicy: Cluster
   selector:
     app: stalwart
+    instance: primary
   ports:
-    - name: smtp
-      protocol: TCP
-      port: 25
-      targetPort: 25
     - name: submission
       protocol: TCP
       port: 587

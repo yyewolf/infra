@@ -1,31 +1,41 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: stalwart-primary
+  name: stalwart-secondary
   labels:
     app: stalwart
-    instance: primary
+    instance: secondary
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: stalwart
-      instance: primary
+      instance: secondary
   template:
     metadata:
       labels:
         app: stalwart
-        instance: primary
+        instance: secondary
     spec:
-      nodeSelector:
-        location: home1
-      tolerations:
-        - key: "PrivateNode"
-          operator: "Equal"
-          value: "home1"
       containers:
         - name: stalwart
           image: stalwartlabs/stalwart:latest@sha256:da4b39025874153ed54d12253d5af4a58898aefa728b23d0cc89ff9461fe6871
+          livenessProbe:
+            tcpSocket:
+              port: 25
+          readinessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -c
+                - |
+                  echo 1 > /dev/tcp/stalwart-primary.stalwart.svc/2500
+                  # invert condition
+                  if [ $? -eq 0 ]; then
+                    exit 1
+                  fi
           ports:
             - name: smtp
               protocol: TCP
@@ -46,8 +56,9 @@ spec:
               protocol: TCP
               containerPort: 4190
           volumeMounts:
-            - name: stalwart-data
-              mountPath: /opt/stalwart
+            - name: stalwart-config
+              mountPath: /opt/stalwart/etc
+              readOnly: true
             - name: hackcorp-net
               mountPath: /certs/hackcorp.net
               readOnly: true
@@ -62,10 +73,12 @@ spec:
               cpu: 1
               memory: 2Gi
       volumes:
-        - name: stalwart-data
-          hostPath:
-            path: /media/disk/stalwart
-            type: Directory
+        - name: stalwart-config
+          secret:
+            secretName: stalwart-fallback-config
+            items:
+              - key: config.toml
+                path: config.toml
         - name: hackcorp-net
           secret:
             secretName: mail.hackcorp.net
