@@ -3,14 +3,7 @@ kind: Kustomization
 namespace: stalwart
 
 resources:
-  - namespace.yaml
   - deployment.yaml
   - service.yaml
-  - load-balancer.yaml
   - route.yaml
-
-  - ./certificates
-  - ./roundcube
-  - ./routing
-  - ./fallback
-  - ./redis
+  - secrets-sops.yaml
