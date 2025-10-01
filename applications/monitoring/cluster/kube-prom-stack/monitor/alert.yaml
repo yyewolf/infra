@@ -1,0 +1,17 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: blackbox-rules
+  namespace: monitoring
+spec:
+  groups:
+    - name: blackbox-rules
+      rules:
+        - alert: BlackboxProbeFailed
+          expr: probe_success == 0
+          for: 30s
+          labels:
+            severity: critical
+          annotations:
+            summary: "{{ $labels.instance }} seems to be down"
+            description: "The probe to {{ $labels.instance }} has been failing for more than 30 seconds."

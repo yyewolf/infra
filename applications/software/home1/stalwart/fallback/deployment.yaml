@@ -16,72 +16,73 @@ spec:
   template:
     metadata:
       labels:
+        ignore_alert_not_ready: "true"
         app: stalwart
         instance: secondary
     spec:
       containers:
-        - name: stalwart
-          image: stalwartlabs/stalwart:latest@sha256:5d0e3a332dfb3db8852d9fabb76c1b479b5ee11aa45607d7d48fb7e9b2d3a1bc
-          livenessProbe:
-            tcpSocket:
-              port: 25
-          readinessProbe:
-            exec:
-              command:
-                - /bin/bash
-                - -c
-                - |
-                  echo 1 > /dev/tcp/stalwart-primary.stalwart.svc/2500
-                  # invert condition
-                  if [ $? -eq 0 ]; then
-                    exit 1
-                  fi
-          ports:
-            - name: smtp
-              protocol: TCP
-              containerPort: 25
-            - name: submission
-              protocol: TCP
-              containerPort: 587
-            - name: smtps
-              protocol: TCP
-              containerPort: 465
-            - name: imap
-              protocol: TCP
-              containerPort: 143
-            - name: imaps
-              protocol: TCP
-              containerPort: 993
-            - name: sieve
-              protocol: TCP
-              containerPort: 4190
-          volumeMounts:
-            - name: stalwart-config
-              mountPath: /opt/stalwart/etc
-              readOnly: true
-            - name: hackcorp-net
-              mountPath: /certs/hackcorp.net
-              readOnly: true
-            - name: yewolf-fr
-              mountPath: /certs/yewolf.fr
-              readOnly: true
-          resources:
-            requests:
-              cpu: 0m
-              memory: 0Mi
-            limits:
-              cpu: 1
-              memory: 2Gi
-      volumes:
+      - name: stalwart
+        image: stalwartlabs/stalwart:latest@sha256:5d0e3a332dfb3db8852d9fabb76c1b479b5ee11aa45607d7d48fb7e9b2d3a1bc
+        livenessProbe:
+          tcpSocket:
+            port: 25
+        readinessProbe:
+          exec:
+            command:
+            - /bin/bash
+            - -c
+            - |
+              echo 1 > /dev/tcp/stalwart-primary.stalwart.svc/2500
+              # invert condition
+              if [ $? -eq 0 ]; then
+                exit 1
+              fi
+        ports:
+        - name: smtp
+          protocol: TCP
+          containerPort: 25
+        - name: submission
+          protocol: TCP
+          containerPort: 587
+        - name: smtps
+          protocol: TCP
+          containerPort: 465
+        - name: imap
+          protocol: TCP
+          containerPort: 143
+        - name: imaps
+          protocol: TCP
+          containerPort: 993
+        - name: sieve
+          protocol: TCP
+          containerPort: 4190
+        volumeMounts:
         - name: stalwart-config
-          secret:
-            secretName: stalwart-fallback-config
-            items:
-              - key: config.toml
-                path: config.toml
+          mountPath: /opt/stalwart/etc
+          readOnly: true
         - name: hackcorp-net
-          secret:
-            secretName: mail.hackcorp.net
+          mountPath: /certs/hackcorp.net
+          readOnly: true
         - name: yewolf-fr
-          secret:
-            secretName: mail.yewolf.fr
+          mountPath: /certs/yewolf.fr
+          readOnly: true
+        resources:
+          requests:
+            cpu: 0m
+            memory: 0Mi
+          limits:
+            cpu: 1
+            memory: 2Gi
+      volumes:
+      - name: stalwart-config
+        secret:
+          secretName: stalwart-fallback-config
+          items:
+          - key: config.toml
+            path: config.toml
+      - name: hackcorp-net
+        secret:
+          secretName: mail.hackcorp.net
+      - name: yewolf-fr
+        secret:
+          secretName: mail.yewolf.fr
