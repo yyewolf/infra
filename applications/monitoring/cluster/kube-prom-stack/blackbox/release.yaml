@@ -1,0 +1,14 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: blackbox-exporter
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: prometheus-blackbox-exporter  
+      version: "*"
+      sourceRef:
+        kind: HelmRepository
+        name: kube-prom-stack
+      interval: 12h
