@@ -131,7 +131,7 @@ spec:
           value: "home1"
       containers:
         - name: prowlarr
-          image: lscr.io/linuxserver/prowlarr:latest@sha256:856c93bab72a6a41a23ff60bab48554135c044a456f40909307011dea8ddeafb
+          image: lscr.io/linuxserver/prowlarr:latest@sha256:964485823771c102427a0c1cd896cf6b576add6f21bd041498b92cb040ee7270
           ports:
             - containerPort: 9696
           env:
