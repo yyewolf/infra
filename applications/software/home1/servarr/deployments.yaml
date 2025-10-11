@@ -76,7 +76,7 @@ spec:
           value: "home1"
       containers:
         - name: radarr
-          image: lscr.io/linuxserver/radarr:latest@sha256:19474a623b278f558c9696a19b84640ad4aff3b2959f08904a77ffbad73ed7bd
+          image: lscr.io/linuxserver/radarr:latest@sha256:f174546a0ad7eb9a9170e4142bef6f74ef3ebfe6209528fded40630369406dc0
           ports:
             - containerPort: 7878
           env:
@@ -131,7 +131,7 @@ spec:
           value: "home1"
       containers:
         - name: prowlarr
-          image: lscr.io/linuxserver/prowlarr:latest@sha256:856c93bab72a6a41a23ff60bab48554135c044a456f40909307011dea8ddeafb
+          image: lscr.io/linuxserver/prowlarr:latest@sha256:964485823771c102427a0c1cd896cf6b576add6f21bd041498b92cb040ee7270
           ports:
             - containerPort: 9696
           env:
@@ -349,7 +349,7 @@ spec:
           value: "home1"
       containers:
         - name: jellyfin
-          image: lscr.io/linuxserver/jellyfin:latest@sha256:648f92792d822526a99a477361f2f127b31fa1da0aea301a9174e8b95f9ad8dc
+          image: lscr.io/linuxserver/jellyfin:latest@sha256:68e012f4bf5aeb114632e9045f5b2f2f6713536693093f70fcb338179f84f86c
           ports:
             - containerPort: 8096
           env:
@@ -453,7 +453,7 @@ spec:
           value: "home1"
       containers:
         - name: flaresolverr
-          image: ghcr.io/flaresolverr/flaresolverr:latest@sha256:5379a9209c86870558d77c8cdf7efdf300aecf0447617a05dc77e0491d53f34c
+          image: ghcr.io/flaresolverr/flaresolverr:latest@sha256:42ffb1cc56088899e91a7382bc611b00fa7cbd016accfed12c0695275ca18451
           ports:
             - containerPort: 8191
           env:
@@ -496,7 +496,7 @@ spec:
           value: "home1"
       containers:
         - name: bazarr
-          image: lscr.io/linuxserver/bazarr:latest@sha256:e424330f048ff1401f22413e34ee11c25ac2de79b6213c6ead3f593b44626c55
+          image: lscr.io/linuxserver/bazarr:latest@sha256:005f97fcab0fd7402cd7ff3c09f5ff4da4c63ca51be487e90d5c4dc8a8f85a45
           ports:
             - containerPort: 6767
           env:

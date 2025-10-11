@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: redis
-          image: mirror.gcr.io/redis:alpine@sha256:987c376c727652f99625c7d205a1cba3cb2c53b92b0b62aade2bd48ee1593232
+          image: mirror.gcr.io/redis:alpine@sha256:59b6e694653476de2c992937ebe1c64182af4728e54bb49e9b7a6c26614d8933
           args: ["--save", "", "--appendonly", "no"]
           resources:
             requests:
@@ -54,7 +54,7 @@ spec:
         fsGroup: 500
       containers:
         - name: worker
-          image: mirror.gcr.io/ccarney16/pterodactyl-panel:v1.11.11@sha256:0fa94427829b77027d1658d75e272e02f810ded0ecaf85392758b47727fabd31
+          image: mirror.gcr.io/ccarney16/pterodactyl-panel:v1.11.11@sha256:e3fb36960e7bcfdb920888633a0fe423f643e939c73e6feca6584940a54023db
           command: ["p:worker"]
           envFrom:
             - secretRef:
@@ -117,7 +117,7 @@ spec:
     spec:
       containers:
         - name: cron
-          image: mirror.gcr.io/ccarney16/pterodactyl-panel:v1.11.11@sha256:0fa94427829b77027d1658d75e272e02f810ded0ecaf85392758b47727fabd31
+          image: mirror.gcr.io/ccarney16/pterodactyl-panel:v1.11.11@sha256:e3fb36960e7bcfdb920888633a0fe423f643e939c73e6feca6584940a54023db
           command: ["p:cron"]
           envFrom:
             - secretRef:
@@ -180,7 +180,7 @@ spec:
           - "saubian.tail5ec535.ts.net"
       containers:
         - name: panel
-          image: mirror.gcr.io/ccarney16/pterodactyl-panel:v1.11.11@sha256:0fa94427829b77027d1658d75e272e02f810ded0ecaf85392758b47727fabd31
+          image: mirror.gcr.io/ccarney16/pterodactyl-panel:v1.11.11@sha256:e3fb36960e7bcfdb920888633a0fe423f643e939c73e6feca6584940a54023db
           envFrom:
             - secretRef:
                 name: env-secret
