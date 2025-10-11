@@ -18,7 +18,7 @@ spec:
   chart:
     spec:
       chart: drone
-      version: 0.6.5 
+      version: 0.6.5
       sourceRef:
         kind: HelmRepository
         name: drone
@@ -28,7 +28,7 @@ spec:
       registry: mirror.gcr.io
     persistentVolume:
       enabled: false
-    resources: 
+    resources:
       limits:
         cpu: 100m
         memory: 128Mi
@@ -36,9 +36,9 @@ spec:
         cpu: 100m
         memory: 128Mi
   valuesFrom:
-    - kind: Secret
-      name: droneci-secret
-      valuesKey: serverEnv
+  - kind: Secret
+    name: droneci-secret
+    valuesKey: serverEnv
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
@@ -72,12 +72,15 @@ spec:
     resources:
       requests:
         cpu: 100m
-        memory: 128Mi
+        memory: 100Mi
+      limits:
+        cpu: 3
+        memory: 3Gi
     tolerations:
     - key: PrivateNode
       operator: Equal
       value: home1
   valuesFrom:
-    - kind: Secret
-      name: droneci-secret
-      valuesKey: runnerEnv
+  - kind: Secret
+    name: droneci-secret
+    valuesKey: runnerEnv
