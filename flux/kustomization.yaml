@@ -3,47 +3,48 @@ kind: Kustomization
 namespace: flux-system
 
 resources:
-  # External (for other ppl) resources
-  - infrastructure/external/nounoursdestavernes.yaml # uptime monitoring for @nounoursdestavernes
+# External (for other ppl) resources
+- infrastructure/external/nounoursdestavernes.yaml # uptime monitoring for @nounoursdestavernes
 
-  # Running on home1 node
-  - infrastructure/databases/home1/mariadb.yaml
+# Running on home1 node
+- infrastructure/databases/home1/mariadb.yaml
 
-  - infrastructure/software/home1/album.yaml
-  - infrastructure/software/home1/droneci.yaml
-  - infrastructure/software/home1/satisfactory.yaml
-  - infrastructure/software/home1/servarr.yaml
-  - infrastructure/software/home1/stalwart.yaml
-  - infrastructure/software/home1/registry.yaml
+- infrastructure/software/home1/album.yaml
+- infrastructure/software/home1/droneci.yaml
+- infrastructure/software/home1/satisfactory.yaml
+- infrastructure/software/home1/servarr.yaml
+- infrastructure/software/home1/stalwart.yaml
+- infrastructure/software/home1/registry.yaml
+- infrastructure/software/home1/minio.yaml
 
-  # Running anywhere else on the cluster
-  - infrastructure/backbone/backups/backup-watchdog.yaml
-  - infrastructure/backbone/backups/k8up-crd.yaml
-  - infrastructure/backbone/backups/k8up.yaml
-  - infrastructure/backbone/certs/cert-manager.yaml
-  - infrastructure/backbone/certs/certificates.yaml
-  - infrastructure/backbone/gateway/envoy-gateway.yaml
-  - infrastructure/backbone/gateway/gateway-api-crd.yaml
-  - infrastructure/backbone/gateway/gateway.yaml
-  - infrastructure/backbone/tailscale/tailscale-operator.yaml
-  - infrastructure/backbone/tailscale/tailscale.yaml
-  - infrastructure/backbone/utility/booting-up.yaml
-  - infrastructure/backbone/utility/flux-webhook.yaml
-  - infrastructure/backbone/utility/keda.yaml
-  - infrastructure/backbone/utility/metrics-server.yaml
+# Running anywhere else on the cluster
+- infrastructure/backbone/backups/backup-watchdog.yaml
+- infrastructure/backbone/backups/k8up-crd.yaml
+- infrastructure/backbone/backups/k8up.yaml
+- infrastructure/backbone/certs/cert-manager.yaml
+- infrastructure/backbone/certs/certificates.yaml
+- infrastructure/backbone/gateway/envoy-gateway.yaml
+- infrastructure/backbone/gateway/gateway-api-crd.yaml
+- infrastructure/backbone/gateway/gateway.yaml
+- infrastructure/backbone/tailscale/tailscale-operator.yaml
+- infrastructure/backbone/tailscale/tailscale.yaml
+- infrastructure/backbone/utility/booting-up.yaml
+- infrastructure/backbone/utility/flux-webhook.yaml
+- infrastructure/backbone/utility/keda.yaml
+- infrastructure/backbone/utility/metrics-server.yaml
 
-  - infrastructure/monitoring/cluster/matomo.yaml
-  - infrastructure/monitoring/cluster/kube-prom-stack.yaml
+- infrastructure/monitoring/cluster/matomo.yaml
+- infrastructure/monitoring/cluster/kube-prom-stack.yaml
 
-  - infrastructure/databases/cluster/postgresql.yaml
-  
-  - infrastructure/software/cluster/capsule.yaml
-  - infrastructure/software/cluster/cyberchef.yaml
-  - infrastructure/software/cluster/hello-world.yaml
-  - infrastructure/software/cluster/joplin.yaml
-  - infrastructure/software/cluster/juice-shop.yaml
-  - infrastructure/software/cluster/portfolio.yaml
-  - infrastructure/software/cluster/pterodactyl.yaml
-  - infrastructure/software/cluster/stirlingpdf.yaml
-  - infrastructure/software/cluster/vaultwarden.yaml
-  - infrastructure/software/cluster/weave-gitops.yaml
+- infrastructure/databases/cluster/postgresql.yaml
+
+- infrastructure/software/cluster/capsule.yaml
+- infrastructure/software/cluster/cyberchef.yaml
+- infrastructure/software/cluster/hello-world.yaml
+- infrastructure/software/cluster/joplin.yaml
+- infrastructure/software/cluster/juice-shop.yaml
+- infrastructure/software/cluster/portfolio.yaml
+- infrastructure/software/cluster/pterodactyl.yaml
+- infrastructure/software/cluster/stirlingpdf.yaml
+- infrastructure/software/cluster/vaultwarden.yaml
+- infrastructure/software/cluster/weave-gitops.yaml

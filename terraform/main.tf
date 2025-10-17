@@ -20,6 +20,7 @@ resource "infomaniak_kaas_instance_pool" "rondin" {
   name              = "rondin"
   flavor_name       = var.pool_type
   min_instances     = var.pool_min
+  max_instances     = var.pool_min
   availability_zone = "az-1"
 }
 
@@ -31,6 +32,7 @@ resource "infomaniak_kaas_instance_pool" "rondeux" {
   name              = "rondeux"
   flavor_name       = var.pool_type
   min_instances     = var.pool_min
+  max_instances     = var.pool_min
   availability_zone = "az-2"
 }
 
