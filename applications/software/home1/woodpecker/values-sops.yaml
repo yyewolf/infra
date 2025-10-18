@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Secret
+metadata:
+    name: values
+type: Opaque
+stringData:
+    WOODPECKER_GITHUB_CLIENT: ENC[AES256_GCM,data:ldmUGZ8TUtyNU+KCVXhtuGIHSx4=,iv:t7XPF3hTViSH0qq+QEa4zDachR+udDitt0IVMCMW6pU=,tag:R73wAnM4gbgvW4V4T7n2gA==,type:str]
+    WOODPECKER_GITHUB_SECRET: ENC[AES256_GCM,data:UqAWlpcxU9HuCZAfp/cU4/Qd3VCvPU5QyTB7GPgg+0hQ2CZT1ipFcg==,iv:YCdtiQiiPgyP2c3HD8fUg2b/rXN5E7POd31pH+y6h9w=,tag:LHqhitiqolaIoTy/42Ybww==,type:str]
+    WOODPECKER_DATABASE_DATASOURCE: ENC[AES256_GCM,data:TFvofg82oHpTOK7EcfKWJlmhiC5VICrOQDLdCYjFDHpzvsVUvmYUycdwObL9MaSyizDPQ8g+InHo5DkXeG06vVAs0xLoRFme9e2dYHes5f7ORvTohFtAsBpc08rtbylOCLOFqouVGUefyE7xuaM=,iv:PU/7KlTfjfPmPC6bkqWFfzC50xXduzmHvn8QG+30pMs=,tag:IThAXPrTICpZztGVIksSNw==,type:str]
+sops:
+    lastmodified: "2025-10-18T21:38:48Z"
+    mac: ENC[AES256_GCM,data:GfTeaQZihfCgsT7ghjmnuc14/tj5/YhBHEp0rawB7O6flms6El3kzZr6eEMXffmxbRA9qInlXyHFlhrqNGNLIuUW6OYeHJa7MhdsT9hfcJpENoCxc6t31mGnXCpW2EQi06/wJNG/ec3UH0Tl5+ybYMOwb6XtnJ9iQnMOodvq5wk=,iv:Lzwfljdb5u87a11k190TtPO5JU856e7Gyf0zDNnQ9FA=,tag:pG1SQVc6NaQtrPZVFfKmwA==,type:str]
+    pgp:
+        - created_at: "2025-10-18T21:38:48Z"
+          enc: |-
+            -----BEGIN PGP MESSAGE-----
+
+            hF4D6rJQTzBUCVESAQdAr98l0aE1vLflarFd5/bjWxnewr+qvQLt/U7HR2c9rgow
+            L2ESg4UxuXTyc8cCyc2gB02dQzAOrIxy1JM7gyX9yg87JpVSngXizCJMbRlMZe8+
+            0l4BMUA3Gj1QgzOeihaEICg6ESQWMcKLFDV6qIWR33Ub79TLVsyn+c8KcGlTbWED
+            pd98FNdjLf9Bf/1jjIOgO8ekTcd4MdvdT3lM9S7BPtOjuhVRbk4ftYfRzKViWQKi
+            =Yf6Z
+            -----END PGP MESSAGE-----
+          fp: 459895EB0A5F446D3831E99F95F6A162E4A71B06
+        - created_at: "2025-10-18T21:38:48Z"
+          enc: |-
+            -----BEGIN PGP MESSAGE-----
+
+            hF4D8q6e3Tem1ZoSAQdAIpQDvEFQD2/vesKi/te1L8XLUYmsCxlGxAwEa+n6Rysw
+            pDrIOl1rLEsw2Vj0ZJiD4R0wzDyANQEal9/dUnB0VmnijzNzQLr2cAB8Q+g6clXB
+            0l4ByxnWobozsms5Y4Y0hiSvo9cfVl3oQ9Qknh5BRWJ+uzHkhllXEjZ7Ao+3M3Yx
+            Ml0KJuDTC9CWINnEsviAAInvzYiC/PoGT2/wEiDm5KLyiYyjPovvsS2CRBKu3f31
+            =jzDy
+            -----END PGP MESSAGE-----
+          fp: DF7F5D62376A57228F35FE4C665F8C5B8E0732E5
+    encrypted_regex: ^(data|stringData|secrets)$
+    version: 3.10.2

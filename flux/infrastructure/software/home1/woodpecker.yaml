@@ -1,7 +1,7 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: droneci
+  name: woodpecker
 spec:
   decryption:
     provider: sops
@@ -15,4 +15,4 @@ spec:
   sourceRef:
     kind: GitRepository
     name: infra
-  path: ./applications/software/home1/droneci
+  path: ./applications/software/home1/woodpecker

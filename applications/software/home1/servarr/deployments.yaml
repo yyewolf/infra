@@ -16,42 +16,42 @@ spec:
       nodeSelector:
         location: home1
       tolerations:
-        - key: "PrivateNode"
-          operator: "Equal"
-          value: "home1"
+      - key: "PrivateNode"
+        operator: "Equal"
+        value: "home1"
       containers:
-        - name: sonarr
-          image: lscr.io/linuxserver/sonarr:latest@sha256:f3a7fda30a0133b24b04857a21e7a81b97ed2722e147503a47ad0b4fbc7c7694
-          ports:
-            - containerPort: 8989
-          env:
-            - name: PUID
-              value: "1000"
-            - name: PGID
-              value: "1000"
-            - name: TZ
-              value: "Europe/Paris"
-          volumeMounts:
-            - name: config
-              mountPath: /config
-            - name: data
-              mountPath: /data
-          resources:
-            requests:
-              cpu: 100m
-              memory: 256Mi
-            limits:
-              cpu: 500m
-              memory: 512Mi
-      volumes:
+      - name: sonarr
+        image: lscr.io/linuxserver/sonarr:latest@sha256:f3a7fda30a0133b24b04857a21e7a81b97ed2722e147503a47ad0b4fbc7c7694
+        ports:
+        - containerPort: 8989
+        env:
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        - name: TZ
+          value: "Europe/Paris"
+        volumeMounts:
         - name: config
-          hostPath:
-            path: /tank/servarr/config/sonarr
-            type: DirectoryOrCreate
+          mountPath: /config
         - name: data
-          hostPath:
-            path: /tank/servarr
-            type: Directory
+          mountPath: /data
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+      volumes:
+      - name: config
+        hostPath:
+          path: /tank/servarr/config/sonarr
+          type: DirectoryOrCreate
+      - name: data
+        hostPath:
+          path: /tank/servarr
+          type: Directory
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -71,42 +71,42 @@ spec:
       nodeSelector:
         location: home1
       tolerations:
-        - key: "PrivateNode"
-          operator: "Equal"
-          value: "home1"
+      - key: "PrivateNode"
+        operator: "Equal"
+        value: "home1"
       containers:
-        - name: radarr
-          image: lscr.io/linuxserver/radarr:latest@sha256:af03fa6a993ee7efb65f6121ebd8c89de4a47aa1181cec03832e292a1446111f
-          ports:
-            - containerPort: 7878
-          env:
-            - name: PUID
-              value: "1000"
-            - name: PGID
-              value: "1000"
-            - name: TZ
-              value: "Europe/Paris"
-          volumeMounts:
-            - name: config
-              mountPath: /config
-            - name: data
-              mountPath: /data
-          resources:
-            requests:
-              cpu: 100m
-              memory: 256Mi
-            limits:
-              cpu: 500m
-              memory: 512Mi
-      volumes:
+      - name: radarr
+        image: lscr.io/linuxserver/radarr:latest@sha256:af03fa6a993ee7efb65f6121ebd8c89de4a47aa1181cec03832e292a1446111f
+        ports:
+        - containerPort: 7878
+        env:
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        - name: TZ
+          value: "Europe/Paris"
+        volumeMounts:
         - name: config
-          hostPath:
-            path: /tank/servarr/config/radarr
-            type: DirectoryOrCreate
+          mountPath: /config
         - name: data
-          hostPath:
-            path: /tank/servarr
-            type: Directory
+          mountPath: /data
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+      volumes:
+      - name: config
+        hostPath:
+          path: /tank/servarr/config/radarr
+          type: DirectoryOrCreate
+      - name: data
+        hostPath:
+          path: /tank/servarr
+          type: Directory
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -126,37 +126,36 @@ spec:
       nodeSelector:
         location: home1
       tolerations:
-        - key: "PrivateNode"
-          operator: "Equal"
-          value: "home1"
+      - key: "PrivateNode"
+        operator: "Equal"
+        value: "home1"
       containers:
-        - name: prowlarr
-          image: lscr.io/linuxserver/prowlarr:latest@sha256:366914352b21e79733f1bad1c3840ca679a55dc4875754eec06ccbcc49b649d1
-          ports:
-            - containerPort: 9696
-          env:
-            - name: PUID
-              value: "1000"
-            - name: PGID
-              value: "1000"
-            - name: TZ
-              value: "Europe/Paris"
-          volumeMounts:
-            - name: config
-              mountPath: /config
-          resources:
-            requests:
-              cpu: 100m
-              memory: 256Mi
-            limits:
-              cpu: 500m
-              memory: 512Mi
-      volumes:
+      - name: prowlarr
+        image: lscr.io/linuxserver/prowlarr:latest@sha256:366914352b21e79733f1bad1c3840ca679a55dc4875754eec06ccbcc49b649d1
+        ports:
+        - containerPort: 9696
+        env:
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        - name: TZ
+          value: "Europe/Paris"
+        volumeMounts:
         - name: config
-          hostPath:
-            path: /tank/servarr/config/prowlarr
-            type: DirectoryOrCreate
-
+          mountPath: /config
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+      volumes:
+      - name: config
+        hostPath:
+          path: /tank/servarr/config/prowlarr
+          type: DirectoryOrCreate
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -176,111 +175,110 @@ spec:
       nodeSelector:
         location: home1
       tolerations:
-        - key: "PrivateNode"
-          operator: "Equal"
-          value: "home1"
+      - key: "PrivateNode"
+        operator: "Equal"
+        value: "home1"
       containers:
-        - name: qbittorrent-openvpn
-          image: mirror.gcr.io/jovalle/qbittorrent-openvpn:v0.3.1
-          securityContext:
-            capabilities:
-              add:
-                - NET_ADMIN
-            privileged: true
-          ports:
-            - containerPort: 8080
-            - containerPort: 6881
-              protocol: TCP
-            - containerPort: 6881
-              protocol: UDP
-          env:
-            - name: PUID
-              value: "1000"
-            - name: PGID
-              value: "1000"
-            - name: TZ
-              value: "Europe/Paris"
-            - name: K8S_CLUSTER
-              value: "yes"
-            - name: K8S_POD_CIDR
-              value: "10.64.0.0/16"
-            - name: K8S_SVC_CIDR
-              value: "10.96.0.0/16"
-            - name: LAN_CIDR
-              value: "192.168.1.0/24"
-            - name: VPN_ENABLED
-              value: "yes"
-            - name: KUBERNETES_ENABLED
-              value: "yes"
-            - name: VPN_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: nordvpn-secret
-                  key: username
-            - name: VPN_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: nordvpn-secret
-                  key: password
-            - name: OPENVPN_USER
-              valueFrom:
-                secretKeyRef:
-                  name: nordvpn-secret
-                  key: username
-            - name: OPENVPN_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: nordvpn-secret
-                  key: password
-            - name: NAME_SERVERS
-              value: "8.8.8.8,8.8.4.4"
-            - name: DEBUG
-              value: "no"
-            - name: UMASK
-              value: "002"
-          volumeMounts:
-            - name: config
-              mountPath: /config
-            - name: data
-              mountPath: /data
-          resources:
-            requests:
-              cpu: 100m
-              memory: 256Mi
-            limits:
-              cpu: 1000m
-              memory: 1Gi
-          livenessProbe:
-            httpGet:
-              path: /
-              port: 8080
-            initialDelaySeconds: 60
-            periodSeconds: 60
-            timeoutSeconds: 10
-            failureThreshold: 3
-          readinessProbe:
-            httpGet:
-              path: /
-              port: 8080
-            initialDelaySeconds: 30
-            periodSeconds: 30
-            timeoutSeconds: 5
-            failureThreshold: 3
-      volumes:
+      - name: qbittorrent-openvpn
+        image: mirror.gcr.io/jovalle/qbittorrent-openvpn:v0.3.1
+        securityContext:
+          capabilities:
+            add:
+            - NET_ADMIN
+          privileged: true
+        ports:
+        - containerPort: 8080
+        - containerPort: 6881
+          protocol: TCP
+        - containerPort: 6881
+          protocol: UDP
+        env:
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        - name: TZ
+          value: "Europe/Paris"
+        - name: K8S_CLUSTER
+          value: "yes"
+        - name: K8S_POD_CIDR
+          value: "10.64.0.0/16"
+        - name: K8S_SVC_CIDR
+          value: "10.96.0.0/16"
+        - name: LAN_CIDR
+          value: "192.168.1.0/24"
+        - name: VPN_ENABLED
+          value: "yes"
+        - name: KUBERNETES_ENABLED
+          value: "yes"
+        - name: VPN_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: nordvpn-secret
+              key: username
+        - name: VPN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: nordvpn-secret
+              key: password
+        - name: OPENVPN_USER
+          valueFrom:
+            secretKeyRef:
+              name: nordvpn-secret
+              key: username
+        - name: OPENVPN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: nordvpn-secret
+              key: password
+        - name: NAME_SERVERS
+          value: "8.8.8.8,8.8.4.4"
+        - name: DEBUG
+          value: "no"
+        - name: UMASK
+          value: "002"
+        volumeMounts:
         - name: config
-          hostPath:
-            path: /tank/servarr/config/qbittorrent
-            type: DirectoryOrCreate
+          mountPath: /config
         - name: data
-          hostPath:
-            path: /tank/servarr
-            type: Directory
+          mountPath: /data
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 60
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+      volumes:
+      - name: config
+        hostPath:
+          path: /tank/servarr/config/qbittorrent
+          type: DirectoryOrCreate
+      - name: data
+        hostPath:
+          path: /tank/servarr
+          type: Directory
 ---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: nvidia-device-plugin-daemonset
-  namespace: kube-system
 spec:
   selector:
     matchLabels:
@@ -296,9 +294,9 @@ spec:
       nodeSelector:
         location: home1
       tolerations:
-        - key: "PrivateNode"
-          operator: "Equal"
-          value: "home1"
+      - key: "PrivateNode"
+        operator: "Equal"
+        value: "home1"
       containers:
       - image: nvcr.io/nvidia/k8s-device-plugin:v0.17.4@sha256:3c54348fe5a57e5700e7d8068e7531d2ef2d5f3ccb70c8f6bac0953432527abd
         name: nvidia-device-plugin-ctr
@@ -310,12 +308,12 @@ spec:
             cpu: 50m
             memory: 200Mi
         env:
-          - name: FAIL_ON_INIT_ERROR
-            value: "false"
+        - name: FAIL_ON_INIT_ERROR
+          value: "false"
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
-            drop: ["ALL"]
+            drop: [ "ALL" ]
         volumeMounts:
         - name: device-plugin
           mountPath: /var/lib/kubelet/device-plugins
@@ -344,43 +342,44 @@ spec:
       nodeSelector:
         location: home1
       tolerations:
-        - key: "PrivateNode"
-          operator: "Equal"
-          value: "home1"
+      - key: "PrivateNode"
+        operator: "Equal"
+        value: "home1"
+      terminationGracePeriodSeconds: 1
       containers:
-        - name: jellyfin
-          image: lscr.io/linuxserver/jellyfin:latest@sha256:68e012f4bf5aeb114632e9045f5b2f2f6713536693093f70fcb338179f84f86c
-          ports:
-            - containerPort: 8096
-          env:
-            - name: PUID
-              value: "1000"
-            - name: PGID
-              value: "1000"
-            - name: TZ
-              value: "Europe/Paris"
-          volumeMounts:
-            - name: config
-              mountPath: /config
-            - name: data
-              mountPath: /data
-          resources:
-            requests:
-              cpu: 200m
-              memory: 512Mi
-            limits:
-              cpu: 3000m
-              memory: 5Gi
-              nvidia.com/gpu: 1
-      volumes:
+      - name: jellyfin
+        image: lscr.io/linuxserver/jellyfin:10.10.7
+        ports:
+        - containerPort: 8096
+        env:
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        - name: TZ
+          value: "Europe/Paris"
+        volumeMounts:
         - name: config
-          hostPath:
-            path: /tank/servarr/config/jellyfin
-            type: DirectoryOrCreate
+          mountPath: /config
         - name: data
-          hostPath:
-            path: /tank/servarr
-            type: Directory
+          mountPath: /data
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 3000m
+            memory: 5Gi
+            nvidia.com/gpu: 1
+      volumes:
+      - name: config
+        hostPath:
+          path: /tank/servarr/config/jellyfin
+          type: DirectoryOrCreate
+      - name: data
+        hostPath:
+          path: /tank/servarr
+          type: Directory
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -400,35 +399,34 @@ spec:
       nodeSelector:
         location: home1
       tolerations:
-        - key: "PrivateNode"
-          operator: "Equal"
-          value: "home1"
+      - key: "PrivateNode"
+        operator: "Equal"
+        value: "home1"
       containers:
-        - name: jellyseerr
-          image: mirror.gcr.io/fallenbagel/jellyseerr:latest@sha256:4538137bc5af902dece165f2bf73776d9cf4eafb6dd714670724af8f3eb77764
-          ports:
-            - containerPort: 5055
-          env:
-            - name: LOG_LEVEL
-              value: "debug"
-            - name: TZ
-              value: "Europe/Paris"
-          volumeMounts:
-            - name: config
-              mountPath: /app/config
-          resources:
-            requests:
-              cpu: 100m
-              memory: 256Mi
-            limits:
-              cpu: 500m
-              memory: 512Mi
-      volumes:
+      - name: jellyseerr
+        image: mirror.gcr.io/fallenbagel/jellyseerr:latest@sha256:4538137bc5af902dece165f2bf73776d9cf4eafb6dd714670724af8f3eb77764
+        ports:
+        - containerPort: 5055
+        env:
+        - name: LOG_LEVEL
+          value: "debug"
+        - name: TZ
+          value: "Europe/Paris"
+        volumeMounts:
         - name: config
-          hostPath:
-            path: /tank/servarr/config/jellyseerr
-            type: DirectoryOrCreate
-
+          mountPath: /app/config
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+      volumes:
+      - name: config
+        hostPath:
+          path: /tank/servarr/config/jellyseerr
+          type: DirectoryOrCreate
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -448,30 +446,30 @@ spec:
       nodeSelector:
         location: home1
       tolerations:
-        - key: "PrivateNode"
-          operator: "Equal"
-          value: "home1"
+      - key: "PrivateNode"
+        operator: "Equal"
+        value: "home1"
       containers:
-        - name: flaresolverr
-          image: ghcr.io/flaresolverr/flaresolverr:latest@sha256:42ffb1cc56088899e91a7382bc611b00fa7cbd016accfed12c0695275ca18451
-          ports:
-            - containerPort: 8191
-          env:
-            - name: LOG_LEVEL
-              value: "info"
-            - name: LOG_HTML
-              value: "false"
-            - name: CAPTCHA_SOLVER
-              value: "none"
-            - name: TZ
-              value: "Europe/Paris"
-          resources:
-            requests:
-              cpu: 100m
-              memory: 512Mi
-            limits:
-              cpu: 500m
-              memory: 1Gi
+      - name: flaresolverr
+        image: ghcr.io/flaresolverr/flaresolverr:latest@sha256:42ffb1cc56088899e91a7382bc611b00fa7cbd016accfed12c0695275ca18451
+        ports:
+        - containerPort: 8191
+        env:
+        - name: LOG_LEVEL
+          value: "info"
+        - name: LOG_HTML
+          value: "false"
+        - name: CAPTCHA_SOLVER
+          value: "none"
+        - name: TZ
+          value: "Europe/Paris"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 512Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -491,45 +489,45 @@ spec:
       nodeSelector:
         location: home1
       tolerations:
-        - key: "PrivateNode"
-          operator: "Equal"
-          value: "home1"
+      - key: "PrivateNode"
+        operator: "Equal"
+        value: "home1"
       containers:
-        - name: bazarr
-          image: lscr.io/linuxserver/bazarr:latest@sha256:750251d7dcf245d05ad6b2b0c39685282df43a8582875fa31ab2a9328af64e26
-          ports:
-            - containerPort: 6767
-          env:
-            - name: PUID
-              value: "1000"
-            - name: PGID
-              value: "1000"
-            - name: TZ
-              value: "Europe/Paris"
-          volumeMounts:
-            - name: config
-              mountPath: /config
-            - name: media-tv
-              mountPath: /tv
-            - name: media-movies
-              mountPath: /movies
-          resources:
-            requests:
-              cpu: 100m
-              memory: 256Mi
-            limits:
-              cpu: 500m
-              memory: 512Mi
-      volumes:
+      - name: bazarr
+        image: lscr.io/linuxserver/bazarr:latest@sha256:750251d7dcf245d05ad6b2b0c39685282df43a8582875fa31ab2a9328af64e26
+        ports:
+        - containerPort: 6767
+        env:
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        - name: TZ
+          value: "Europe/Paris"
+        volumeMounts:
         - name: config
-          hostPath:
-            path: /tank/servarr/config/bazarr
-            type: DirectoryOrCreate
+          mountPath: /config
         - name: media-tv
-          hostPath:
-            path: /tank/servarr/media/tv
-            type: DirectoryOrCreate
+          mountPath: /tv
         - name: media-movies
-          hostPath:
-            path: /tank/servarr/media/movies
-            type: DirectoryOrCreate
+          mountPath: /movies
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+      volumes:
+      - name: config
+        hostPath:
+          path: /tank/servarr/config/bazarr
+          type: DirectoryOrCreate
+      - name: media-tv
+        hostPath:
+          path: /tank/servarr/media/tv
+          type: DirectoryOrCreate
+      - name: media-movies
+        hostPath:
+          path: /tank/servarr/media/movies
+          type: DirectoryOrCreate

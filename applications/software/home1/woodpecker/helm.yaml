@@ -1,0 +1,78 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: woodpecker
+spec:
+  interval: 24h
+  type: oci
+  url: oci://ghcr.io/woodpecker-ci/helm
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: woodpecker
+  namespace: woodpecker
+spec:
+  interval: 5m
+  chart:
+    spec:
+      chart: woodpecker
+      version: 3.4.0
+      sourceRef:
+        kind: HelmRepository
+        name: woodpecker
+        namespace: woodpecker
+  values:
+    agent:
+      enabled: true
+      replicaCount: 2
+      image:
+        registry: mirror.gcr.io
+      env:
+        WOODPECKER_SERVER: 'woodpecker-server:9000'
+        WOODPECKER_BACKEND: kubernetes
+        WOODPECKER_BACKEND_K8S_NAMESPACE: woodpecker
+        WOODPECKER_BACKEND_K8S_NAMESPACE_PER_ORGANIZATION: false
+        WOODPECKER_BACKEND_K8S_STORAGE_CLASS: 'local-path-temp-delete'
+        WOODPECKER_BACKEND_K8S_VOLUME_SIZE: 10G
+        WOODPECKER_BACKEND_K8S_STORAGE_RWX: false
+        WOODPECKER_BACKEND_K8S_POD_TOLERATIONS: '[{"value":"home1","key":"PrivateNode","operator":"Equal"}]'
+        WOODPECKER_CONNECT_RETRY_COUNT: '1'
+      persistence:
+        enabled: false
+    server:
+      enabled: true
+      image:
+        registry: mirror.gcr.io
+      env:
+        WOODPECKER_ADMIN: 'yyewolf'
+        WOODPECKER_HOST: 'https://woodpecker.yewolf.fr'
+        WOODPECKER_GITHUB: "true"
+        WOODPECKER_DATABASE_DRIVER: "postgres"
+        WOODPECKER_PLUGINS_PRIVILEGED: "woodpeckerci/plugin-docker-buildx"
+      createAgentSecret: true
+      persistentVolume:
+        enabled: false
+      service:
+        type: ClusterIP
+        port: &servicePort 80
+      resources:
+        limits:
+          cpu: 100m
+          memory: 128Mi
+        requests:
+          cpu: 100m
+          memory: 128Mi
+  valuesFrom:
+  - kind: Secret
+    name: values
+    valuesKey: WOODPECKER_GITHUB_CLIENT
+    targetPath: server.env.WOODPECKER_GITHUB_CLIENT
+  - kind: Secret
+    name: values
+    valuesKey: WOODPECKER_GITHUB_SECRET
+    targetPath: server.env.WOODPECKER_GITHUB_SECRET
+  - kind: Secret
+    name: values
+    valuesKey: WOODPECKER_DATABASE_DATASOURCE
+    targetPath: server.env.WOODPECKER_DATABASE_DATASOURCE

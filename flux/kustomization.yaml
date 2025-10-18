@@ -10,7 +10,7 @@ resources:
 - infrastructure/databases/home1/mariadb.yaml
 
 - infrastructure/software/home1/album.yaml
-- infrastructure/software/home1/droneci.yaml
+- infrastructure/software/home1/woodpecker.yaml
 - infrastructure/software/home1/satisfactory.yaml
 - infrastructure/software/home1/servarr.yaml
 - infrastructure/software/home1/stalwart.yaml
@@ -32,6 +32,7 @@ resources:
 - infrastructure/backbone/utility/flux-webhook.yaml
 - infrastructure/backbone/utility/keda.yaml
 - infrastructure/backbone/utility/metrics-server.yaml
+- infrastructure/backbone/utility/storage.yaml
 
 - infrastructure/monitoring/cluster/matomo.yaml
 - infrastructure/monitoring/cluster/kube-prom-stack.yaml
