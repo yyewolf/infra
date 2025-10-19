@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tailscale-patch
+  namespace: kube-system
+data:
+  no-cilium.patch: |
+    diff --git a/net/netmon/netmon.go b/net/netmon/netmon.go
+    index b97b184d4..18b9ab02e 100644
+    --- a/net/netmon/netmon.go
+    +++ b/net/netmon/netmon.go
+    @@ -416,6 +416,7 @@ func (m *Monitor) handlePotentialChange(newState *State, forceCallbacks bool) {
+                            m.logf("[unexpected] network state changed, but stringification didn't: %v", s1)
+                            m.logf("[unexpected] old: %s", jsonSummary(oldState))
+                            m.logf("[unexpected] new: %s", jsonSummary(newState))
+    +                       return
+                    }
+            }
+            m.ifState = newState
+    diff --git a/net/netmon/state.go b/net/netmon/state.go
+    index bd0960768..0f7338157 100644
+    --- a/net/netmon/state.go
+    +++ b/net/netmon/state.go
+    @@ -40,7 +40,8 @@ func isProblematicInterface(nif *net.Interface) bool {
+            // DoS each other by doing traffic amplification, both of them
+            // preferring/trying to use each other for transport. See:
+            // https://github.com/tailscale/tailscale/issues/1208
+    -       if strings.HasPrefix(name, "zt") || (runtime.GOOS == "windows" && strings.Contains(name, "ZeroTier")) {
+    +       fmt.Println("DEBUG: checking", name)
+    +       if strings.HasPrefix(name, "zt") || strings.HasPrefix(name, "cilium") || strings.HasPrefix(name, "lxc") || (runtime.GOOS == "windows" && strings.Contains(name, "ZeroTier")) {
+                    return true
+            }
+            return false

@@ -28,6 +28,7 @@ resources:
 - infrastructure/backbone/gateway/gateway.yaml
 - infrastructure/backbone/tailscale/tailscale-operator.yaml
 - infrastructure/backbone/tailscale/tailscale.yaml
+- infrastructure/backbone/tailscale/nodes.yaml
 - infrastructure/backbone/utility/booting-up.yaml
 - infrastructure/backbone/utility/flux-webhook.yaml
 - infrastructure/backbone/utility/keda.yaml
