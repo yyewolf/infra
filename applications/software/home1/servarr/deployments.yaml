@@ -348,7 +348,7 @@ spec:
       terminationGracePeriodSeconds: 1
       containers:
       - name: jellyfin
-        image: lscr.io/linuxserver/jellyfin:10.11.0@sha256:dc7e75b48d038185216e00029c60a7860c557a0563811934d4870c875467ea8a
+        image: lscr.io/linuxserver/jellyfin:2021.12.16@sha256:983e3cf314deaa76b0aa58c82d59c285b2ac2a3ef2f316b0361cb4c8bb58b79d
         ports:
         - containerPort: 8096
         env:
