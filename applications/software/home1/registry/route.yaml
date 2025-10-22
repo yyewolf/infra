@@ -8,15 +8,17 @@ spec:
     namespace: envoy-system
     sectionName: https
   hostnames:
-    - "registry.yewolf.fr"
+  - "registry.yewolf.fr"
   rules:
-    - backendRefs:
-        - group: ""
-          kind: Service
-          name: harbor
-          port: 80
-          weight: 1
-      matches:
-        - path:
-            type: PathPrefix
-            value: /
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: harbor
+      port: 80
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /
+    timeouts:
+      backendRequest: 0s

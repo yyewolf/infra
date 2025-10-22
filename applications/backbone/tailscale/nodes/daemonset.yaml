@@ -12,10 +12,7 @@ spec:
       labels:
         app: tailscale
     spec:
-      dnsPolicy: "None"
-      dnsConfig:
-        nameservers:
-        - 1.1.1.1
+      dnsPolicy: "ClusterFirstWithHostNet"
       hostNetwork: true
       hostPID: true
       hostIPC: true
@@ -26,9 +23,6 @@ spec:
         hostPath:
           path: /
           type: Directory
-      - name: tailscale-patch
-        configMap:
-          name: tailscale-patch
       - name: tailscale-config
         emptyDir: {}
       initContainers:
@@ -60,21 +54,9 @@ spec:
             exit 1
           fi
           echo -n "$AUTH_KEY" > "$TAILSCALE_AUTH_KEY_FILE"
-
-          git clone https://github.com/tailscale/tailscale.git
-          cd tailscale
-          git checkout v1.88.4
-          git apply --ignore-whitespace /tailscale-patch/no-cilium.patch
-          ./build_dist.sh ./cmd/tailscale
-          ./build_dist.sh ./cmd/tailscaled
-          cp tailscale /config/tailscale
-          cp tailscaled /config/tailscaled
-
         volumeMounts:
         - name: tailscale-config
           mountPath: /config
-        - name: tailscale-patch
-          mountPath: /tailscale-patch
       containers:
       - name: tailscaled
         image: tailscale/tailscale:stable@sha256:360e10ad95ad03950f66df03e0dab66287f9f89076ee4012d50bc6adceafcdf3
@@ -95,8 +77,6 @@ spec:
         - -c
         - |
           echo "Chrooting into host filesystem..."
-          cp /config/tailscale /host/tmp/tailscale
-          cp /config/tailscaled /host/tmp/tailscaled
           cp /config/authkey /host/tmp/authkey
           chroot /host /bin/bash -c '
             if [[ "$(uname -r)" != 6.8.12* ]]; then
@@ -109,25 +89,7 @@ spec:
               echo "✅ Kernel $(uname -r) is already 6.8.12 — no action needed."
             fi
 
-            
-            UDEV_RULE_PATH="/etc/udev/rules.d/99-tailscale-mtu.rules"
-            SCRIPT_PATH="/usr/local/sbin/tailscale0-setup.sh"
-
-            echo "#!/bin/sh" > "$SCRIPT_PATH"
-            echo "/sbin/ip link set dev tailscale0 mtu 2000" >> "$SCRIPT_PATH"
-            echo "/sbin/ip route add 100.0.0.0/8 dev tailscale0 proto kernel scope link src $NODE_IP mtu 2000" >> "$SCRIPT_PATH"
-            chmod +x "$SCRIPT_PATH"
-            echo "ACTION==\"add\", SUBSYSTEM==\"net\", KERNEL==\"tailscale0\", RUN+=\"$SCRIPT_PATH\"" > "$UDEV_RULE_PATH"
-            echo "Reloading udev rules..."
-            udevadm control --reload-rules
-            udevadm trigger --subsystem-match=net
-
-            # replace tailscale binaries with our patched versions
-            mv /tmp/tailscale $(which tailscale)
-            mv /tmp/tailscaled $(which tailscaled)
-
             curl -fsSL https://tailscale.com/install.sh | sh
-            tailscale update --track=unstable --yes
             systemctl disable --now tailscaled || true
             tailscaled --state=/var/lib/tailscale/tailscaled.state &
             sleep 5
@@ -136,9 +98,10 @@ spec:
               --hostname="$(hostname)" \
               --accept-dns=false \
               --accept-routes=false \
-              --netfilter-mode=off \
-              --advertise-routes="$NODE_IP/32" \
               --ssh
-            echo "Tailscale started for node $(hostname), advertising route $NODE_IP/32"
+            echo "Tailscale started for node $(hostname)"
+
+            # Setup trap to cleanly stop tailscaled on exit
+            trap "tailscale down; killall tailscaled; exit" EXIT
             sleep infinity
           '
