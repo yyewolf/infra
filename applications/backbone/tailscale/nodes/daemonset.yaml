@@ -33,7 +33,7 @@ spec:
         emptyDir: {}
       initContainers:
       - name: generate-auth-key
-        image: mirror.gcr.io/golang:alpine
+        image: mirror.gcr.io/golang:alpine@sha256:aee43c3ccbf24fdffb7295693b6e33b21e01baec1b2a55acc351fde345e9ec34
         envFrom:
         - secretRef:
             name: tailscale-oauth
@@ -77,7 +77,7 @@ spec:
           mountPath: /tailscale-patch
       containers:
       - name: tailscaled
-        image: tailscale/tailscale:stable
+        image: tailscale/tailscale:stable@sha256:360e10ad95ad03950f66df03e0dab66287f9f89076ee4012d50bc6adceafcdf3
         securityContext:
           privileged: true
         env:

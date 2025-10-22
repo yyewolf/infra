@@ -82,7 +82,7 @@ spec:
       serviceAccountName: local-path-provisioner-service-account
       containers:
       - name: local-path-provisioner
-        image: rancher/local-path-provisioner:v0.0.32
+        image: rancher/local-path-provisioner:v0.0.32@sha256:9289da488b07912cb4128eb96928a331a5f3e60c28c5cfc5790f354a4ad0cc68
         imagePullPolicy: IfNotPresent
         command:
         - local-path-provisioner
@@ -139,7 +139,7 @@ data:
         - operator: Exists
       containers:
       - name: helper-pod
-        image: busybox
+        image: busybox@sha256:2f590fc602ce325cbff2ccfc39499014d039546dc400ef8bbf5c6ffb860632e7
         imagePullPolicy: IfNotPresent
 ---
 apiVersion: storage.k8s.io/v1
