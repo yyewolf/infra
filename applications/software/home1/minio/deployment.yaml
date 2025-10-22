@@ -20,7 +20,7 @@ spec:
         value: "home1"
       containers:
       - name: minio
-        image: quay.io/minio/minio:latest
+        image: quay.io/minio/minio:latest@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
         args:
         - server
         - /data
@@ -43,7 +43,7 @@ spec:
         - name: data
           mountPath: /data
       - name: minio-console
-        image: ghcr.io/astrateam-net/minio-browser:1.7.6
+        image: ghcr.io/astrateam-net/minio-browser:1.7.6@sha256:7b488dee696792f17231bfc36684ea92c84eb7f2021653d026f6c9949cff7b78
         command:
         - ./console
         - server
