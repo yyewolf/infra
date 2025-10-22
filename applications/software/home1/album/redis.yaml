@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: redis
-        image: mirror.gcr.io/redis:8.2.1@sha256:5fa2edb1e408fa8235e6db8fab01d1afaaae96c9403ba67b70feceb8661e8621
+        image: mirror.gcr.io/redis:8.2.2@sha256:4521b581dbddea6e7d81f8fe95ede93f5648aaa66a9dacd581611bf6fe7527bd
         ports:
         - containerPort: 6379
         resources:
