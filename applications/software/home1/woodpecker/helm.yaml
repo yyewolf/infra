@@ -25,7 +25,7 @@ spec:
   values:
     agent:
       enabled: true
-      replicaCount: 2
+      replicaCount: 4
       image:
         registry: mirror.gcr.io
       env:
