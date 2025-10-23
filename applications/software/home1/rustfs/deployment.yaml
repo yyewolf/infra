@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rustfs
+  namespace: rustfs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rustfs
+  template:
+    metadata:
+      labels:
+        app: rustfs
+    spec:
+      tolerations:
+      - key: "PrivateNode"
+        operator: "Equal"
+        value: "home1"
+      securityContext:
+        fsGroup: 2000
+      containers:
+      - name: rustfs
+        image: mirror.gcr.io/rustfs/rustfs:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 9000
+          name: http
+        - containerPort: 9001
+          name: console
+        env:
+        - name: RUSTFS_CONSOLE_ENABLE
+          value: "true"
+        - name: RUSTFS_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: rustfs-credentials
+              key: root_user
+        - name: RUSTFS_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: rustfs-credentials
+              key: root_password
+        securityContext:
+          runAsUser: 0
+          runAsGroup: 2000
+        volumeMounts:
+        - name: data
+          mountPath: /data
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: data-rustfs-0

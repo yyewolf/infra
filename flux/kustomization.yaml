@@ -15,7 +15,7 @@ resources:
 - infrastructure/software/home1/servarr.yaml
 - infrastructure/software/home1/stalwart.yaml
 - infrastructure/software/home1/registry.yaml
-- infrastructure/software/home1/minio.yaml
+- infrastructure/software/home1/rustfs.yaml
 
 # Running anywhere else on the cluster
 - infrastructure/backbone/backups/backup-watchdog.yaml

@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: rustfs
+  namespace: rustfs
+spec:
+  ports:
+  - name: http
+    port: 9000
+    targetPort: 9000
+  selector:
+    app: rustfs
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rustfs-console
+  namespace: rustfs
+spec:
+  ports:
+  - name: console
+    port: 9001
+    targetPort: 9001
+  selector:
+    app: rustfs
