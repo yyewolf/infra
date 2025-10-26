@@ -4,6 +4,7 @@ namespace: mariadb
 
 resources:
 - namespace.yaml
+- storage.yaml
 - secret-sops.yaml
 - deployment.yaml
 - service.yaml
