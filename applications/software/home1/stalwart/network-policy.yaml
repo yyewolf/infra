@@ -29,6 +29,10 @@ spec:
         io.kubernetes.pod.namespace: stalwart
   - toEndpoints:
     - matchLabels:
+        io.kubernetes.pod.namespace: tailscale
+        tailscale.com/parent-resource: dk1
+  - toEndpoints:
+    - matchLabels:
         io.kubernetes.pod.namespace: postgresql
         app: postgres
     toPorts:

@@ -25,6 +25,10 @@ spec:
   - toEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: album
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: tailscale
+        tailscale.com/parent-resource: dk1
   - toCIDRSet:
     - cidr: 0.0.0.0/0
       except:

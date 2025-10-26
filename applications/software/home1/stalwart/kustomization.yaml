@@ -15,3 +15,6 @@ resources:
 - ./roundcube
 - ./routing
 - ./fallback
+
+- schedule.yaml
+- ../../../../reusables/backup-secret
