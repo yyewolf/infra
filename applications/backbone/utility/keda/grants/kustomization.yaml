@@ -3,10 +3,8 @@ kind: Kustomization
 namespace: keda
 
 resources:
-  - hello-world.yaml
-  - stirlingpdf.yaml
-  - flux-system.yaml
-  - juice-shop.yaml
-  - cyberchef.yaml
-  - capsule.yaml
-  - portfolio.yaml
+- stirlingpdf.yaml
+- flux-system.yaml
+- cyberchef.yaml
+- capsule.yaml
+- portfolio.yaml

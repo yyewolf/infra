@@ -3,10 +3,11 @@ kind: Kustomization
 namespace: vaultwarden
 
 resources:
-  - namespace.yaml
-  - secret-sops.yaml
-  - pvc.yaml
-  - deployment.yaml
-  - service.yaml
-  - route.yaml
-  - ../../../../reusables/backup
+- network-policy.yaml
+- namespace.yaml
+- secret-sops.yaml
+- pvc.yaml
+- deployment.yaml
+- service.yaml
+- route.yaml
+- ../../../../reusables/backup

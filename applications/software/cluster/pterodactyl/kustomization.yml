@@ -3,11 +3,12 @@ kind: Kustomization
 namespace: pterodactyl
 
 resources:
-  - namespace.yaml
-  - config.yaml
-  - secret-sops.yaml
-  - env-secret-sops.yaml
-  - deployment.yaml
-  - service.yaml
-  - route.yaml
-  - ../../../../reusables/booting-up-fallback
+- network-policy.yaml
+- namespace.yaml
+- config.yaml
+- secret-sops.yaml
+- env-secret-sops.yaml
+- deployment.yaml
+- service.yaml
+- route.yaml
+- ../../../../reusables/booting-up-fallback

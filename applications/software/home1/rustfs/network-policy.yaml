@@ -22,19 +22,3 @@ spec:
       rules:
         dns:
         - matchPattern: "*"
-  - toEndpoints:
-    - matchLabels:
-        io.kubernetes.pod.namespace: nounoursdestavernes
-  - toEndpoints:
-    - matchLabels:
-        io.kubernetes.pod.namespace: mariadb
-    toPorts:
-    - ports:
-      - port: "3306"
-        protocol: TCP
-  - toCIDRSet:
-    - cidr: 0.0.0.0/0
-      except:
-      - 10.0.0.0/8
-      - 100.64.0.0/10
-      - 172.21.0.0/16

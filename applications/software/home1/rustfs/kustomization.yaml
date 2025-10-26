@@ -3,6 +3,7 @@ kind: Kustomization
 namespace: rustfs
 
 resources:
+- network-policy.yaml
 - secret-sops.yaml
 - pvc.yaml
 - deployment.yaml

@@ -3,6 +3,7 @@ kind: Kustomization
 namespace: woodpecker
 
 resources:
+- network-policy.yaml
 - namespace.yaml
 - helm.yaml
 - route.yaml

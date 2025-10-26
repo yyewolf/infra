@@ -3,10 +3,11 @@ kind: Kustomization
 namespace: keda
 
 resources:
-  - namespace.yaml
-  - keda-repository.yaml
-  - keda-release.yaml
-  # - keda-http-crd.yaml
-  - keda-http-release.yaml
-  - grants
-  - ingresses
+- network-policy.yaml
+- namespace.yaml
+- keda-repository.yaml
+- keda-release.yaml
+# - keda-http-crd.yaml
+- keda-http-release.yaml
+- grants
+- ingresses

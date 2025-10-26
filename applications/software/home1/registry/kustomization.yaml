@@ -3,8 +3,9 @@ kind: Kustomization
 namespace: registry
 
 resources:
-  - namespace.yaml
-  - storage.yaml
-  - repo.yaml
-  - release.yaml
-  - route.yaml
+- network-policy.yaml
+- namespace.yaml
+- storage.yaml
+- repo.yaml
+- release.yaml
+- route.yaml

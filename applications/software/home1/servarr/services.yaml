@@ -4,8 +4,8 @@ metadata:
   name: sonarr
 spec:
   ports:
-    - port: 80
-      targetPort: 8989
+  - port: 80
+    targetPort: 8989
   selector:
     app: sonarr
 ---
@@ -15,8 +15,8 @@ metadata:
   name: radarr
 spec:
   ports:
-    - port: 80
-      targetPort: 7878
+  - port: 80
+    targetPort: 7878
   selector:
     app: radarr
 ---
@@ -26,8 +26,8 @@ metadata:
   name: prowlarr
 spec:
   ports:
-    - port: 80
-      targetPort: 9696
+  - port: 80
+    targetPort: 9696
   selector:
     app: prowlarr
 ---
@@ -37,17 +37,17 @@ metadata:
   name: qbittorrent
 spec:
   ports:
-    - name: web
-      port: 80
-      targetPort: 8080
-    - name: torrent-tcp
-      port: 6881
-      targetPort: 6881
-      protocol: TCP
-    - name: torrent-udp
-      port: 6881
-      targetPort: 6881
-      protocol: UDP
+  - name: web
+    port: 80
+    targetPort: 8080
+  - name: torrent-tcp
+    port: 6881
+    targetPort: 6881
+    protocol: TCP
+  - name: torrent-udp
+    port: 6881
+    targetPort: 6881
+    protocol: UDP
   selector:
     app: qbittorrent
 ---
@@ -57,8 +57,8 @@ metadata:
   name: jellyfin
 spec:
   ports:
-    - port: 80
-      targetPort: 8096
+  - port: 80
+    targetPort: 8096
   selector:
     app: jellyfin
 ---
@@ -68,8 +68,8 @@ metadata:
   name: jellyseerr
 spec:
   ports:
-    - port: 80
-      targetPort: 5055
+  - port: 80
+    targetPort: 5055
   selector:
     app: jellyseerr
 ---
@@ -79,8 +79,8 @@ metadata:
   name: bazarr
 spec:
   ports:
-    - port: 80
-      targetPort: 6767
+  - port: 80
+    targetPort: 6767
   selector:
     app: bazarr
 ---
@@ -90,7 +90,7 @@ metadata:
   name: flaresolverr
 spec:
   ports:
-    - port: 80
-      targetPort: 8191
+  - port: 80
+    targetPort: 8191
   selector:
     app: flaresolverr

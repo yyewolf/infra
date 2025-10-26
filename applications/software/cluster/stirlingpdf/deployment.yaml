@@ -15,17 +15,17 @@ spec:
         app: stirlingpdf
     spec:
       containers:
-        - name: stirlingpdf
-          image: ghcr.io/stirling-tools/stirling-pdf:1.5.0-ultra-lite@sha256:b9f3b74de1bad004de1eff8078f844e5cab854c851381e5ab91d77de0eb15e7e
-          ports:
-            - containerPort: 8080
-          env:
-            - name: DOCKER_ENABLE_SECURITY
-              value: "true"
-          resources:
-            requests:
-              cpu: 0m
-              memory: 0Mi
-            limits:
-              cpu: 400m
-              memory: 750Mi
+      - name: stirlingpdf
+        image: ghcr.io/stirling-tools/stirling-pdf:1.5.0-ultra-lite@sha256:b9f3b74de1bad004de1eff8078f844e5cab854c851381e5ab91d77de0eb15e7e
+        ports:
+        - containerPort: 8080
+        env:
+        - name: DOCKER_ENABLE_SECURITY
+          value: "true"
+        resources:
+          requests:
+            cpu: 0m
+            memory: 0Mi
+          limits:
+            cpu: 1000m
+            memory: 1000Mi

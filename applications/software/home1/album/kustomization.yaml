@@ -3,15 +3,16 @@ kind: Kustomization
 namespace: album
 
 resources:
-  - namespace.yaml
-  - repo.yaml
-  - album-storage.yaml
-  - ml-storage.yaml
-  - redis.yaml
-  - immich-values-sops.yaml
-  - release.yaml
-  - route.yaml
-  - ./pgsql
+- network-policy.yaml
+- namespace.yaml
+- repo.yaml
+- album-storage.yaml
+- ml-storage.yaml
+- redis.yaml
+- immich-values-sops.yaml
+- release.yaml
+- route.yaml
+- ./pgsql
 
-  - schedule.yaml
-  - ../../../../reusables/backup-secret
+- schedule.yaml
+- ../../../../reusables/backup-secret

@@ -3,7 +3,8 @@ kind: Kustomization
 namespace: matomo
 
 resources:
-  - namespace.yaml
-  - secret-sops.yaml
-  - helm.yaml
-  - route.yaml
+- network-policy.yaml
+- namespace.yaml
+- secret-sops.yaml
+- helm.yaml
+- route.yaml

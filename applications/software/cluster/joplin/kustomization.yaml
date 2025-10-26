@@ -3,8 +3,9 @@ kind: Kustomization
 namespace: joplin
 
 resources:
-  - namespace.yaml
-  - deployment.yaml
-  - service.yaml
-  - route.yaml
-  - secret-sops.yaml
+- network-policy.yaml
+- namespace.yaml
+- deployment.yaml
+- service.yaml
+- route.yaml
+- secret-sops.yaml

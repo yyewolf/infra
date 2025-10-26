@@ -3,8 +3,9 @@ kind: Kustomization
 namespace: servarr
 
 resources:
-  - namespace.yaml
-  - deployments.yaml
-  - services.yaml
-  - routes.yaml
-  - nordvpn-sops.yaml
+- network-policy.yaml
+- namespace.yaml
+- deployments.yaml
+- services.yaml
+- routes.yaml
+- nordvpn-sops.yaml

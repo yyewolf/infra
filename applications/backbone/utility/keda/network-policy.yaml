@@ -6,8 +6,6 @@ spec:
   endpointSelector: {}
   ingress:
   - fromEndpoints:
-    - {}
-  - fromEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: envoy-system
   egress:
@@ -22,19 +20,16 @@ spec:
       rules:
         dns:
         - matchPattern: "*"
-  - toEndpoints:
-    - matchLabels:
-        io.kubernetes.pod.namespace: nounoursdestavernes
-  - toEndpoints:
-    - matchLabels:
-        io.kubernetes.pod.namespace: mariadb
+  - toEntities:
+    - cluster
     toPorts:
     - ports:
-      - port: "3306"
+      - port: "80"
+        protocol: TCP
+      - port: "443"
         protocol: TCP
   - toCIDRSet:
     - cidr: 0.0.0.0/0
       except:
       - 10.0.0.0/8
-      - 100.64.0.0/10
-      - 172.21.0.0/16
+      - 192.168.0.0/16

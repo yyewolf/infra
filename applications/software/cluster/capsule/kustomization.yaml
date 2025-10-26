@@ -3,12 +3,13 @@ kind: Kustomization
 namespace: capsule
 
 resources:
-  - namespace.yaml
-  - deployment.yaml
-  - service.yaml
-  - httpscaledobject.yaml
-  - route.yaml
-  - ../../../../reusables/booting-up-fallback
+- network-policy.yaml
+- namespace.yaml
+- deployment.yaml
+- service.yaml
+- httpscaledobject.yaml
+- route.yaml
+- ../../../../reusables/booting-up-fallback
 
 configMapGenerator:
 - name: caddy-config

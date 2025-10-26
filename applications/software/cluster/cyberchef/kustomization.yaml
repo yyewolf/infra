@@ -3,9 +3,10 @@ kind: Kustomization
 namespace: cyberchef
 
 resources:
-  - namespace.yaml
-  - deployment.yaml
-  - route.yaml
-  - service.yaml
-  - httpscaledobject.yaml
-  - ../../../../reusables/booting-up-fallback
+- network-policy.yaml
+- namespace.yaml
+- deployment.yaml
+- route.yaml
+- service.yaml
+- httpscaledobject.yaml
+- ../../../../reusables/booting-up-fallback

@@ -3,9 +3,9 @@ kind: Kustomization
 namespace: mariadb
 
 resources:
-  - namespace.yaml
-  - secret-sops.yaml
-  - deployment.yaml
-  - service.yaml
-  - ./pma
-  - ../../../../reusables/backup
+- namespace.yaml
+- secret-sops.yaml
+- deployment.yaml
+- service.yaml
+- ./pma
+- ../../../../reusables/backup

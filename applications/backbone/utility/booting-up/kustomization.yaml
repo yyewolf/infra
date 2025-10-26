@@ -3,7 +3,8 @@ kind: Kustomization
 namespace: booting-up
 
 resources:
-  - namespace.yaml
-  - configmap.yaml
-  - deployment.yaml
-  - service.yaml
+- network-policy.yaml
+- namespace.yaml
+- configmap.yaml
+- deployment.yaml
+- service.yaml
