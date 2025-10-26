@@ -34,6 +34,7 @@ resources:
 - infrastructure/backbone/utility/keda.yaml
 - infrastructure/backbone/utility/metrics-server.yaml
 - infrastructure/backbone/utility/storage.yaml
+- infrastructure/backbone/runtimes/runtimes.yaml
 
 - infrastructure/monitoring/cluster/matomo.yaml
 - infrastructure/monitoring/cluster/kube-prom-stack.yaml

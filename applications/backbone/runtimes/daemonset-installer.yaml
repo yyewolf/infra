@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: gvisor-installer
+  namespace: kube-system
+  labels:
+    app: gvisor-installer
+spec:
+  selector:
+    matchLabels:
+      app: gvisor-installer
+  template:
+    metadata:
+      labels:
+        app: gvisor-installer
+    spec:
+      nodeSelector:
+        kaas.infomaniak.cloud/cluster: pck-du3hdym
+
+      hostPID: true
+      tolerations:
+      - operator: "Exists"
+
+      containers:
+      - name: installer
+        image: debian:stable-slim
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: host-root
+          mountPath: /host
+        command:
+        - /bin/bash
+        - -ceu
+        - |
+          echo "[INFO] Installing gVisor on node $(hostname)..."
+
+          mount --bind /host /host
+          mount --make-rslave /host
+
+          # Ensure network tools available before chroot
+          apt-get update -qq
+          apt-get install -y -qq curl ca-certificates || true
+
+          # 1. Install binaries if missing
+          if [ ! -x /host/usr/local/bin/runsc ] || [ ! -x /host/usr/local/bin/containerd-shim-runsc-v1 ]; then
+            echo "[INFO] Installing gVisor binaries..."
+            curl -fsSL -o /host/usr/local/bin/runsc https://storage.googleapis.com/gvisor/releases/release/latest/x86_64/runsc
+            curl -fsSL -o /host/usr/local/bin/containerd-shim-runsc-v1 https://storage.googleapis.com/gvisor/releases/release/latest/x86_64/containerd-shim-runsc-v1
+            chmod +x /host/usr/local/bin/runsc /host/usr/local/bin/containerd-shim-runsc-v1
+          else
+            echo "[INFO] gVisor binaries already installed."
+          fi
+
+          chroot /host /bin/bash <<'EOSCRIPT'
+            set -eux
+
+            CONFIG_FILE="/etc/containerd/config.toml"
+
+            # 2. Ensure runtime config present
+            if ! grep -q 'containerd.runtimes.gvisor' "$CONFIG_FILE"; then
+              echo "[INFO] Adding gVisor runtime to containerd config..."
+              TMP_FILE=$(mktemp)
+              awk '
+                /^$/ && !added {
+                  print "[plugins.\"io.containerd.grpc.v1.cri\".containerd.runtimes.gvisor]"
+                  print "  runtime_type = \"io.containerd.runsc.v1\""
+                  print "  [plugins.\"io.containerd.grpc.v1.cri\".containerd.runtimes.gvisor.options]"
+                  print "    TypeUrl = \"containerd.runsc.v1.Options\""
+                  print ""
+                  added=1
+                }
+                { print }
+              ' "$CONFIG_FILE" > "$TMP_FILE" && mv "$TMP_FILE" "$CONFIG_FILE"
+
+              echo "[INFO] Restarting containerd..."
+              systemctl restart containerd || true
+            else
+              echo "[INFO] containerd already configured for gVisor."
+            fi
+
+            echo "[SUCCESS] Node configured for gVisor."
+          EOSCRIPT
+
+          echo "[INFO] Done on $(hostname)"
+          trap "exit 0" EXIT
+          sleep infinity
+      volumes:
+      - name: host-root
+        hostPath:
+          path: /
