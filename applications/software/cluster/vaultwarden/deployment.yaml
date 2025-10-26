@@ -15,22 +15,22 @@ spec:
         app: vaultwarden
     spec:
       containers:
-        - name: vaultwarden
-          image: mirror.gcr.io/vaultwarden/server:latest@sha256:84fd8a47f58d79a1ad824c27be0a9492750c0fa5216b35c749863093bfa3c3d7
-          envFrom:
-            - secretRef:
-                name: vaultwarden-secret
-          volumeMounts:
-            - name: vaultwarden-data
-              mountPath: /data
-          resources:
-            requests:
-              memory: "0"
-              cpu: "0"
-            limits:
-              memory: "256Mi"
-              cpu: "500m"
-      volumes:
+      - name: vaultwarden
+        image: mirror.gcr.io/vaultwarden/server:latest@sha256:84fd8a47f58d79a1ad824c27be0a9492750c0fa5216b35c749863093bfa3c3d7
+        envFrom:
+        - secretRef:
+            name: vaultwarden-secret
+        volumeMounts:
         - name: vaultwarden-data
-          persistentVolumeClaim:
-            claimName: vaultwarden-pvc
+          mountPath: /data
+        resources:
+          requests:
+            memory: "0"
+            cpu: "0"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+      volumes:
+      - name: vaultwarden-data
+        persistentVolumeClaim:
+          claimName: vaultwarden-pvc
