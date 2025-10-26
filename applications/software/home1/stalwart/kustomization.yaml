@@ -9,6 +9,7 @@ resources:
 - service.yaml
 - load-balancer.yaml
 - route.yaml
+- storage.yaml
 
 - ./certificates
 - ./roundcube

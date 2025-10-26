@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: stalwart-storage
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+  - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: stalwart-hostpath
+  hostPath:
+    path: /tank/others/stalwart
+    type: DirectoryOrCreate
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: location
+          operator: In
+          values:
+          - home1
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: stalwart-storage
+  annotations:
+    k8up.io/backup: "true"
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: stalwart-hostpath
+  resources:
+    requests:
+      storage: 10Gi
