@@ -22,7 +22,7 @@ spec:
     spec:
       containers:
       - name: stalwart
-        image: stalwartlabs/stalwart:latest@sha256:191681aa58838882648ec222cfd1f19e17f71894f45466b3b243acd18a861da1
+        image: stalwartlabs/stalwart:latest@sha256:54e381c1f6a637fd7b00a8b5778103bcc9763c7073fa72e45795fce275bff610
         livenessProbe:
           tcpSocket:
             port: 25
