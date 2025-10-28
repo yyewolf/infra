@@ -20,6 +20,9 @@ spec:
       rules:
         dns:
         - matchPattern: "*"
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: keda
   - toEntities:
     - cluster
     toPorts:
