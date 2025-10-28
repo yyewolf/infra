@@ -8,6 +8,9 @@ spec:
   - fromEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: envoy-system
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: keda
   egress:
   - toEndpoints:
     - matchLabels:
