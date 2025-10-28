@@ -299,7 +299,7 @@ spec:
         operator: "Equal"
         value: "home1"
       containers:
-      - image: nvcr.io/nvidia/k8s-device-plugin:v0.17.4
+      - image: nvcr.io/nvidia/k8s-device-plugin:v0.18.0@sha256:2d16df5f3f12081b4bd6b317cf697e5c7a195c53cec7e0bab756db02a06b985c
         name: nvidia-device-plugin-ctr
         resources:
           requests:
