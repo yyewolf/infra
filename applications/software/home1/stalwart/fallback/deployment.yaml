@@ -32,11 +32,9 @@ spec:
             - /bin/bash
             - -c
             - |
-              echo 1 > /dev/tcp/stalwart-primary.stalwart.svc/2500
-              # invert condition
-              if [ $? -eq 0 ]; then
-                exit 1
-              fi
+              perl -e 'use IO::Socket::INET; $h="stalwart-primary.stalwart.svc"; $p=2500;
+              $s = IO::Socket::INET->new(PeerAddr=>"$h:$p", Proto=>"tcp", Timeout=>2);
+              if ($s) { print $s "1"; close $s; exit 1 } else { exit 0 }'
         ports:
         - name: smtp
           protocol: TCP
