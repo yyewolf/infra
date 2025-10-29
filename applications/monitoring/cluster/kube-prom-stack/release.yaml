@@ -7,11 +7,77 @@ spec:
   chart:
     spec:
       chart: kube-prometheus-stack
-      version: "*"
+      version: 79.0.0
       sourceRef:
         kind: HelmRepository
         name: kube-prom-stack
       interval: 12h
+  values:
+    grafana:
+      adminPassword: ""
+    service:
+      portName: http-web
+    prometheus:
+      prometheusSpec:
+        podMonitorNamespaceSelector:
+          any: true
+        podMonitorSelector: {}
+        podMonitorSelectorNilUsesHelmValues: false
+        ruleNamespaceSelector:
+          any: true
+        ruleSelector: {}
+        ruleSelectorNilUsesHelmValues: false
+        serviceMonitorNamespaceSelector:
+          any: true
+        serviceMonitorSelector: {}
+        serviceMonitorSelectorNilUsesHelmValues: false
+        probeSelectorNilUsesHelmValues: false
+        probeNamespaceSelector: {}
+        probeSelector: {}
+    defaultRules:
+      create: true
+      rules:
+        general: false
+        etcd: false
+        alertmanager: false
+        kubeProxy: false
+        kubeSchedulerAlerting: false
+        kubeSchedulerRecording: false
+        kubeControllerManager: false
+        kubeApiserverAvailability: false
+        kubeApiserverBurnrate: false
+        kubeApiserverHistogram: false
+        kubeApiserverSlos: false
+    alertmanager:
+      config:
+        global:
+          resolve_timeout: 5m
+        route:
+          receiver: "webhook-receiver"
+          routes:
+          - matchers:
+            - alertname="PodNotReady"
+            receiver: "webhook-receiver"
+        receivers:
+        - name: "webhook-receiver"
+          discord_configs:
+          - webhook_url: ""
+            title: |
+              {{ define "instance" }}
+                {{ if .CommonLabels.pod }} {{ .CommonLabels.pod }} {{ else }} {{ .CommonLabels.instance }} {{ end }}
+              {{ end }}
+              {{ if eq .Status "firing" }}
+              :rotating_light: Firing: {{ .CommonLabels.alertname }} - {{ template "instance" . }}
+              {{ else if eq .Status "resolved" }}
+              :white_check_mark: Resolved: {{ .CommonLabels.alertname }} - {{ template "instance" . }}
+              {{ end }}
+            message: "**Message**: {{ .CommonAnnotations.description }}"
   valuesFrom:
-    - kind: Secret
-      name: grafana-values
+  - kind: Secret
+    name: grafana-values
+    valuesKey: adminPassword
+    targetPath: grafana.adminPassword
+  - kind: Secret
+    name: grafana-values
+    valuesKey: discordWebhookURL
+    targetPath: alertmanager.config.receivers[0].discord_configs[0].webhook_url

@@ -7,7 +7,10 @@ spec:
   ingress:
   - fromEndpoints:
     - matchLabels:
-        io.kubernetes.pod.namespace: monitoring-system
+        io.kubernetes.pod.namespace: monitoring
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: falco
   egress:
   - toEndpoints:
     - matchLabels:
@@ -20,6 +23,12 @@ spec:
       rules:
         dns:
         - matchPattern: "*"
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: falco
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: monitoring
   - toCIDRSet:
     - cidr: 0.0.0.0/0
       except:
