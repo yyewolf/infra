@@ -10,7 +10,6 @@ resources:
 - infrastructure/databases/home1/mariadb.yaml
 
 - infrastructure/software/home1/album.yaml
-- infrastructure/software/home1/woodpecker.yaml
 - infrastructure/software/home1/satisfactory.yaml
 - infrastructure/software/home1/servarr.yaml
 - infrastructure/software/home1/stalwart.yaml
@@ -35,6 +34,8 @@ resources:
 - infrastructure/backbone/utility/keda.yaml
 - infrastructure/backbone/utility/metrics-server.yaml
 - infrastructure/backbone/utility/storage.yaml
+- infrastructure/backbone/utility/kyverno.yaml
+- infrastructure/backbone/utility/kyverno-policies.yaml
 - infrastructure/backbone/runtimeclasses.yaml
 
 - infrastructure/monitoring/cluster/matomo.yaml
@@ -49,3 +50,4 @@ resources:
 - infrastructure/software/cluster/pterodactyl.yaml
 - infrastructure/software/cluster/stirlingpdf.yaml
 - infrastructure/software/cluster/vaultwarden.yaml
+- infrastructure/software/cluster/woodpecker.yaml

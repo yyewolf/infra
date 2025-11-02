@@ -27,6 +27,9 @@ spec:
         io.kubernetes.pod.namespace: woodpecker
   - toEndpoints:
     - matchLabels:
+        io.kubernetes.pod.namespace: registry
+  - toEndpoints:
+    - matchLabels:
         io.kubernetes.pod.namespace: postgresql
         app: postgres
     toPorts:

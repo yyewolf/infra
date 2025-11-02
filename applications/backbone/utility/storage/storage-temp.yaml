@@ -1,19 +1,19 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: local-path-storage
+  name: local-path-temp-storage
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: local-path-provisioner-service-account
-  namespace: local-path-storage
+  namespace: local-path-temp-storage
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: local-path-provisioner-role
-  namespace: local-path-storage
+  name: local-path-temp-provisioner-role
+  namespace: local-path-temp-storage
 rules:
 - apiGroups: [ "" ]
   resources: [ "pods" ]
@@ -22,7 +22,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: local-path-provisioner-role
+  name: local-path-temp-provisioner-role
 rules:
 - apiGroups: [ "" ]
   resources: [ "nodes", "persistentvolumeclaims", "configmaps", "pods", "pods/log" ]
@@ -40,48 +40,48 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: local-path-provisioner-bind
-  namespace: local-path-storage
+  name: local-path-temp-provisioner-bind
+  namespace: local-path-temp-storage
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: local-path-provisioner-role
+  name: local-path-temp-provisioner-role
 subjects:
 - kind: ServiceAccount
   name: local-path-provisioner-service-account
-  namespace: local-path-storage
+  namespace: local-path-temp-storage
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: local-path-provisioner-bind
+  name: local-path-temp-provisioner-bind
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: local-path-provisioner-role
+  name: local-path-temp-provisioner-role
 subjects:
 - kind: ServiceAccount
   name: local-path-provisioner-service-account
-  namespace: local-path-storage
+  namespace: local-path-temp-storage
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: local-path-provisioner
-  namespace: local-path-storage
+  name: local-path-temp-provisioner
+  namespace: local-path-temp-storage
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: local-path-provisioner
+      app: local-path-temp-provisioner
   template:
     metadata:
       labels:
-        app: local-path-provisioner
+        app: local-path-temp-provisioner
     spec:
       serviceAccountName: local-path-provisioner-service-account
       containers:
-      - name: local-path-provisioner
+      - name: local-path-temp-provisioner
         image: rancher/local-path-provisioner:v0.0.32@sha256:9289da488b07912cb4128eb96928a331a5f3e60c28c5cfc5790f354a4ad0cc68
         imagePullPolicy: IfNotPresent
         command:
@@ -90,6 +90,8 @@ spec:
         - start
         - --config
         - /etc/config/config.json
+        - --provisioner-name
+        - rancher.io/local-path-temp
         volumeMounts:
         - name: config-volume
           mountPath: /etc/config/
@@ -103,20 +105,20 @@ spec:
       volumes:
       - name: config-volume
         configMap:
-          name: local-path-config
+          name: local-path-temp-config
 ---
 kind: ConfigMap
 apiVersion: v1
 metadata:
   name: local-path-config
-  namespace: local-path-storage
+  namespace: local-path-temp-storage
 data:
   config.json: |-
     {
             "nodePathMap":[
             {
                     "node":"DEFAULT_PATH_FOR_NON_LISTED_NODES",
-                    "paths":["/tank/others/pvcs"]
+                    "paths":["/media/disk/pvcs"]
             }
             ]
     }
@@ -139,31 +141,13 @@ data:
         - operator: Exists
       containers:
       - name: helper-pod
-        image: busybox@sha256:e3652a00a2fabd16ce889f0aa32c38eec347b997e73bd09e69c962ec7f8732ee
+        image: busybox@sha256:2f590fc602ce325cbff2ccfc39499014d039546dc400ef8bbf5c6ffb860632e7
         imagePullPolicy: IfNotPresent
 ---
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: local-path-home1-delete
-provisioner: rancher.io/local-path
+  name: local-path-temp-delete
+provisioner: rancher.io/local-path-temp
 volumeBindingMode: WaitForFirstConsumer
 reclaimPolicy: Delete
-allowedTopologies:
-- matchLabelExpressions:
-  - key: location
-    values:
-    - home1
----
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: local-path-home1-retain
-provisioner: rancher.io/local-path
-volumeBindingMode: WaitForFirstConsumer
-reclaimPolicy: Retain
-allowedTopologies:
-- matchLabelExpressions:
-  - key: location
-    values:
-    - home1

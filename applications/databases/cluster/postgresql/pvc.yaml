@@ -6,7 +6,7 @@ metadata:
     k8up.io/backup: "false"
 spec:
   accessModes:
-    - ReadWriteOnce
+  - ReadWriteOnce
   resources:
     requests:
       storage: 5Gi

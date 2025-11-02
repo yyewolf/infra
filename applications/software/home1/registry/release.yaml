@@ -7,7 +7,7 @@ spec:
   chart:
     spec:
       chart: harbor
-      version: 1.17.2
+      version: 1.18.0
       sourceRef:
         kind: HelmRepository
         name: harbor
@@ -48,46 +48,46 @@ spec:
       runAsNonRoot: true
       capabilities:
         drop:
-          - ALL
+        - ALL
     core:
       tolerations:
-        - key: PrivateNode
-          operator: Equal
-          value: home1
+      - key: PrivateNode
+        operator: Equal
+        value: home1
     jobservice:
       tolerations:
-        - key: PrivateNode
-          operator: Equal
-          value: home1
+      - key: PrivateNode
+        operator: Equal
+        value: home1
     registry:
       tolerations:
-        - key: PrivateNode
-          operator: Equal
-          value: home1
+      - key: PrivateNode
+        operator: Equal
+        value: home1
     chartmuseum:
       tolerations:
-        - key: PrivateNode
-          operator: Equal
-          value: home1
+      - key: PrivateNode
+        operator: Equal
+        value: home1
     portal:
       tolerations:
-        - key: PrivateNode
-          operator: Equal
-          value: home1
+      - key: PrivateNode
+        operator: Equal
+        value: home1
     database:
       internal:
         tolerations:
-          - key: PrivateNode
-            operator: Equal
-            value: home1
-    redis:
-      internal:
-        tolerations:
-          - key: PrivateNode
-            operator: Equal
-            value: home1
-    trivy:
-      tolerations:
         - key: PrivateNode
           operator: Equal
           value: home1
+    redis:
+      internal:
+        tolerations:
+        - key: PrivateNode
+          operator: Equal
+          value: home1
+    trivy:
+      tolerations:
+      - key: PrivateNode
+        operator: Equal
+        value: home1

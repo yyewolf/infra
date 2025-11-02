@@ -1,0 +1,17 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: sysbox-hostusers-fix
+spec:
+  rules:
+  - name: set-sysbox-hostusers
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+    mutate:
+      patchStrategicMerge:
+        spec:
+          (runtimeClassName): "sysbox-runc"
+          hostUsers: false
