@@ -1,0 +1,36 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: woodpecker-sysbox-unprivileged
+spec:
+  rules:
+  - name: set-woodpecker-sysbox-unprivileged
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+          selector:
+            matchLabels:
+              woodpecker-ci.org/task-uuid: '*'
+    mutate:
+      patchStrategicMerge:
+        spec:
+          runtimeClassName: "sysbox-runc"
+          hostUsers: false
+          containers:
+          - (name): "*"
+            securityContext:
+              privileged: false
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
+          initContainers:
+          - (name): "*"
+            securityContext:
+              privileged: false
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
