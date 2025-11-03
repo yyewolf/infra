@@ -29,7 +29,7 @@ resources:
 - infrastructure/backbone/tailscale/tailscale.yaml
 - infrastructure/backbone/tailscale/nodes.yaml
 - infrastructure/backbone/utility/booting-up.yaml
-- infrastructure/backbone/utility/falco.yaml
+# - infrastructure/backbone/utility/falco.yaml
 - infrastructure/backbone/utility/flux-webhook.yaml
 - infrastructure/backbone/utility/keda.yaml
 - infrastructure/backbone/utility/metrics-server.yaml
