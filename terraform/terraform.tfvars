@@ -6,7 +6,7 @@ infomaniak = {
 }
 
 cluster_name = "kastor"
-cluster_version = "1.33"
+cluster_version = "1.34"
 cluster_type = "dedicated_4"
 pool_type = "a4-ram8-disk50-perf1"
 pool_min = 1
