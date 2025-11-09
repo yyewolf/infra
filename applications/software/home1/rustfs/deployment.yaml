@@ -21,7 +21,7 @@ spec:
         fsGroup: 2000
       containers:
       - name: rustfs
-        image: mirror.gcr.io/rustfs/rustfs:latest@sha256:8bdaa50a5c0bbbddd19ceb45a613141c0e64e692ddd845810f375292f08fe3d2
+        image: mirror.gcr.io/rustfs/rustfs:latest@sha256:42059add0ba3370b3f1731e81d135f03c1680f8a3dfa996ec83b4a9e999b3afb
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 9000
