@@ -3,6 +3,3 @@ kind: RuntimeClass
 metadata:
   name: sysbox-runc
 handler: sysbox-runc
-scheduling:
-  nodeSelector:
-    location: home1
