@@ -48,7 +48,7 @@ spec:
         supplementalGroups: []
       containers:
       - name: goci-wrapper
-        image: ghcr.io/yyewolf/goci-wrapper:latest
+        image: ghcr.io/yyewolf/goci-wrapper:latest@sha256:b91081e2d9d7cb399729cd8833c312deb02922a86467dd53bca80f5e18210900
         imagePullPolicy: Always
         ports:
         - name: http
