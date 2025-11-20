@@ -8,4 +8,3 @@ spec:
     kind: Gateway
     name: main
   enableProxyProtocol: true
-  http3: {}
