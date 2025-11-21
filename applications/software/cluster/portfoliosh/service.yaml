@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: portfoliosh
+spec:
+  ports:
+  - name: ssh
+    port: 22
+    targetPort: ssh
+  selector:
+    app: portfoliosh

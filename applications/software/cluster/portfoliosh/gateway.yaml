@@ -1,0 +1,13 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: ssh
+spec:
+  gatewayClassName: main
+  listeners:
+  - protocol: TCP
+    port: 22
+    name: ssh
+    allowedRoutes:
+      kinds:
+      - kind: TCPRoute

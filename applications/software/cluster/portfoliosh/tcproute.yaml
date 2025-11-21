@@ -1,0 +1,17 @@
+apiVersion: gateway.networking.k8s.io/v1alpha2
+kind: TCPRoute
+metadata:
+  name: ssh
+spec:
+  parentRefs:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    name: ssh
+    sectionName: ssh
+  rules:
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: portfoliosh
+      port: 22
+      weight: 1

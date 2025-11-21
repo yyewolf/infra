@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portfoliosh
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: portfoliosh
+  template:
+    metadata:
+      labels:
+        app: portfoliosh
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - image: ghcr.io/yyewolf/portfoliosh:latest
+        imagePullPolicy: IfNotPresent
+        name: portfoliosh
+        resources:
+          requests:
+            cpu: 0m
+            memory: 0Mi
+          limits:
+            cpu: 200m
+            memory: 200Mi
+        ports:
+        - name: ssh
+          containerPort: 2222
+        volumeMounts:
+        - name: host-keys
+          mountPath: /hostkey.pem
+          subPath: hostkey.pem
+          readOnly: true
+      volumes:
+      - name: host-keys
+        secret:
+          secretName: ssh-host-keys
+          items:
+          - key: ssh_host_ed25519_key
+            path: hostkey.pem

@@ -47,6 +47,7 @@ resources:
 - infrastructure/software/cluster/cyberchef.yaml
 - infrastructure/software/cluster/joplin.yaml
 - infrastructure/software/cluster/portfolio.yaml
+- infrastructure/software/cluster/portfoliosh.yaml
 - infrastructure/software/cluster/pterodactyl.yaml
 - infrastructure/software/cluster/stirlingpdf.yaml
 - infrastructure/software/cluster/vaultwarden.yaml
