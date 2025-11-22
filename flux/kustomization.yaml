@@ -22,9 +22,9 @@ resources:
 - infrastructure/backbone/backups/k8up.yaml
 - infrastructure/backbone/certs/cert-manager.yaml
 - infrastructure/backbone/certs/certificates.yaml
-- infrastructure/backbone/gateway/envoy-gateway.yaml
 - infrastructure/backbone/gateway/gateway-api-crd.yaml
-- infrastructure/backbone/gateway/gateway.yaml
+- infrastructure/backbone/gateway/kgateway.yaml
+- infrastructure/backbone/gateway/kgateway-main-gateway.yaml
 - infrastructure/backbone/tailscale/tailscale-operator.yaml
 - infrastructure/backbone/tailscale/tailscale.yaml
 - infrastructure/backbone/tailscale/nodes.yaml

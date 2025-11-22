@@ -4,8 +4,8 @@ metadata:
   name: rustfs
 spec:
   parentRefs:
-  - name: main
-    namespace: envoy-system
+  - name: kgateway
+    namespace: kgateway
     sectionName: https
   hostnames:
   - "rustfs.yewolf.fr"
@@ -24,8 +24,8 @@ metadata:
   name: artifacts
 spec:
   parentRefs:
-  - name: main
-    namespace: envoy-system
+  - name: kgateway
+    namespace: kgateway
     sectionName: https
   hostnames:
   - "artifacts.yewolf.fr"

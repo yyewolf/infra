@@ -7,7 +7,7 @@ spec:
   ingress:
   - fromEndpoints:
     - matchLabels:
-        io.kubernetes.pod.namespace: envoy-system
+        io.kubernetes.pod.namespace: kgateway
   - fromEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: keda

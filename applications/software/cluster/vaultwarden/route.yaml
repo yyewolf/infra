@@ -4,20 +4,20 @@ metadata:
   name: vaultwarden
 spec:
   parentRefs:
-    - name: main
-      namespace: envoy-system
-      sectionName: https
+  - name: kgateway
+    namespace: kgateway
+    sectionName: https
   hostnames:
-    - "vaultwarden.hackcorp.net"
-    - "vaultwarden.yewolf.fr"
+  - "vaultwarden.hackcorp.net"
+  - "vaultwarden.yewolf.fr"
   rules:
-    - backendRefs:
-        - group: ""
-          kind: Service
-          name: vaultwarden
-          port: 8080
-          weight: 1
-      matches:
-        - path:
-            type: PathPrefix
-            value: /
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: vaultwarden
+      port: 8080
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /

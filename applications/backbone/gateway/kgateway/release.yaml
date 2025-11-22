@@ -1,0 +1,30 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kgateway
+  namespace: kgateway-system
+spec:
+  interval: 10m
+  chart:
+    spec:
+      chart: kgateway
+      version: v2.2.0-main
+      sourceRef:
+        kind: HelmRepository
+        name: kgateway
+        namespace: kgateway-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    agentgateway:
+      enabled: true
+
+    controller:
+      image:
+        pullPolicy: Always
+      extraEnv:
+        KGW_ENABLE_GATEWAY_API_EXPERIMENTAL_FEATURES: "true"

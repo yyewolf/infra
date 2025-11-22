@@ -7,7 +7,6 @@ resources:
 - namespace.yaml
 - deployment.yaml
 - service.yaml
-- load-balancer.yaml
 - route.yaml
 - storage.yaml
 
@@ -17,4 +16,5 @@ resources:
 - ./fallback
 
 - schedule.yaml
+
 - ../../../../reusables/backup-secret

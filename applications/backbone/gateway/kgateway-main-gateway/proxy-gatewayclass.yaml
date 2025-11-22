@@ -1,0 +1,11 @@
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: GatewayClass
+metadata:
+  name: kgateway-proxy-protocol
+spec:
+  controllerName: kgateway.dev/kgateway
+  parametersRef:
+    group: networking.k8s.io
+    kind: GatewayParameters
+    name: kgateway-proxy-params
+    namespace: kgateway

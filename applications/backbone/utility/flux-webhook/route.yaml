@@ -4,20 +4,20 @@ metadata:
   name: flux-webhook
 spec:
   parentRefs:
-  - name: main
-    namespace: envoy-system
+  - name: kgateway
+    namespace: kgateway
     sectionName: https
   hostnames:
-    - "flux-webhook.hackcorp.net"
-    - "flux-webhook.yewolf.fr"
+  - "flux-webhook.hackcorp.net"
+  - "flux-webhook.yewolf.fr"
   rules:
-    - backendRefs:
-        - group: ""
-          kind: Service
-          name: notification-controller
-          port: 80
-          weight: 1
-      matches:
-        - path:
-            type: PathPrefix
-            value: /
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: notification-controller
+      port: 80
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /

@@ -4,8 +4,8 @@ metadata:
   name: registry
 spec:
   parentRefs:
-  - name: main
-    namespace: envoy-system
+  - name: kgateway
+    namespace: kgateway
     sectionName: https
   hostnames:
   - "registry.yewolf.fr"

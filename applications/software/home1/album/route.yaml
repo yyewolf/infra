@@ -4,19 +4,19 @@ metadata:
   name: immich
 spec:
   parentRefs:
-  - name: main
-    namespace: envoy-system
+  - name: kgateway
+    namespace: kgateway
     sectionName: https
   hostnames:
-    - "album.yewolf.fr"
+  - "album.yewolf.fr"
   rules:
-    - backendRefs:
-        - group: ""
-          kind: Service
-          name: immich-server
-          port: 2283
-          weight: 1
-      matches:
-        - path:
-            type: PathPrefix
-            value: /
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: immich-server
+      port: 2283
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /

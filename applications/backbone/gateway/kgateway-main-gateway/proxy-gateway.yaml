@@ -1,0 +1,13 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: kgateway-proxy-protocol
+spec:
+  gatewayClassName: kgateway-proxy-protocol
+  allowedListeners:
+    namespaces:
+      from: All
+  listeners:
+  - protocol: TCP
+    port: 25555
+    name: dummy

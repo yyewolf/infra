@@ -4,19 +4,19 @@ metadata:
   name: stalwart-secondary
 spec:
   parentRefs:
-  - name: main
-    namespace: envoy-system
+  - name: kgateway
+    namespace: kgateway
     sectionName: https
   hostnames:
-    - "stalwart-secondary.yewolf.fr"
+  - "stalwart-secondary.yewolf.fr"
   rules:
-    - backendRefs:
-        - group: ""
-          kind: Service
-          name: stalwart-secondary
-          port: 80
-          weight: 1
-      matches:
-        - path:
-            type: PathPrefix
-            value: /
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: stalwart-secondary
+      port: 80
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /

@@ -1,7 +1,7 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: gateway
+  name: kgateway-main-gateway
 spec:
   decryption:
     provider: sops
@@ -15,4 +15,4 @@ spec:
   sourceRef:
     kind: GitRepository
     name: infra
-  path: ./applications/backbone/gateway/gateway
+  path: ./applications/backbone/gateway/kgateway-main-gateway

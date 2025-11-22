@@ -4,20 +4,20 @@ metadata:
   name: grafana
 spec:
   parentRefs:
-  - name: main
-    namespace: envoy-system
+  - name: kgateway
+    namespace: kgateway
     sectionName: https
   hostnames:
-    - "grafana.hackcorp.net"
-    - "grafana.yewolf.fr"
+  - "grafana.hackcorp.net"
+  - "grafana.yewolf.fr"
   rules:
-    - backendRefs:
-        - group: ""
-          kind: Service
-          name: kube-prom-stack-grafana
-          port: 80
-          weight: 1
-      matches:
-        - path:
-            type: PathPrefix
-            value: /
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: kube-prom-stack-grafana
+      port: 80
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /

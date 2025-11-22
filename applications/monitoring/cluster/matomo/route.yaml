@@ -4,29 +4,29 @@ metadata:
   name: dashboard
 spec:
   parentRefs:
-  - name: main
-    namespace: envoy-system
+  - name: kgateway
+    namespace: kgateway
     sectionName: https
   hostnames:
-    - "analytics.yewolf.fr"
+  - "analytics.yewolf.fr"
   rules:
-    - backendRefs:
-        - group: ""
-          kind: Service
-          name: matomo-dashboard
-          port: 8080
-          weight: 1
-      matches:
-        - path:
-            type: PathPrefix
-            value: /
-    - backendRefs:
-        - group: ""
-          kind: Service
-          name: matomo-tracker
-          port: 8080
-          weight: 1
-      matches:
-        - path:
-            type: PathPrefix
-            value: /matomo.php
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: matomo-dashboard
+      port: 8080
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: matomo-tracker
+      port: 8080
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /matomo.php

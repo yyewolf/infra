@@ -1,0 +1,12 @@
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: GatewayParameters
+metadata:
+  name: kgateway-params
+spec:
+  kube:
+    service:
+      type: LoadBalancer
+      extraAnnotations:
+        loadbalancer.openstack.org/x-forwarded-for: "false"
+        loadbalancer.openstack.org/keep-floatingip: "true"
+        loadbalancer.openstack.org/load-balancer-id: d579f059-0984-448f-98a6-7368160c7aa9

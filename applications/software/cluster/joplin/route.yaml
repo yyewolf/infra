@@ -4,20 +4,20 @@ metadata:
   name: joplin
 spec:
   parentRefs:
-  - name: main
-    namespace: envoy-system
+  - name: kgateway
+    namespace: kgateway
     sectionName: https
   hostnames:
-    - "joplin.yewolf.fr"
-    - "joplin.hackcorp.net"
+  - "joplin.yewolf.fr"
+  - "joplin.hackcorp.net"
   rules:
-    - backendRefs:
-        - group: ""
-          kind: Service
-          name: joplin
-          port: 80
-          weight: 1
-      matches:
-        - path:
-            type: PathPrefix
-            value: /
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: joplin
+      port: 80
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /

@@ -4,19 +4,19 @@ metadata:
   name: uptime
 spec:
   parentRefs:
-  - name: main
-    namespace: envoy-system
+  - name: kgateway
+    namespace: kgateway
     sectionName: https
   hostnames:
-    - "uptime-aurelien.yewolf.fr"
+  - "uptime-aurelien.yewolf.fr"
   rules:
-    - backendRefs:
-        - group: ""
-          kind: Service
-          name: uptime-kuma
-          port: 3001
-          weight: 1
-      matches:
-        - path:
-            type: PathPrefix
-            value: /
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: uptime-kuma
+      port: 3001
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /

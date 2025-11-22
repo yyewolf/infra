@@ -4,21 +4,21 @@ metadata:
   name: stirlingpdf
 spec:
   parentRefs:
-    - name: main
-      namespace: envoy-system
-      sectionName: https
+  - name: kgateway
+    namespace: kgateway
+    sectionName: https
   hostnames:
-    - "pdf.hackcorp.net"
-    - "pdf.yewolf.fr"
+  - "pdf.hackcorp.net"
+  - "pdf.yewolf.fr"
   rules:
-    - backendRefs:
-        - group: ""
-          kind: Service
-          name: keda-add-ons-http-interceptor-proxy
-          namespace: keda
-          port: 8080
-          weight: 1
-      matches:
-        - path:
-            type: PathPrefix
-            value: /
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: keda-add-ons-http-interceptor-proxy
+      namespace: keda
+      port: 8080
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /

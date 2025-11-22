@@ -4,23 +4,23 @@ metadata:
   name: roundcube
 spec:
   parentRefs:
-  - name: main
-    namespace: envoy-system
+  - name: kgateway
+    namespace: kgateway
     sectionName: https
   hostnames:
-    - "mail.yewolf.fr"
-    - "mail.hackcorp.net"
+  - "mail.yewolf.fr"
+  - "mail.hackcorp.net"
   rules:
-    - backendRefs:
-        - group: ""
-          kind: Service
-          name: roundcube
-          port: 80
-          weight: 1
-      matches:
-        - path:
-            type: PathPrefix
-            value: /
-      timeouts:
-        request: "60s"
-        backendRequest: "60s"
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: roundcube
+      port: 80
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /
+    timeouts:
+      request: "60s"
+      backendRequest: "60s"

@@ -2,6 +2,11 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - gateway.yaml
-  - tcproute.yaml
-  - service.yaml
+- service.yaml
+- listenerset.yaml
+- tcproute-smtp.yaml
+- tcproute-submission.yaml
+- tcproute-smtps.yaml
+- tcproute-imap.yaml
+- tcproute-imaps.yaml
+- tcproute-sieve.yaml

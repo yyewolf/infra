@@ -4,8 +4,8 @@ metadata:
   name: sonarr
 spec:
   parentRefs:
-  - name: main
-    namespace: envoy-system
+  - name: kgateway
+    namespace: kgateway
     sectionName: https
   hostnames:
   - "sonarr.yewolf.fr"
@@ -27,8 +27,8 @@ metadata:
   name: radarr
 spec:
   parentRefs:
-  - name: main
-    namespace: envoy-system
+  - name: kgateway
+    namespace: kgateway
     sectionName: https
   hostnames:
   - "radarr.yewolf.fr"
@@ -50,8 +50,8 @@ metadata:
   name: prowlarr
 spec:
   parentRefs:
-  - name: main
-    namespace: envoy-system
+  - name: kgateway
+    namespace: kgateway
     sectionName: https
   hostnames:
   - "prowlarr.yewolf.fr"
@@ -73,8 +73,8 @@ metadata:
   name: qbittorrent
 spec:
   parentRefs:
-  - name: main
-    namespace: envoy-system
+  - name: kgateway
+    namespace: kgateway
     sectionName: https
   hostnames:
   - "qbittorrent.yewolf.fr"
@@ -96,8 +96,8 @@ metadata:
   name: jellyfin
 spec:
   parentRefs:
-  - name: main
-    namespace: envoy-system
+  - name: kgateway
+    namespace: kgateway
     sectionName: https
   hostnames:
   - "jellyfin.yewolf.fr"
@@ -119,8 +119,8 @@ metadata:
   name: jellyseerr
 spec:
   parentRefs:
-  - name: main
-    namespace: envoy-system
+  - name: kgateway
+    namespace: kgateway
     sectionName: https
   hostnames:
   - "jellyseerr.yewolf.fr"
@@ -142,8 +142,8 @@ metadata:
   name: bazarr
 spec:
   parentRefs:
-  - name: main
-    namespace: envoy-system
+  - name: kgateway
+    namespace: kgateway
     sectionName: https
   hostnames:
   - "bazarr.yewolf.fr"
