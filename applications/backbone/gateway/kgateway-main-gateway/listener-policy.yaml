@@ -8,5 +8,6 @@ spec:
   - group: gateway.networking.k8s.io
     kind: Gateway
     name: kgateway
-  # xffNumTrustedHops: 1
-  # useRemoteAddress: false
+  upgradeConfig:
+    enabledUpgrades:
+    - websocket

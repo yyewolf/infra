@@ -10,6 +10,7 @@ resources:
 - infrastructure/databases/home1/mariadb.yaml
 
 - infrastructure/software/home1/album.yaml
+- infrastructure/software/home1/home-assistant.yaml
 - infrastructure/software/home1/satisfactory.yaml
 - infrastructure/software/home1/servarr.yaml
 - infrastructure/software/home1/stalwart.yaml

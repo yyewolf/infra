@@ -1,0 +1,27 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: home-assistant
+spec:
+  interval: 5m
+  chart:
+    spec:
+      chart: home-assistant
+      version: 0.3.32
+      sourceRef:
+        kind: HelmRepository
+        name: home-assistant
+  values:
+    configuration:
+      enabled: true
+      forceInit: true
+      trusted_proxies:
+      - 10.0.0.0/8
+    persistence:
+      enabled: true
+      storageClass: local-path-home1-retain
+      size: 10Gi
+    tolerations:
+    - key: PrivateNode
+      operator: Equal
+      value: home1

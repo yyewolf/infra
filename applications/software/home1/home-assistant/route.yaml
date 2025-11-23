@@ -1,24 +1,22 @@
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: registry
+  name: home-assistant
 spec:
   parentRefs:
   - name: kgateway
     namespace: kgateway
     sectionName: https
   hostnames:
-  - "registry.yewolf.fr"
+  - "ha.yewolf.fr"
   rules:
   - backendRefs:
     - group: ""
       kind: Service
-      name: harbor
-      port: 80
+      name: home-assistant
+      port: 8080
       weight: 1
     matches:
     - path:
         type: PathPrefix
         value: /
-    timeouts:
-      backendRequest: 0s
