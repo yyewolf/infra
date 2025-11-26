@@ -1,0 +1,7 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: mqtt
+spec:
+  interval: 1h
+  url: https://storage.googleapis.com/t3n-helm-charts
