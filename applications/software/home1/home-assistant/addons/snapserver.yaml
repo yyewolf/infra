@@ -1,0 +1,77 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: snapcast-storage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: local-path-home1-retain
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: snapcast
+spec:
+  serviceName: snapcast
+  replicas: 1
+  podManagementPolicy: OrderedReady
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: snapcast
+  template:
+    metadata:
+      labels:
+        app: snapcast
+    spec:
+      hostNetwork: true
+      hostname: snapcast
+      dnsPolicy: ClusterFirstWithHostNet
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: snapcast
+              topologyKey: "kubernetes.io/hostname"
+      tolerations:
+        - key: PrivateNode
+          operator: Equal
+          value: home1
+      containers:
+        - name: snapcast
+          image: docker.io/sweisgerber/snapcast:latest
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "Europe/Berlin"
+            - name: START_SNAPCLIENT
+              value: "false"
+            - name: START_AIRPLAY
+              value: "false"
+          ports:
+            - containerPort: 1704
+            - containerPort: 1705
+            - containerPort: 1780
+            - containerPort: 22382
+          volumeMounts:
+            - name: snapcast-storage
+              mountPath: /config
+              subPath: config
+            - name: snapcast-storage
+              mountPath: /data
+              subPath: data
+            - name: snapcast-storage
+              mountPath: /audio
+              subPath: audio
+      volumes:
+        - name: snapcast-storage
+          persistentVolumeClaim:
+            claimName: snapcast-storage

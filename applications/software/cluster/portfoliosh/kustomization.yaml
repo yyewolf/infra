@@ -7,6 +7,6 @@ resources:
 - namespace.yaml
 - deployment.yaml
 - service.yaml
-- gateway.yaml
+- listenerset.yaml
 - tcproute.yaml
 - hostkey-sops.yaml

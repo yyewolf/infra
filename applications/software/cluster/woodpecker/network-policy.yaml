@@ -30,6 +30,9 @@ spec:
         io.kubernetes.pod.namespace: registry
   - toEndpoints:
     - matchLabels:
+        io.kubernetes.pod.namespace: kgateway
+  - toEndpoints:
+    - matchLabels:
         io.kubernetes.pod.namespace: postgresql
         app: postgres
     toPorts:

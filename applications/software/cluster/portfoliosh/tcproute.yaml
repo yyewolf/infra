@@ -4,8 +4,8 @@ metadata:
   name: ssh
 spec:
   parentRefs:
-  - group: gateway.networking.k8s.io
-    kind: Gateway
+  - group: gateway.networking.x-k8s.io
+    kind: XListenerSet
     name: ssh
     sectionName: ssh
   rules:

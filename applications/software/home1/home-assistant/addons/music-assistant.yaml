@@ -1,0 +1,78 @@
+kind: PersistentVolumeClaim
+metadata:
+  name: music-assistant-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: local-path-home1-retain
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: music-assistant-server
+  labels:
+    app: music-assistant-server
+spec:
+  serviceName: music-assistant-server
+  replicas: 1
+  podManagementPolicy: OrderedReady
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: music-assistant-server
+  template:
+    metadata:
+      labels:
+        app: music-assistant-server
+      annotations:
+        container.apparmor.security.beta.kubernetes.io/music-assistant-server: unconfined
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: music-assistant-server
+              topologyKey: "kubernetes.io/hostname"
+      tolerations:
+        - key: PrivateNode
+          operator: Equal
+          value: home1
+      containers:
+        - name: music-assistant-server
+          image: ghcr.io/music-assistant/server:beta
+          env:
+            - name: LOG_LEVEL
+              value: "info"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          securityContext:
+            privileged: true
+            capabilities:
+              add:
+                - SYS_ADMIN
+                - DAC_READ_SEARCH
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: music-assistant-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: music-assistant-server
+spec:
+  type: ClusterIP
+  selector:
+    app: music-assistant-server
+  ports:
+    - name: http
+      port: 8095
+      targetPort: 8095
