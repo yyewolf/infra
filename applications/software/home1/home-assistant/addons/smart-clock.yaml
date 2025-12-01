@@ -20,6 +20,7 @@ spec:
       containers:
         - name: smartclock
           image: ghcr.io/yyewolf/web-smart-clock:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
           env:
@@ -29,8 +30,8 @@ spec:
               value: "192.168.1.95"
             - name: SNAPSERVER_PORT
               value: "1704"
-          # optional: restart policy is handled by K8s
-      restartPolicy: Always
+            - name: TZ
+              value: "Europe/Paris"
 ---
 apiVersion: v1
 kind: Service
