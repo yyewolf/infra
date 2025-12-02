@@ -4,6 +4,7 @@ namespace: home-assistant
 
 resources:
 - namespace.yaml
+- local-service.yaml
 - repo.yaml
 - release.yaml
 - route.yaml

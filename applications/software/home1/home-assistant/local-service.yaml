@@ -8,7 +8,13 @@ spec:
     app.kubernetes.io/name: home-assistant
   type: NodePort
   ports:
+    - protocol: TCP
+      name: http
+      port: 8123
+      targetPort: 8123
+      nodePort: 30081
     - protocol: UDP
+      name: coap
       port: 5683 
       targetPort: 5683 
       nodePort: 30083
