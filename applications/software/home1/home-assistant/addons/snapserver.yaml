@@ -45,6 +45,12 @@ spec:
       containers:
         - name: snapcast
           image: docker.io/sweisgerber/snapcast:latest
+          livenessProbe:
+            tcpSocket:
+              port: 1780
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 5
           env:
             - name: PUID
               value: "1000"
