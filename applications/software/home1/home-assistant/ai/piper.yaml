@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: piper
+spec:
+  ports:
+    - port: 10200
+      targetPort: 10200
+  selector:
+    app: piper
+  clusterIP: None
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: piper
+spec:
+  serviceName: "piper"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: piper
+  template:
+    metadata:
+      labels:
+        app: piper
+    spec:
+      tolerations:
+        - key: PrivateNode
+          operator: Equal
+          value: home1
+      nodeSelector:
+        location: home1
+      containers:
+        - name: piper
+          image: lscr.io/linuxserver/piper:latest
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "Etc/UTC"
+            - name: PIPER_VOICE
+              value: "en_US-lessac-medium"
+            - name: LOCAL_ONLY
+              value: ""
+            - name: PIPER_LENGTH
+              value: "1.0"
+            - name: PIPER_NOISE
+              value: "0.667"
+            - name: PIPER_NOISEW
+              value: "0.333"
+            - name: PIPER_SPEAKER
+              value: "0"
+            - name: NO_STREAMING
+              value: ""
+          ports:
+            - containerPort: 10200

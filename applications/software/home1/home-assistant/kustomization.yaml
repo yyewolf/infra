@@ -9,3 +9,4 @@ resources:
 - release.yaml
 - route.yaml
 - ./addons
+- ./ai
