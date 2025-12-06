@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: stirlingpdf
-        image: ghcr.io/stirling-tools/stirling-pdf:2.0.1-ultra-lite@sha256:cd678a8c5c1c6f6188abe30042e618ca59a13e587d855c67c1edfbe0666c6094
+        image: ghcr.io/stirling-tools/stirling-pdf:2.1.1-ultra-lite@sha256:8d5d3d70cb5ea38fdf07dae499d8c04ec5b1c93df2fb7279d6f2d9f945b4ada1
         ports:
         - containerPort: 8080
         env:
