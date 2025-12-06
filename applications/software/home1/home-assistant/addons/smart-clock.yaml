@@ -19,7 +19,7 @@ spec:
           value: home1
       containers:
         - name: smartclock
-          image: ghcr.io/yyewolf/web-smart-clock:latest
+          image: ghcr.io/yyewolf/web-smart-clock:latest@sha256:19c6f0ed928f67220f0a0c2d2c45686a5ed246fbafda4b7baf26b8233f5194dc
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
