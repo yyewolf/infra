@@ -42,7 +42,7 @@ spec:
             - name: TZ
               value: "Etc/UTC"
             - name: PIPER_VOICE
-              value: "en_US-lessac-medium"
+              value: "fr_FR-tom-medium"
             - name: LOCAL_ONLY
               value: ""
             - name: PIPER_LENGTH

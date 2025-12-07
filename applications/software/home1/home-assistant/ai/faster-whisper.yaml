@@ -42,7 +42,7 @@ spec:
             - name: TZ
               value: "Etc/UTC"
             - name: WHISPER_MODEL
-              value: "small-int8"
+              value: "small"
             - name: LOCAL_ONLY
               value: ""
             - name: WHISPER_BEAM
