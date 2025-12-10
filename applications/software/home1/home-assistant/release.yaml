@@ -20,6 +20,8 @@ spec:
     persistence:
       enabled: true
       storageClass: local-path-home1-retain
+      annotations:
+        k8up.io/backup: "true"
       size: 10Gi
     tolerations:
     - key: PrivateNode
