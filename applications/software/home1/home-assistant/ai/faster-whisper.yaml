@@ -33,7 +33,7 @@ spec:
         location: home1
       containers:
         - name: faster-whisper
-          image: lscr.io/linuxserver/faster-whisper:latest@sha256:3d0ff4f43e6325cf78491da79669a607f9a961eae5325886acc263ea28a074e2
+          image: lscr.io/linuxserver/faster-whisper:latest@sha256:3795302d655ec3e037ffec31274213c0eed2034ae87c8f4ca03cc8ca031b3715
           env:
             - name: PUID
               value: "1000"
