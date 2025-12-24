@@ -496,7 +496,7 @@ spec:
         value: "home1"
       containers:
       - name: bazarr
-        image: lscr.io/linuxserver/bazarr:latest@sha256:2be164c02c0bb311b6c32e57d3d0ddc2813d524e89ab51a3408c1bf6fafecda5
+        image: lscr.io/linuxserver/bazarr:latest@sha256:001875e61839c8a50743f0bc0fa4da2a55ed8a038b9b5ed0dd2c663dd3d0bfc7
         ports:
         - containerPort: 6767
         env:
