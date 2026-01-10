@@ -17,6 +17,17 @@ spec:
       forceInit: true
       trusted_proxies:
       - 10.0.0.0/8
+    additionalVolumes:
+      - hostPath:
+          path: >-
+            /dev/serial/by-id/usb-Itead_Sonoff_Zigbee_3.0_USB_Dongle_Plus_V2_0a83b9ece0c2ef11b0cbecb08048b910-if00-port0
+          type: CharDevice
+        name: usb
+    additionalMounts:
+      - mountPath: /dev/ttyUSB0
+        name: usb
+    securityContext:
+      privileged: true
     persistence:
       enabled: true
       storageClass: local-path-home1-retain
