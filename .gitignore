@@ -88,3 +88,6 @@ terraform.tfstate.*
 
 # kubernetes credentials
 kubeconfig.yaml
+
+# home assistant encrypted passwords
+passwords

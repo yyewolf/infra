@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: frigate
+  labels:
+    app: frigate
+spec:
+  serviceName: "frigate"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frigate
+  template:
+    metadata:
+      labels:
+        app: frigate
+    spec:
+      tolerations:
+        - key: PrivateNode
+          operator: Equal
+          value: home1
+      containers:
+        - name: frigate
+          image: ghcr.io/blakeblackshear/frigate:0.16.3
+          ports:
+            - containerPort: 5000
+              name: web
+            - containerPort: 1935
+              name: rtmp
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: media
+              mountPath: /media
+          # env:
+          #   - name: FRIGATE_RTSP_PASSWORD
+          #     value: "yourpassword"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "2Gi"
+              cpu: "1"
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: frigate-config
+        - name: media
+          persistentVolumeClaim:
+            claimName: frigate-media
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: frigate-config
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path-home1-retain
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: frigate-media
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path-home1-retain
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frigate
+spec:
+  type: NodePort
+  selector:
+    app: frigate
+  ports:
+    - name: web
+      port: 5000
+      targetPort: 5000
+      nodePort: 30050
+    - name: rtmp
+      port: 1935
+      targetPort: 1935
+      nodePort: 30193
