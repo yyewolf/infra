@@ -9,8 +9,9 @@ spec:
   clusterIP: 10.96.42.42
   ports:
     - protocol: TCP
-      port: 443
-      targetPort: 443
+      port: 8080
+      targetPort: 8080
+      name: "http"
   selector:
     tailscale.com/managed: "true"
     tailscale.com/parent-resource: saubian
