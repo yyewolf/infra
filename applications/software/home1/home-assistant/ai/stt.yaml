@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: stt
+spec:
+  ports:
+    - port: 10300
+      targetPort: 10300
+  selector:
+    app: stt
+  clusterIP: None
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: stt
+spec:
+  serviceName: "stt"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: stt
+  template:
+    metadata:
+      labels:
+        app: stt
+    spec:
+      tolerations:
+        - key: PrivateNode
+          operator: Equal
+          value: home1
+      nodeSelector:
+        location: home1
+      containers:
+        - name: stt
+          image: ghcr.io/tboby/wyoming-onnx-asr:latest
+          args:
+            - "--model-multilingual"
+            - "nemo-parakeet-tdt-0.6b-v3"
+            - "--uri"
+            - "tcp://0.0.0.0:10300"
+          ports:
+            - containerPort: 10300

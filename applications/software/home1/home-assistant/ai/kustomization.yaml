@@ -1,3 +1,3 @@
 resources:
-  - faster-whisper.yaml
+  - stt.yaml
   - piper.yaml
