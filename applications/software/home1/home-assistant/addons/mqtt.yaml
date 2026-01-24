@@ -53,7 +53,7 @@ spec:
           value: home1
       containers:
         - name: mosquitto
-          image: eclipse-mosquitto:2.0
+          image: eclipse-mosquitto:2.0@sha256:077fe4ff4c49df1e860c98335c77dda08360629e0e2a718147027e4db3eace9d
           ports:
             - containerPort: 1883
           volumeMounts:
