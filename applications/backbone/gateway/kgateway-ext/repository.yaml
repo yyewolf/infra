@@ -1,0 +1,8 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: envoy-ext-proc-fallback
+spec:
+  type: oci
+  url: oci://ghcr.io/yyewolf/charts/envoy-ext-proc-fallback
+  interval: 10m

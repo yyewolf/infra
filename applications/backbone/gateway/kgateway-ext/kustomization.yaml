@@ -1,0 +1,9 @@
+namespace: kgateway
+
+resources:
+- error-pages.yaml
+- gateway-extension.yaml
+- httproute-catch-all.yaml
+- release.yaml
+- repository.yaml
+- traffic-policy.yaml

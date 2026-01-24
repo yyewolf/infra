@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: error-pages
+  labels:
+    app: error-pages
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: error-pages
+  template:
+    metadata:
+      labels:
+        app: error-pages
+    spec:
+      containers:
+        - name: error-pages
+          image: tarampampam/error-pages
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: TEMPLATE_NAME 
+              value: "ghost"
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: errors
+spec:
+  type: ClusterIP
+  selector:
+    app: error-pages
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: http

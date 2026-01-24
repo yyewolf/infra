@@ -1,0 +1,21 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: https-catchall
+spec:
+  parentRefs:
+  - name: kgateway
+    sectionName: https
+  hostnames:
+  - "*.hackcorp.net"
+  - "hackcorp.net"
+  - "*.yewolf.fr"
+  - "yewolf.fr"
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: "/"
+    backendRefs:
+    - name: errors
+      port: 80

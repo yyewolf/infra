@@ -1,0 +1,18 @@
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: GatewayExtension
+metadata:
+  name: ext-proc-extension
+spec:
+  type: ExtProc
+  extProc:
+    grpcService:
+      backendRef:
+        name: envoy-ext-proc-fallback
+        port: 50051
+    processingMode: 
+      requestHeaderMode: "SEND"
+      responseHeaderMode: "SEND"
+      requestBodyMode: "NONE"
+      responseBodyMode: "BUFFERED"
+      requestTrailerMode: "SKIP"
+      responseTrailerMode: "SKIP"

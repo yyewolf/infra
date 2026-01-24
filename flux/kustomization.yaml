@@ -27,6 +27,7 @@ resources:
 - infrastructure/backbone/gateway/gateway-api-crd.yaml
 - infrastructure/backbone/gateway/kgateway.yaml
 - infrastructure/backbone/gateway/kgateway-main-gateway.yaml
+- infrastructure/backbone/gateway/kgateway-ext.yaml
 - infrastructure/backbone/tailscale/tailscale-operator.yaml
 - infrastructure/backbone/tailscale/tailscale.yaml
 - infrastructure/backbone/tailscale/nodes.yaml

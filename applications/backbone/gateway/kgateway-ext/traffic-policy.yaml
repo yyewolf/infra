@@ -1,0 +1,13 @@
+---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: TrafficPolicy
+metadata:
+  name: extproc
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: kgateway
+  extProc:
+    extensionRef:
+      name: ext-proc-extension
