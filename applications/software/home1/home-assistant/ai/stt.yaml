@@ -33,7 +33,7 @@ spec:
         location: home1
       containers:
         - name: stt
-          image: ghcr.io/tboby/wyoming-onnx-asr:latest@sha256:5c1b759f878e4e3aeaa3848b72412170cc78fc697cbc7ada2c41833f18731215
+          image: ghcr.io/tboby/wyoming-onnx-asr:latest@sha256:9b2ccdd52c7aa83e36a2d674de749c4c01bd6bb1e23ea45dd85befb9fc013340
           args:
             - "--model-multilingual"
             - "nemo-parakeet-tdt-0.6b-v3"
