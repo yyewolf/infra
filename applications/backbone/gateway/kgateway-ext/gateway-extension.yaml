@@ -13,6 +13,6 @@ spec:
       requestHeaderMode: "SEND"
       responseHeaderMode: "SEND"
       requestBodyMode: "NONE"
-      responseBodyMode: "BUFFERED"
+      responseBodyMode: "FULL_DUPLEX_STREAMED"
       requestTrailerMode: "SKIP"
       responseTrailerMode: "SKIP"
