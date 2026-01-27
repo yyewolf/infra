@@ -7,7 +7,7 @@ spec:
   chart:
     spec:
       chart: home-assistant
-      version: 0.3.32
+      version: 0.3.41
       sourceRef:
         kind: HelmRepository
         name: home-assistant
@@ -28,6 +28,8 @@ spec:
         name: usb
     securityContext:
       privileged: true
+    image:
+      repository: mirror.gcr.io/homeassistant/home-assistant
     persistence:
       enabled: true
       storageClass: local-path-home1-retain
