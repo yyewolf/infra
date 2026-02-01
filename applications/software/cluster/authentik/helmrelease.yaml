@@ -24,6 +24,7 @@ spec:
     worker:
       replicas: 2
     server:
+      replicas: 2
       route:
         main:
           enabled: true
