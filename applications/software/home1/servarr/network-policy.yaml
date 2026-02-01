@@ -24,6 +24,12 @@ spec:
         - matchPattern: "*"
   - toEndpoints:
     - matchLabels:
+        io.kubernetes.pod.namespace: authentik
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kgateway
+  - toEndpoints:
+    - matchLabels:
         io.kubernetes.pod.namespace: servarr
   - toCIDRSet:
     - cidr: 0.0.0.0/0
