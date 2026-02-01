@@ -1,0 +1,7 @@
+namespace: authentik
+
+resources:
+  - namespace.yaml
+  - secret-sops.yaml
+  - helmrepository.yaml
+  - helmrelease.yaml

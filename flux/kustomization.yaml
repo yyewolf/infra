@@ -46,6 +46,7 @@ resources:
 
 - infrastructure/databases/cluster/postgresql.yaml
 
+- infrastructure/software/cluster/authentik.yaml
 - infrastructure/software/cluster/capsule.yaml
 - infrastructure/software/cluster/cyberchef.yaml
 - infrastructure/software/cluster/joplin.yaml

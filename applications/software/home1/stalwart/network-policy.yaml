@@ -26,6 +26,10 @@ spec:
         - matchPattern: "*"
   - toEndpoints:
     - matchLabels:
+        io.kubernetes.pod.namespace: authentik
+        app: authentik-outpost
+  - toEndpoints:
+    - matchLabels:
         io.kubernetes.pod.namespace: stalwart
   - toEndpoints:
     - matchLabels:
