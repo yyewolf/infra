@@ -27,6 +27,9 @@ spec:
         io.kubernetes.pod.namespace: album
   - toEndpoints:
     - matchLabels:
+        io.kubernetes.pod.namespace: kgateway
+  - toEndpoints:
+    - matchLabels:
         io.kubernetes.pod.namespace: tailscale
         tailscale.com/parent-resource: dk1
   - toCIDRSet:
