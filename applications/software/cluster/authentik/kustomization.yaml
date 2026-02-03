@@ -5,3 +5,4 @@ resources:
   - secret-sops.yaml
   - helmrepository.yaml
   - helmrelease.yaml
+  - oauth-routes.yaml

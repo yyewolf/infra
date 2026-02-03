@@ -10,6 +10,9 @@ spec:
   - fromEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: kgateway
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: authentik
   egress:
   - toEndpoints:
     - matchLabels:
