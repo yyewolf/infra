@@ -8,7 +8,7 @@ spec:
   interval: 5m
   url: https://github.com/kubernetes-sigs/gateway-api.git
   ref:
-    branch: main  # You can change this to a tag or commit if needed
+    branch: release-1.4  # You can change this to a tag or commit if needed
   ignore: |
     # Exclude everything except the CRD folder
     /*
