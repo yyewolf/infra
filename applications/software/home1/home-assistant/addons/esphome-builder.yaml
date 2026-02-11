@@ -41,7 +41,7 @@ spec:
       dnsPolicy: ClusterFirstWithHostNet
       containers:
         - name: esphome
-          image: ghcr.io/esphome/esphome:latest@sha256:c6d4a461cb479b953bb9f6f4fb7844dc06ec8efd94c84fcb6d221597b54f24a9
+          image: ghcr.io/esphome/esphome:latest@sha256:0d10dd966bfba46d1e60d6050f7ec33939b1e483482e5f39b349fa18272dd569
           securityContext:
             privileged: true
           env:
