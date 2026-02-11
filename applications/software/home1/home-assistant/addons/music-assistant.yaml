@@ -49,7 +49,7 @@ spec:
           value: home1
       containers:
         - name: music-assistant-server
-          image: ghcr.io/music-assistant/server:beta@sha256:72f6e2fc2a98721c657806caa55905d2e32df6d889c7a9364bfef1b62087a16d
+          image: ghcr.io/music-assistant/server:beta@sha256:06b69a80fc1c1c3cd7ca8dc81a65d7487f725e8c1627517544b89849789dbafc
           env:
             - name: LOG_LEVEL
               value: "info"
