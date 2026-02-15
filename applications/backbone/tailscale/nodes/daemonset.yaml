@@ -59,7 +59,7 @@ spec:
           mountPath: /config
       containers:
       - name: tailscaled
-        image: tailscale/tailscale:stable@sha256:21df0b5a84efa35c0a507f4dd2340e1b1295683634a28968707354d5bd991d9c
+        image: tailscale/tailscale:stable@sha256:95e528798bebe75f39b10e74e7051cf51188ee615934f232ba7ad06a3390ffa1
         securityContext:
           privileged: true
         env:
