@@ -28,6 +28,10 @@ spec:
         group: ""
         name: yewolf.fr
         namespace: cert-manager
+      - kind: Secret
+        group: ""
+        name: uctf.io
+        namespace: uctf
     allowedRoutes:
       namespaces:
         from: All
