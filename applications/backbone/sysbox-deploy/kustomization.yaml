@@ -1,0 +1,3 @@
+resources:
+- registry-secret-sops.yaml
+- daemonset.yaml

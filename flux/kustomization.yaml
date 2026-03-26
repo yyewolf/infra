@@ -40,6 +40,7 @@ resources:
 - infrastructure/backbone/utility/kyverno.yaml
 - infrastructure/backbone/utility/kyverno-policies.yaml
 - infrastructure/backbone/runtimeclasses.yaml
+- infrastructure/backbone/sysbox-deploy.yaml
 
 - infrastructure/monitoring/cluster/matomo.yaml
 - infrastructure/monitoring/cluster/kube-prom-stack.yaml
