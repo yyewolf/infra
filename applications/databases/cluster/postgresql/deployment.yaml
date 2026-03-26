@@ -35,8 +35,8 @@ spec:
               cpu: 0m
               memory: 0Mi
             limits:
-              cpu: 500m
-              memory: 400Mi
+              cpu: 750m
+              memory: 1000Mi
       volumes:
         - name: postgres-storage
           persistentVolumeClaim:
