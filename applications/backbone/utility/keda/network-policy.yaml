@@ -7,6 +7,9 @@ spec:
   ingress:
   - fromEndpoints:
     - matchLabels:
+        io.kubernetes.pod.namespace: tailscale
+  - fromEndpoints:
+    - matchLabels:
         io.kubernetes.pod.namespace: kgateway
   - fromEndpoints:
     - matchLabels:
@@ -26,8 +29,8 @@ spec:
   - toEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: keda
-  - toEntities:
-    - cluster
+  - toCIDRSet:
+    - cidr: 10.0.0.0/8
     toPorts:
     - ports:
       - port: "80"
