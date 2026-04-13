@@ -31,7 +31,7 @@ spec:
           value: home1
       containers:
         - name: zigbee2mqtt
-          image: ghcr.io/koenkk/zigbee2mqtt@sha256:2a21bbf7a664a149024bbe1f776e3151f28ed9db15948270dcbffb89544a41f0
+          image: ghcr.io/koenkk/zigbee2mqtt:2.9.2
           env:
             - name: TZ
               value: "Europe/Amsterdam"
