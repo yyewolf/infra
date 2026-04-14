@@ -24,6 +24,8 @@ spec:
       name: ak-outpost-proxy
       port: 9000
       weight: 1
+    timeouts:
+      request: "200s"
     matches:
     - path:
         type: PathPrefix
