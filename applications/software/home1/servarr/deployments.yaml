@@ -21,7 +21,7 @@ spec:
         value: "home1"
       containers:
       - name: sonarr
-        image: lscr.io/linuxserver/sonarr:latest@sha256:b5670a3adb0f8a8b0f277feeaa69a5fbe3869ba4bb9fa7c0f0764c3b3f0e698f
+        image: mirror.gcr.io/linuxserver/sonarr:4.0.17@sha256:e6c9a091735fede0c2a205c69e7d4c2f0188eaf2bec7e42d8a26c017e5f2a910
         ports:
         - containerPort: 8989
         env:
@@ -76,7 +76,7 @@ spec:
         value: "home1"
       containers:
       - name: radarr
-        image: lscr.io/linuxserver/radarr:latest@sha256:cd70546fc97169788530386b42cf47ba1b16d091b4dc2264cd54099dd13c6f7f
+        image: mirror.gcr.io/linuxserver/radarr:6.1.1@sha256:6f1dda18354ea7f28cead8f6d099fc8222498c3ae165f567d504ed04d70980d7
         ports:
         - containerPort: 7878
         env:
@@ -131,7 +131,7 @@ spec:
         value: "home1"
       containers:
       - name: prowlarr
-        image: lscr.io/linuxserver/prowlarr:latest@sha256:35f48abb3e976fcf077fae756866c582e4a90f8b24810ae4067b3558f7cdbbdf
+        image: mirror.gcr.io/linuxserver/prowlarr:2.3.5@sha256:6df73ab9e99d0dbaad27c39d8a47c600333eebea80fcb56253a0bb8b630c8115
         ports:
         - containerPort: 9696
         env:
@@ -350,7 +350,7 @@ spec:
       terminationGracePeriodSeconds: 1
       containers:
       - name: jellyfin
-        image: lscr.io/linuxserver/jellyfin:10.11.6@sha256:0a2f7e2c1c34e1a0e553b8521208ac1cc9ffa6a0efc2cf4acb4a45229b390e65
+        image: mirror.gcr.io/linuxserver/jellyfin:10.11.6@sha256:0a2f7e2c1c34e1a0e553b8521208ac1cc9ffa6a0efc2cf4acb4a45229b390e65
         ports:
         - containerPort: 8096
         env:
@@ -406,7 +406,7 @@ spec:
         value: "home1"
       containers:
       - name: jellyseerr
-        image: mirror.gcr.io/fallenbagel/jellyseerr:latest@sha256:4538137bc5af902dece165f2bf73776d9cf4eafb6dd714670724af8f3eb77764
+        image: ghcr.io/seerr-team/seerr:v3.2.0@sha256:c4cbd5121236ac2f70a843a0b920b68a27976be57917555f1c45b08a1e6b2aad 
         ports:
         - containerPort: 5055
         env:
@@ -453,7 +453,7 @@ spec:
         value: "home1"
       containers:
       - name: flaresolverr
-        image: ghcr.io/flaresolverr/flaresolverr:latest@sha256:7962759d99d7e125e108e0f5e7f3cdbcd36161776d058d1d9b7153b92ef1af9e
+        image: ghcr.io/flaresolverr/flaresolverr:v3.4.6@sha256:7962759d99d7e125e108e0f5e7f3cdbcd36161776d058d1d9b7153b92ef1af9e 
         ports:
         - containerPort: 8191
         env:
@@ -496,7 +496,7 @@ spec:
         value: "home1"
       containers:
       - name: bazarr
-        image: lscr.io/linuxserver/bazarr:latest@sha256:05f9d5b24884f37120453dc1a008a47be244eebec32099ae1bd29032e75b67aa
+        image: mirror.gcr.io/linuxserver/bazarr:1.5.6@sha256:d736df5df0286373a26d34f47aa413cb8aeada74f6338dac372a6d37ba1b3b0d
         ports:
         - containerPort: 6767
         env:
