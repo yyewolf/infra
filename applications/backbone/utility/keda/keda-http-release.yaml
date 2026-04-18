@@ -10,7 +10,7 @@ spec:
   chart:
     spec:
       chart: keda-add-ons-http
-      version: v0.11.1
+      version: v0.12.2
       sourceRef:
         kind: HelmRepository
         name: kedacore
