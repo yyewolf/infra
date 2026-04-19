@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: redis
-          image: mirror.gcr.io/redis:8.4.2-alpine@sha256:812a2556fa70318d980d248a65f62a3bdb72c0882e90d96e50d5c8cf2bed438d
+          image: mirror.gcr.io/redis:8.4.2-alpine@sha256:e1b6db24cb4fdd89f4bc9be09f671ea3bec92fbd7042554f76c34aa2be9b59ad
           args: ["--save", "", "--appendonly", "no"]
           resources:
             requests:
