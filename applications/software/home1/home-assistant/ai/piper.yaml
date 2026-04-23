@@ -33,7 +33,7 @@ spec:
         location: home1
       containers:
         - name: piper
-          image: lscr.io/linuxserver/piper:latest@sha256:acfe7b8141f69d6adb32ef7ff87ff3c4a6b75852adfa5df58c26d4063b3c467f
+          image: lscr.io/linuxserver/piper:latest@sha256:1f7840481012962159438c2d5b53f1bb36ed4444e6c6c05513447cd933beda20
           env:
             - name: PUID
               value: "1000"
