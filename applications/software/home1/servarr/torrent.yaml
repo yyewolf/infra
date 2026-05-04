@@ -20,7 +20,7 @@ spec:
         value: "home1"
       containers:
       - name: gluetun
-        image: qmcgaw/gluetun:v3
+        image: qmcgaw/gluetun:v3@sha256:1a5bf4b4820a879cdf8d93d7ef0d2d963af56670c9ebff8981860b6804ebc8ab
         securityContext:
           capabilities:
             add:
@@ -56,7 +56,7 @@ spec:
               key: password
 
       - name: qbittorrent
-        image: linuxserver/qbittorrent:latest
+        image: linuxserver/qbittorrent:latest@sha256:c9990949e968e99333f47f49da7d16e81ba6e1469c8c46807a65b984c9e8b6ff
         env:
         - name: PUID
           value: "1000"
@@ -104,7 +104,7 @@ spec:
         value: "home1"
       containers:
       - name: joal
-        image: anthonyraymond/joal:latest
+        image: anthonyraymond/joal:latest@sha256:fc942567c5649b29377e50aa0ca934e4750534d02b4ecf5a0eda3984630f35d7
         args:
         - --joal-conf=/data
         - --spring.main.web-environment=true
