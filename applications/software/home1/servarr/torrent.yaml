@@ -1,0 +1,132 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: torrent-stack
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: torrent-stack
+  template:
+    metadata:
+      labels:
+        app: torrent-stack
+    spec:
+      nodeSelector:
+        location: home1
+      tolerations:
+      - key: "PrivateNode"
+        operator: "Equal"
+        value: "home1"
+      containers:
+      - name: gluetun
+        image: qmcgaw/gluetun:v3
+        securityContext:
+          capabilities:
+            add:
+              - NET_ADMIN
+        env:
+        - name: NETWORK
+          value: "container"
+        - name: FIREWALL_INPUT_PORTS
+          value: "8888,8080,8090" 
+        - name: DNS_ADDRESS
+          value: "1.1.1.1"
+        - name: HTTPPROXY
+          value: "yes"
+        - name: FIREWALL_OUTBOUND_SUBNETS
+          value: "10.0.0.0/8,192.168.0.0/16,1.1.1.1/32"
+        - name: HTTP_CONTROL_SERVER_ADDRESS
+          value: ":8000"
+        - name: VPN_INTERFACE_MTU
+          value: "1400"
+        - name: VPN_SERVICE_PROVIDER
+          value: "nordvpn"
+        - name: VPN_TYPE
+          value: "openvpn" # or wireguard
+        - name: OPENVPN_USER
+          valueFrom:
+            secretKeyRef:
+              name: nordvpn-secret
+              key: username
+        - name: OPENVPN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: nordvpn-secret
+              key: password
+
+      - name: qbittorrent
+        image: linuxserver/qbittorrent:latest
+        env:
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        - name: TZ
+          value: "Europe/Paris"
+        - name: WEBUI_PORT
+          value: "8080"
+        volumeMounts:
+        - name: qbit-config
+          mountPath: /config
+        - name: media-data
+          mountPath: /data
+      
+      volumes:
+      - name: qbit-config
+        hostPath:
+          path: /tank/servarr/config/qbittorrent
+          type: DirectoryOrCreate
+      - name: media-data
+        hostPath:
+          path: /tank/servarr
+          type: Directory
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: joal
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: joal
+  template:
+    metadata:
+      labels:
+        app: joal
+    spec:
+      nodeSelector:
+        location: home1
+      tolerations:
+      - key: "PrivateNode"
+        operator: "Equal"
+        value: "home1"
+      containers:
+      - name: joal
+        image: anthonyraymond/joal:latest
+        args:
+        - --joal-conf=/data
+        - --spring.main.web-environment=true
+        - --server.address=0.0.0.0
+        - --server.port=8090 # Changed to 8090 to avoid conflict with qBit
+        - --joal.ui.path.prefix=jowal
+        - --joal.ui.secret-token=change-me-secret
+        env:
+        - name: JAVA_TOOL_OPTIONS
+          value: "-Dhttp.proxyHost=gluetun.servarr.svc -Dhttp.proxyPort=8888 -Dhttp.nonProxyHosts=localhost|127.*|10.*|192.168.*|172.18.*"
+        volumeMounts:
+        - name: joal-config
+          mountPath: /data
+        - name: qbit-torrents
+          mountPath: /data/torrents
+      
+      volumes:
+      - name: joal-config
+        hostPath:
+          path: /tank/servarr/config/joal
+          type: DirectoryOrCreate
+      - name: qbit-torrents
+        hostPath:
+          path: /tank/servarr/config/qbittorrent/qBittorrent/BT_backup
+          type: Directory

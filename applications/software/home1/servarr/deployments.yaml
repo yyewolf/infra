@@ -533,3 +533,54 @@ spec:
         hostPath:
           path: /tank/servarr/media/movies
           type: DirectoryOrCreate
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: joal
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: joal
+  template:
+    metadata:
+      labels:
+        app: joal
+    spec:
+      automountServiceAccountToken: false
+      nodeSelector:
+        location: home1
+      tolerations:
+      - key: "PrivateNode"
+        operator: "Equal"
+        value: "home1"
+      containers:
+      - name: joal
+        image: anthonyraymond/joal:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: TZ
+          value: "Europe/Paris"
+        args:
+        - --joal-conf=/data
+        - --spring.main.web-environment=true
+        - --server.address=0.0.0.0
+        - --server.port=8080
+        - --joal.ui.path.prefix=jowal  # Your UI URL suffix
+        - --joal.ui.secret-token=change-me-secret # Your UI password
+        volumeMounts:
+        - name: config
+          mountPath: /data
+        - name: qbit-torrents
+          mountPath: /data/torrents
+      volumes:
+      - name: config
+        hostPath:
+          path: /tank/servarr/config/joal
+          type: DirectoryOrCreate
+      - name: qbit-torrents
+        hostPath:
+          path: /tank/servarr/config/qbittorrent/qBittorrent/data/BT_backup
+          type: Directory

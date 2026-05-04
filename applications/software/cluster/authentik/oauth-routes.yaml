@@ -11,6 +11,7 @@ spec:
   - prowlarr.yewolf.fr
   - flaresolverr.yewolf.fr
   - bazarr.yewolf.fr
+  - joal.yewolf.fr
   parentRefs:
   - group: gateway.networking.k8s.io
     kind: Gateway

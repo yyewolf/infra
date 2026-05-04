@@ -6,6 +6,7 @@ resources:
 - network-policy.yaml
 - namespace.yaml
 - deployments.yaml
+- torrent.yaml
 - services.yaml
 - routes.yaml
 - nordvpn-sops.yaml
