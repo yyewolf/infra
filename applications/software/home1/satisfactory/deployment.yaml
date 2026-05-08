@@ -6,10 +6,12 @@ metadata:
   labels:
     app: satisfactory
 spec:
-  replicas: 0
+  replicas: 1
   selector:
     matchLabels:
       app: satisfactory
+  strategy:
+    type: Recreate
   template:
     metadata:
       labels:
@@ -23,7 +25,7 @@ spec:
           value: "home1"
       containers:
         - name: satisfactory
-          image: mirror.gcr.io/wolveix/satisfactory-server:latest@sha256:e103700ae6ae4c50f19dac80eadb2a805c5b885e179ae2a40850e967bf189efd
+          image: mirror.gcr.io/wolveix/satisfactory-server:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 7777
@@ -34,6 +36,9 @@ spec:
               protocol: TCP
             - containerPort: 8888
               hostPort: 8888
+              protocol: TCP
+            - containerPort: 8080
+              hostPort: 8080
               protocol: TCP
           env:
             - name: MAXPLAYERS
@@ -54,10 +59,42 @@ spec:
               cpu: 0m
               memory: 0Mi
             limits:
-              cpu: 2
-              memory: 8Gi
+              cpu: 3
+              memory: 12Gi
+        - name: frmcompanion
+          image: featheredtoast/ficsit-remote-monitoring-companion
+          env:
+            - name: FRM_HOST
+              value: "127.0.0.1"
+            - name: FRM_PORT
+              value: "8080"
+          ports:
+            - containerPort: 9000
+              name: http
+              hostPort: 9000
+              protocol: TCP
+        - name: frmcache
+          image: featheredtoast/ficsit-remote-monitoring-cache
+          env:
+            - name: FRM_HOST
+              value: "127.0.0.1"
+            - name: FRM_PORT
+              value: "8080"
+            - name: PG_HOST
+              value: postgres.postgresql.svc
+            - name: PG_PORT
+              value: "5432"
+            - name: PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: satisfactory-credentials
+                  key: password
+            - name: PG_USER
+              value: satisfactory
+            - name: PG_DB
+              value: satisfactory
       volumes:
         - name: config
           hostPath:
-            path: /home/yewolf/containers/satisfactory/satisfactory-server
+            path: /media/disk/satisfactory
             type: Directory

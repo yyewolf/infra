@@ -1,0 +1,35 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: satisfactory
+
+configMapGenerator:
+  - name: grafana-dashboards
+    files:
+      - drone.json
+      - dropPod.json
+      - efficiencyMap.json
+      - factoryProd.json
+      - players.json
+      - power.json
+      - production.json
+      - storage.json
+      - train.json
+      - vehicles.json
+      - overview.json
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+labels:
+- includeSelectors: true
+  pairs:
+    grafana_dashboard: "1"
+
+patches:
+- patch: |-
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: grafana-dashboards
+      annotations:
+       grafana_folder: "Satisfactory"

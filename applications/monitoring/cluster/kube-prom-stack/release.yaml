@@ -15,6 +15,17 @@ spec:
   values:
     grafana:
       adminPassword: ""
+      sidecar:
+        dashboards:
+          enabled: true
+          label: grafana_dashboard
+          annotations:
+            grafana_folder: "Kube Prom Stack"
+          folder: /tmp/dashboards
+          folderAnnotation: grafana_folder
+          provider:
+            allowUiUpdates: true
+            foldersFromFilesStructure: true
     service:
       portName: http-web
     prometheus:
