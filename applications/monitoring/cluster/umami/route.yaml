@@ -1,32 +1,22 @@
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: dashboard
+  name: umami
 spec:
   parentRefs:
   - name: kgateway
     namespace: kgateway
     sectionName: https
   hostnames:
-  - "analytics.yewolf.fr"
+  - "umami.yewolf.fr"
   rules:
   - backendRefs:
     - group: ""
       kind: Service
-      name: matomo-dashboard
-      port: 8080
+      name: umami
+      port: 3000
       weight: 1
     matches:
     - path:
         type: PathPrefix
         value: /
-  - backendRefs:
-    - group: ""
-      kind: Service
-      name: matomo-tracker
-      port: 8080
-      weight: 1
-    matches:
-    - path:
-        type: PathPrefix
-        value: /matomo.php

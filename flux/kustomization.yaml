@@ -42,7 +42,7 @@ resources:
 - infrastructure/backbone/runtimeclasses.yaml
 - infrastructure/backbone/sysbox-deploy.yaml
 
-- infrastructure/monitoring/cluster/matomo.yaml
+- infrastructure/monitoring/cluster/umami.yaml
 - infrastructure/monitoring/cluster/kube-prom-stack.yaml
 
 - infrastructure/databases/cluster/postgresql.yaml

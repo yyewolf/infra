@@ -1,7 +1,7 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: matomo
+  name: umami
 spec:
   decryption:
     provider: sops
@@ -14,4 +14,4 @@ spec:
   sourceRef:
     kind: GitRepository
     name: infra
-  path: ./applications/monitoring/cluster/matomo
+  path: ./applications/monitoring/cluster/umami
