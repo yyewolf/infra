@@ -25,7 +25,7 @@ spec:
           value: "home1"
       containers:
         - name: satisfactory
-          image: mirror.gcr.io/wolveix/satisfactory-server:latest
+          image: mirror.gcr.io/wolveix/satisfactory-server:latest@sha256:e103700ae6ae4c50f19dac80eadb2a805c5b885e179ae2a40850e967bf189efd
           imagePullPolicy: Always
           ports:
             - containerPort: 7777
@@ -62,7 +62,7 @@ spec:
               cpu: 3
               memory: 12Gi
         - name: frmcompanion
-          image: featheredtoast/ficsit-remote-monitoring-companion
+          image: featheredtoast/ficsit-remote-monitoring-companion@sha256:6c003115f5b748687cdff1dea963d956a005fee6239265e357ea8b14c7bfb18b
           env:
             - name: FRM_HOST
               value: "127.0.0.1"
@@ -74,7 +74,7 @@ spec:
               hostPort: 9000
               protocol: TCP
         - name: frmcache
-          image: featheredtoast/ficsit-remote-monitoring-cache
+          image: featheredtoast/ficsit-remote-monitoring-cache@sha256:54a5c77cc05738619d41372e7c86567843c94f65ed56495d1aef1ae60ab731a1
           env:
             - name: FRM_HOST
               value: "127.0.0.1"

@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: umami
-          image: ghcr.io/umami-software/umami:latest
+          image: ghcr.io/umami-software/umami:latest@sha256:e3f80c0625aad7179b49da27d475357cabb1068b8cacd9a792cfd6966888b123
           ports:
             - containerPort: 3000
           env:

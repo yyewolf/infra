@@ -14,7 +14,7 @@ spec:
     spec:
       automountServiceAccountToken: false
       containers:
-      - image: ghcr.io/yyewolf/portfolio:2.1.6
+      - image: ghcr.io/yyewolf/portfolio:2.1.6@sha256:f30293cfdc7338966ffef2be651fe5f97752a3363431db6fdc7bee1f972cf08c
         imagePullPolicy: IfNotPresent
         name: portfolio
         resources:
