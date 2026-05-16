@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scrutiny
+  namespace: scrutiny
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scrutiny
+  template:
+    metadata:
+      labels:
+        app: scrutiny
+    spec:
+      tolerations:
+      - key: "PrivateNode"
+        operator: "Equal"
+        value: "home1"
+      containers:
+      - name: scrutiny
+        image: ghcr.io/analogj/scrutiny:v0.9.2-omnibus@sha256:f5bf4878381fcfe63bf61b96ff6f91de8b1b8c187ec0e86c65309946fa359e2e
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 8080
+        - name: influxdb
+          containerPort: 8086
+        securityContext:
+          privileged: true
+          capabilities:
+            add:
+            - SYS_RAWIO
+            - SYS_ADMIN
+        volumeMounts:
+        - name: scrutiny-config
+          mountPath: /opt/scrutiny/config/scrutiny.yaml
+          subPath: scrutiny.yaml
+        - name: scrutiny
+          mountPath: /opt/scrutiny/config
+        - name: scrutiny-influxdb
+          mountPath: /opt/scrutiny/influxdb
+        - name: udev
+          mountPath: /run/udev
+          readOnly: true
+        - name: dev
+          mountPath: /dev
+      volumes:
+      - name: scrutiny-config
+        secret:
+          secretName: scrutiny-config
+      - name: scrutiny
+        persistentVolumeClaim:
+          claimName: scrutiny
+      - name: scrutiny-influxdb
+        persistentVolumeClaim:
+          claimName: scrutiny-influxdb
+      - name: udev
+        hostPath:
+          path: /run/udev
+          type: Directory
+      - name: dev
+        hostPath:
+          path: /dev
+          type: Directory
