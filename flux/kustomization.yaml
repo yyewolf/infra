@@ -13,6 +13,7 @@ resources:
 - infrastructure/software/home1/home-assistant.yaml
 - infrastructure/software/home1/mqtt.yaml
 - infrastructure/software/home1/satisfactory.yaml
+- infrastructure/software/home1/scrutiny.yaml
 - infrastructure/software/home1/servarr.yaml
 - infrastructure/software/home1/stalwart.yaml
 - infrastructure/software/home1/registry.yaml
