@@ -3,8 +3,8 @@ kind: Kustomization
 namespace: stalwart
 
 resources:
-  - deployment.yaml
-  - service.yaml
-  - route.yaml
-  - secrets-sops.yaml
-  - pdb.yaml
+- deployment.yaml
+- service.yaml
+- route.yaml
+- secrets-sops.yaml
+- pdb.yaml
