@@ -6,9 +6,9 @@ spec:
   template:
     spec:
       tolerations:
-        - key: "PrivateNode"
-          operator: "Equal"
-          value: "home1"
+      - key: "PrivateNode"
+        operator: "Equal"
+        value: "home1"
       containers: []
 ---
 apiVersion: k8up.io/v1
@@ -29,7 +29,7 @@ spec:
       name: backup-secret
       key: repoPassword
   backup:
-    schedule: '20 13 * * *'
+    schedule: '20 1 * * *'
     podConfigRef:
       name: podconfig
     failedJobsHistoryLimit: 1
