@@ -16,32 +16,29 @@ spec:
         k8up.io/file-extension: .sql
     spec:
       tolerations:
-        - key: "PrivateNode"
-          operator: "Equal"
-          value: "home1"
+      - key: "PrivateNode"
+        operator: "Equal"
+        value: "home1"
       containers:
-        - name: postgres
-          image: ghcr.io/tensorchord/pgvecto-rs:pg16-v0.3.0@sha256:b89f8ddbb28400d428d3c5e3e860f578cde85ad8e78544a8b687b97937cfc50b
-          ports:
-            - containerPort: 5432
-          env:
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-secret
-                  key: password
-          volumeMounts:
-            - name: postgres-storage
-              subPath: data
-              mountPath: /var/lib/postgresql/data
-          resources:
-            requests:
-              cpu: 0m
-              memory: 0Mi
-            # limits:
-              # cpu: 500m
-              # memory: 4000Mi
-      volumes:
+      - name: postgres
+        image: ghcr.io/immich-app/postgres:16-vectorchord0.4.3-pgvector0.8.1-pgvectors0.3.0
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: password
+        volumeMounts:
         - name: postgres-storage
-          persistentVolumeClaim:
-            claimName: pgsql-storage
+          subPath: data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests:
+            cpu: 0m
+            memory: 0Mi
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: pgsql-storage
