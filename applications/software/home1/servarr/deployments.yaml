@@ -232,7 +232,7 @@ spec:
       terminationGracePeriodSeconds: 1
       containers:
       - name: jellyfin
-        image: mirror.gcr.io/linuxserver/jellyfin:10.11.6@sha256:0a2f7e2c1c34e1a0e553b8521208ac1cc9ffa6a0efc2cf4acb4a45229b390e65
+        image: mirror.gcr.io/linuxserver/jellyfin:10.11.8@sha256:e622a48adf7193c7d626c2325a40f9b01c932c8e7bf3f50ffa40e7e9b6ce1d39
         ports:
         - containerPort: 8096
         env:
@@ -288,7 +288,7 @@ spec:
         value: "home1"
       containers:
       - name: jellyseerr
-        image: ghcr.io/seerr-team/seerr:v3.2.0@sha256:c4cbd5121236ac2f70a843a0b920b68a27976be57917555f1c45b08a1e6b2aad 
+        image: ghcr.io/seerr-team/seerr:v3.2.0@sha256:c4cbd5121236ac2f70a843a0b920b68a27976be57917555f1c45b08a1e6b2aad
         ports:
         - containerPort: 5055
         env:
@@ -335,7 +335,7 @@ spec:
         value: "home1"
       containers:
       - name: flaresolverr
-        image: ghcr.io/flaresolverr/flaresolverr:v3.4.6@sha256:7962759d99d7e125e108e0f5e7f3cdbcd36161776d058d1d9b7153b92ef1af9e 
+        image: ghcr.io/flaresolverr/flaresolverr:v3.4.6@sha256:7962759d99d7e125e108e0f5e7f3cdbcd36161776d058d1d9b7153b92ef1af9e
         ports:
         - containerPort: 8191
         env:
