@@ -6,4 +6,5 @@ resources:
 - httproute-catch-all.yaml
 - release.yaml
 - repository.yaml
-- traffic-policy.yaml
+
+# - traffic-policy.yaml

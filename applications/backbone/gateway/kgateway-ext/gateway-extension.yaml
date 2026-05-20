@@ -9,10 +9,10 @@ spec:
       backendRef:
         name: envoy-ext-proc-fallback
         port: 50051
-    processingMode: 
+    processingMode:
       requestHeaderMode: "SEND"
       responseHeaderMode: "SEND"
       requestBodyMode: "NONE"
       responseBodyMode: "FULL_DUPLEX_STREAMED"
       requestTrailerMode: "SKIP"
-      responseTrailerMode: "SKIP"
+      responseTrailerMode: "SEND"
