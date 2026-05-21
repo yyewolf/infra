@@ -13,6 +13,7 @@ spec:
   - bazarr.yewolf.fr
   - joal.yewolf.fr
   - scrutiny.yewolf.fr
+  - syncthing.yewolf.fr
   parentRefs:
   - group: gateway.networking.k8s.io
     kind: Gateway
