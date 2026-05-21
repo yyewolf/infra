@@ -44,7 +44,7 @@ spec:
           value: home1
       containers:
         - name: snapcast
-          image: docker.io/sweisgerber/snapcast:latest@sha256:93371ba425a44386a8f98b63c45c3da78f1cc9db7d6cb2483aa7958dab0aa5d6
+          image: docker.io/sweisgerber/snapcast:latest@sha256:d54f980303108851b8bd573f5ee9b2d29da1149b18234bc2cd29d72977c06f3b
           livenessProbe:
             tcpSocket:
               port: 1780
