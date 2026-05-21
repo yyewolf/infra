@@ -19,7 +19,7 @@ spec:
         value: "home1"
       containers:
       - name: jellyswarrm
-        image: ghcr.io/llukas22/jellyswarrm:sha-0643431
+        image: ghcr.io/llukas22/jellyswarrm:sha-0643431@sha256:12319716879c6b5028da6c9cc75445502925f50d0be9653e7d27a2520f7cc196
         imagePullPolicy: IfNotPresent
         ports:
         - name: http

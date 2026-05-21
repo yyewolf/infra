@@ -20,7 +20,7 @@ spec:
                   value: home1
             containers:
                 - name: gluetun
-                  image: qmcgaw/gluetun:v3
+                  image: qmcgaw/gluetun:v3@sha256:1a5bf4b4820a879cdf8d93d7ef0d2d963af56670c9ebff8981860b6804ebc8ab
                   securityContext:
                     capabilities:
                         add:
@@ -56,7 +56,7 @@ spec:
                             name: nordvpn-secret
                             key: password
                 - name: qbittorrent
-                  image: linuxserver/qbittorrent:latest
+                  image: linuxserver/qbittorrent:latest@sha256:eeea9f8a8cdde23555186843d26e8ded1222421f31f98a5cc1b50c2882ebcf4e
                   env:
                     - name: PUID
                       value: "1000"
@@ -72,7 +72,7 @@ spec:
                     - name: media-data
                       mountPath: /data
                 - name: rustatio
-                  image: ghcr.io/takitsu21/rustatio:latest
+                  image: ghcr.io/takitsu21/rustatio:latest@sha256:f4952ab1a132360a9f93d4eab087dd7c42b1121bde85ccfe3e4bfad618aea303
                   env:
                     - name: PORT
                       value: "8090"
