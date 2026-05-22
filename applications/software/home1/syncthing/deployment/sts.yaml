@@ -22,7 +22,7 @@ spec:
         fsGroup: 1000
       containers:
       - name: syncthing
-        image: docker.io/syncthing/syncthing:latest
+        image: docker.io/syncthing/syncthing:latest@sha256:7c60eb0ec887696c8684de88aea2dfe39a7391184b29d33c0aad778c99c7683e
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8384
