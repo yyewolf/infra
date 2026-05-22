@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: syncthing
+
+resources:
+- namespace.yaml
+- network-policy.yaml
+
+- deployment/sts.yaml
+
+- routing/service.yaml
+- routing/listenerset.yaml
+- routing/route.yaml
+
+- backup/schedule.yaml
+- ../../../../reusables/backup-secret

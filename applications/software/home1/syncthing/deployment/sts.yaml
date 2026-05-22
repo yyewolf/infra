@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: syncthing
+  namespace: syncthing
+spec:
+  serviceName: syncthing
+  replicas: 1
+  selector:
+    matchLabels:
+      app: syncthing
+  template:
+    metadata:
+      labels:
+        app: syncthing
+    spec:
+      tolerations:
+      - key: "PrivateNode"
+        operator: "Equal"
+        value: "home1"
+      securityContext:
+        fsGroup: 1000
+      containers:
+      - name: syncthing
+        image: docker.io/syncthing/syncthing:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8384
+          name: web
+        - containerPort: 22000
+          name: sync-tcp
+        - containerPort: 22000
+          protocol: UDP
+          name: sync-udp
+        - containerPort: 21027
+          protocol: UDP
+          name: discovery
+        env:
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 1000
+        volumeMounts:
+        - name: config
+          mountPath: /var/syncthing
+        - name: data
+          mountPath: /data
+  volumeClaimTemplates:
+  - metadata:
+      name: config
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      storageClassName: local-path-home1-retain
+      resources:
+        requests:
+          storage: 5Gi
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      storageClassName: local-path-home1-retain
+      resources:
+        requests:
+          storage: 50Gi

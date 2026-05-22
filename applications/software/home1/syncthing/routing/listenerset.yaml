@@ -1,0 +1,14 @@
+apiVersion: gateway.networking.x-k8s.io/v1alpha1
+kind: XListenerSet
+metadata:
+  name: syncthing
+spec:
+  parentRef:
+    group: gateway.networking.k8s.io
+    kind: Gateway
+    namespace: kgateway
+    name: kgateway
+  listeners:
+  - name: sync
+    protocol: TCP
+    port: 22000
