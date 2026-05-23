@@ -21,7 +21,7 @@ spec:
         value: "home1"
       containers:
       - name: postgres
-        image: ghcr.io/immich-app/postgres:16-vectorchord0.4.3-pgvector0.8.1-pgvectors0.3.0@sha256:0851d187e1f512300b3fcf7911641aa94075a3bfe457f2600ec8637ca1cb9139
+        image: ghcr.io/immich-app/postgres:17-vectorchord0.4.3-pgvector0.8.1-pgvectors0.3.0@sha256:6b725ce331a1db016c75ca13e4cfc35435718f3fe975ff75a9c11debebbe21d7
         ports:
         - containerPort: 5432
         env:
