@@ -19,6 +19,7 @@ resources:
 - infrastructure/software/home1/servarr.yaml
 - infrastructure/software/home1/stalwart.yaml
 - infrastructure/software/home1/syncthing.yaml
+- infrastructure/software/home1/ytdlp.yaml
 
 # Running anywhere else on the cluster
 - infrastructure/backbone/backups/backup-watchdog.yaml

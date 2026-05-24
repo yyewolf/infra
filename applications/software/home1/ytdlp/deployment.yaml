@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: yt-dlp-webui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: yt-dlp-webui
+  template:
+    metadata:
+      labels:
+        app: yt-dlp-webui
+    spec:
+      tolerations:
+      - key: "PrivateNode"
+        operator: "Equal"
+        value: "home1"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: location
+                operator: In
+                values:
+                - home1
+      containers:
+      - name: yt-dlp-webui
+        image: mirror.gcr.io/raynoxis/yt-dlp-web-interface
+        ports:
+        - containerPort: 5000
