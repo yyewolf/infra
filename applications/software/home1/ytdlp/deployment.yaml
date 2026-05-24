@@ -27,6 +27,6 @@ spec:
                 - home1
       containers:
       - name: yt-dlp-webui
-        image: mirror.gcr.io/raynoxis/yt-dlp-web-interface
+        image: mirror.gcr.io/raynoxis/yt-dlp-web-interface@sha256:5b855fb1bcb0a795de000d4ea3b012be927436c8f22937a97fd63f9e2b5da056
         ports:
         - containerPort: 5000
