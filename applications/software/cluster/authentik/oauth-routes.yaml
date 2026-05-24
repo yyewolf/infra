@@ -29,7 +29,8 @@ spec:
       port: 9000
       weight: 1
     timeouts:
-      request: "200s"
+      request: 0s
+      backendRequest: 0s
     matches:
     - path:
         type: PathPrefix

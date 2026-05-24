@@ -7,4 +7,4 @@ spec:
     app: yt-dlp-webui
   ports:
   - port: 80
-    targetPort: 5000
+    targetPort: 3033
