@@ -1,8 +1,8 @@
 namespace: authentik
 
 resources:
-  - namespace.yaml
-  - secret-sops.yaml
-  - helmrepository.yaml
-  - helmrelease.yaml
-  - oauth-routes.yaml
+- namespace.yaml
+- secret-sops.yaml
+- helmrepository.yaml
+- helmrelease.yaml
+- oauth-routes.yaml
