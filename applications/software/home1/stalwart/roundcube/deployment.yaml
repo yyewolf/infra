@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: roundcube
-          image: mirror.gcr.io/roundcube/roundcubemail:latest@sha256:58dd70b2db5ceaa66a347e15488a226e1725c296d70adb26bfa85dd81149927f
+          image: mirror.gcr.io/roundcube/roundcubemail:latest@sha256:e2b094f1e346414804a293ff5671f8359019e19602842c94affc12660d928d0c
           ports:
             - containerPort: 80
           envFrom:
