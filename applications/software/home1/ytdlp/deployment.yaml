@@ -27,6 +27,6 @@ spec:
                 - home1
       containers:
       - name: yt-dlp-webui
-        image: ghcr.io/marcopiovanello/yt-dlp-web-ui
+        image: ghcr.io/marcopiovanello/yt-dlp-web-ui@sha256:2098e91d0282b3c49955aa4db72898a4ccb229feeaddf5ab35290970d7169dc0
         ports:
         - containerPort: 3033
