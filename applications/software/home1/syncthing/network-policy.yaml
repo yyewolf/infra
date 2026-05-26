@@ -17,6 +17,10 @@ spec:
   egress:
   - toEndpoints:
     - matchLabels:
+        io.kubernetes.pod.namespace: tailscale
+        tailscale.com/parent-resource: dk1
+  - toEndpoints:
+    - matchLabels:
         "k8s:io.kubernetes.pod.namespace": kube-system
         k8s-app: coredns
     toPorts:
