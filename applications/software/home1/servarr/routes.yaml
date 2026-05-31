@@ -16,6 +16,9 @@ spec:
       name: jellyfin
       port: 80
       weight: 1
+    timeouts:
+      request: 0s
+      backendRequest: 0s
     matches:
     - path:
         type: PathPrefix
@@ -39,6 +42,9 @@ spec:
       name: jellyseerr
       port: 80
       weight: 1
+    timeouts:
+      request: 0s
+      backendRequest: 0s
     matches:
     - path:
         type: PathPrefix

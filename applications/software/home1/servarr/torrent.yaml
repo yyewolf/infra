@@ -1,109 +1,111 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-    name: torrent-stack
+  name: torrent-stack
 spec:
-    replicas: 1
-    selector:
-        matchLabels:
-            app: torrent-stack
-    template:
-        metadata:
-            labels:
-                app: torrent-stack
-        spec:
-            nodeSelector:
-                location: home1
-            tolerations:
-                - key: PrivateNode
-                  operator: Equal
-                  value: home1
-            containers:
-                - name: gluetun
-                  image: qmcgaw/gluetun:v3@sha256:1a5bf4b4820a879cdf8d93d7ef0d2d963af56670c9ebff8981860b6804ebc8ab
-                  securityContext:
-                    capabilities:
-                        add:
-                            - NET_ADMIN
-                  env:
-                    - name: NETWORK
-                      value: container
-                    - name: FIREWALL_INPUT_PORTS
-                      value: 8888,8080,8090
-                    - name: DNS_ADDRESS
-                      value: 1.1.1.1
-                    - name: HTTPPROXY
-                      value: "yes"
-                    - name: FIREWALL_OUTBOUND_SUBNETS
-                      value: 10.0.0.0/8,192.168.0.0/16,1.1.1.1/32
-                    - name: HTTP_CONTROL_SERVER_ADDRESS
-                      value: :8000
-                    - name: VPN_INTERFACE_MTU
-                      value: "1400"
-                    - name: VPN_SERVICE_PROVIDER
-                      value: nordvpn
-                    - name: VPN_TYPE
-                      # or wireguard
-                      value: openvpn
-                    - name: OPENVPN_USER
-                      valueFrom:
-                        secretKeyRef:
-                            name: nordvpn-secret
-                            key: username
-                    - name: OPENVPN_PASSWORD
-                      valueFrom:
-                        secretKeyRef:
-                            name: nordvpn-secret
-                            key: password
-                - name: qbittorrent
-                  image: linuxserver/qbittorrent:latest@sha256:715d2bfbcf1cd3d734cbbd4fbd599eb7ea0642eaa079a372dd0d343f59516700
-                  env:
-                    - name: PUID
-                      value: "1000"
-                    - name: PGID
-                      value: "1000"
-                    - name: TZ
-                      value: Europe/Paris
-                    - name: WEBUI_PORT
-                      value: "8080"
-                  volumeMounts:
-                    - name: qbit-config
-                      mountPath: /config
-                    - name: media-data
-                      mountPath: /data
-                - name: rustatio
-                  image: ghcr.io/takitsu21/rustatio:latest@sha256:c70516a4d9e454726da4315ae100ca5c966801e9f162fcbfcf69515a62c07abb
-                  env:
-                    - name: PORT
-                      value: "8090"
-                    - name: RUST_LOG
-                      value: info
-                    - name: PUID
-                      value: "1000"
-                    - name: PGID
-                      value: "1000"
-                  ports:
-                    - containerPort: 8090
-                      name: rustatio-webui
-                  volumeMounts:
-                    - name: rustatio-data
-                      mountPath: /data
-                    - name: qbit-torrents
-                      mountPath: /torrents
-            volumes:
-                - name: qbit-config
-                  hostPath:
-                    path: /tank/servarr/config/qbittorrent
-                    type: DirectoryOrCreate
-                - name: media-data
-                  hostPath:
-                    path: /tank/servarr
-                    type: Directory
-                - name: rustatio-data
-                  hostPath:
-                    path: /tank/servarr/config/rustatio
-                    type: DirectoryOrCreate
-                - name: qbit-torrents
-                  hostPath:
-                    path: /tank/servarr/config/qbittorrent/qBittorrent/BT_backup
-                    type: Directory
+  replicas: 1
+  selector:
+    matchLabels:
+      app: torrent-stack
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: torrent-stack
+    spec:
+      nodeSelector:
+        location: home1
+      tolerations:
+      - key: PrivateNode
+        operator: Equal
+        value: home1
+      containers:
+      - name: gluetun
+        image: qmcgaw/gluetun:v3@sha256:1a5bf4b4820a879cdf8d93d7ef0d2d963af56670c9ebff8981860b6804ebc8ab
+        securityContext:
+          capabilities:
+            add:
+            - NET_ADMIN
+        env:
+        - name: NETWORK
+          value: container
+        - name: FIREWALL_INPUT_PORTS
+          value: 8888,8080,8090
+        - name: DNS_ADDRESS
+          value: 1.1.1.1
+        - name: HTTPPROXY
+          value: "yes"
+        - name: FIREWALL_OUTBOUND_SUBNETS
+          value: 10.0.0.0/8,192.168.0.0/16,1.1.1.1/32
+        - name: HTTP_CONTROL_SERVER_ADDRESS
+          value: :8000
+        - name: VPN_INTERFACE_MTU
+          value: "1400"
+        - name: VPN_SERVICE_PROVIDER
+          value: nordvpn
+        - name: VPN_TYPE
+          # or wireguard
+          value: openvpn
+        - name: OPENVPN_USER
+          valueFrom:
+            secretKeyRef:
+              name: nordvpn-secret
+              key: username
+        - name: OPENVPN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: nordvpn-secret
+              key: password
+      - name: qbittorrent
+        image: linuxserver/qbittorrent:latest@sha256:eeea9f8a8cdde23555186843d26e8ded1222421f31f98a5cc1b50c2882ebcf4e
+        env:
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        - name: TZ
+          value: Europe/Paris
+        - name: WEBUI_PORT
+          value: "8080"
+        volumeMounts:
+        - name: qbit-config
+          mountPath: /config
+        - name: media-data
+          mountPath: /data
+      - name: rustatio
+        image: ghcr.io/takitsu21/rustatio:latest@sha256:c70516a4d9e454726da4315ae100ca5c966801e9f162fcbfcf69515a62c07abb
+        env:
+        - name: PORT
+          value: "8090"
+        - name: RUST_LOG
+          value: info
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        ports:
+        - containerPort: 8090
+          name: rustatio-webui
+        volumeMounts:
+        - name: rustatio-data
+          mountPath: /data
+        - name: qbit-torrents
+          mountPath: /torrents
+      volumes:
+      - name: qbit-config
+        hostPath:
+          path: /tank/servarr/config/qbittorrent
+          type: DirectoryOrCreate
+      - name: media-data
+        hostPath:
+          path: /tank/servarr
+          type: Directory
+      - name: rustatio-data
+        hostPath:
+          path: /tank/servarr/config/rustatio
+          type: DirectoryOrCreate
+      - name: qbit-torrents
+        hostPath:
+          path: /tank/servarr/config/qbittorrent/qBittorrent/BT_backup
+          type: Directory
