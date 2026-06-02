@@ -74,7 +74,7 @@ spec:
         - name: media-data
           mountPath: /data
       - name: rustatio
-        image: ghcr.io/takitsu21/rustatio:latest@sha256:c70516a4d9e454726da4315ae100ca5c966801e9f162fcbfcf69515a62c07abb
+        image: ghcr.io/takitsu21/rustatio:latest@sha256:7c028e22c52e56540f4cc3b9baf2933eee238a68c2d46ba557d72b0ffb50539b
         env:
         - name: PORT
           value: "8090"
