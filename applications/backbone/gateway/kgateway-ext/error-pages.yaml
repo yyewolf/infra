@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: error-pages
-          image: tarampampam/error-pages@sha256:b8ded6f847df91075429cf79cb9491bfd7d96de69936555498a2ff0614e003e4
+          image: tarampampam/error-pages@sha256:96855caa28e08a96bb9ff746a7c094b43235351bad79806c2210f9e7677abce9
           ports:
             - containerPort: 8080
               name: http
