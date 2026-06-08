@@ -1,0 +1,113 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paperless
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: paperless
+  template:
+    metadata:
+      labels:
+        app: paperless
+    spec:
+      automountServiceAccountToken: false
+      nodeSelector:
+        location: home1
+      tolerations:
+      - key: "PrivateNode"
+        operator: "Equal"
+        value: "home1"
+      containers:
+      - name: paperless
+        image: ghcr.io/paperless-ngx/paperless-ngx:2.20.15@sha256:6c86cad803970ea782683a8e80e7403444c5bf3cf70de63b4d3c8e87500db92f
+        ports:
+        - containerPort: 8000
+        env:
+        - name: PAPERLESS_REDIS
+          value: redis://redis:6379
+        - name: PAPERLESS_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: paperless-secret
+              key: PAPERLESS_SECRET_KEY
+        - name: PAPERLESS_URL
+          value: https://paperless.yewolf.fr
+        # --- OIDC / SSO via Authentik ---
+        - name: PAPERLESS_APPS
+          value: allauth.socialaccount.providers.openid_connect
+        - name: PAPERLESS_SOCIAL_AUTO_SIGNUP
+          value: "true"
+        - name: PAPERLESS_SOCIALACCOUNT_ALLOW_SIGNUPS
+          value: "true"
+        - name: PAPERLESS_DISABLE_REGULAR_LOGIN
+          value: "true"
+        - name: PAPERLESS_REDIRECT_LOGIN_TO_SSO
+          value: "true"
+        - name: PAPERLESS_SOCIAL_ACCOUNT_SYNC_GROUPS
+          value: "true"
+        - name: PAPERLESS_SOCIALACCOUNT_PROVIDERS
+          valueFrom:
+            secretKeyRef:
+              name: paperless-secret
+              key: PAPERLESS_SOCIALACCOUNT_PROVIDERS
+        - name: PAPERLESS_LOGOUT_REDIRECT_URL
+          value: "https://auth.yewolf.fr/application/o/paperless-ngx/end-session/"
+        # Keep local signups closed; users come from Authentik (admin fallback still works)
+        - name: PAPERLESS_ACCOUNT_ALLOW_SIGNUPS
+          value: "false"
+        - name: PAPERLESS_TIME_ZONE
+          value: Europe/Paris
+        - name: PAPERLESS_OCR_LANGUAGE
+          value: fra+eng
+        - name: PAPERLESS_ADMIN_USER
+          value: admin
+        - name: PAPERLESS_PORT
+          value: "8000"
+        - name: PAPERLESS_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: paperless-secret
+              key: PAPERLESS_ADMIN_PASSWORD
+        - name: USERMAP_UID
+          value: "1000"
+        - name: USERMAP_GID
+          value: "1000"
+        volumeMounts:
+        - name: data
+          mountPath: /usr/src/paperless/data
+          subPath: data
+        - name: data
+          mountPath: /usr/src/paperless/media
+          subPath: media
+        - name: data
+          mountPath: /usr/src/paperless/consume
+          subPath: consume
+        - name: data
+          mountPath: /usr/src/paperless/export
+          subPath: export
+        startupProbe:
+          httpGet:
+            path: /
+            port: 8000
+          periodSeconds: 10
+          failureThreshold: 30
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 2000m
+            memory: 2Gi
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: paperless-storage

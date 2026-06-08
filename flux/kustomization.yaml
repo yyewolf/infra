@@ -12,6 +12,7 @@ resources:
 - infrastructure/software/home1/album.yaml
 - infrastructure/software/home1/home-assistant.yaml
 - infrastructure/software/home1/mqtt.yaml
+- infrastructure/software/home1/paperless.yaml
 - infrastructure/software/home1/registry.yaml
 - infrastructure/software/home1/rustfs.yaml
 - infrastructure/software/home1/satisfactory.yaml
