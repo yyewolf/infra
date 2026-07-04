@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: phpmyadmin
-        image: mirror.gcr.io/phpmyadmin:5@sha256:c9f2c3790e7bc7b18ca9a978b137d3cc446b996f9f977b5d9b2d7100386d9310
+        image: mirror.gcr.io/phpmyadmin:5@sha256:f30eafced05930560bdb2394bee5a7dd847524e406205787025212e3dca49b9d
         ports:
         - containerPort: 80
         env:
