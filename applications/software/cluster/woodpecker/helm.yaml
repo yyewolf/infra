@@ -17,7 +17,7 @@ spec:
   chart:
     spec:
       chart: woodpecker
-      version: 3.6.4
+      version: 3.6.5
       sourceRef:
         kind: HelmRepository
         name: woodpecker
@@ -45,6 +45,8 @@ spec:
       image:
         registry: mirror.gcr.io
       env:
+        WOODPECKER_FORGE_TIMEOUT: '60s'
+        WOODPECKER_FORGE_RETRY: '15'
         WOODPECKER_ADMIN: 'yyewolf'
         WOODPECKER_HOST: 'https://woodpecker.yewolf.fr'
         WOODPECKER_GITHUB: "true"
