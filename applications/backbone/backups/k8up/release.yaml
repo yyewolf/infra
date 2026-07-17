@@ -15,6 +15,4 @@ spec:
       interval: 12h
   values:
     k8up:
-      envVars:
-        - name: BACKUP_SKIP_WITHOUT_ANNOTATION
-          value: "true"
+      skipWithoutAnnotation: true
