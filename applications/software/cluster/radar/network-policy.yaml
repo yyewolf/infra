@@ -1,0 +1,11 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: policy
+spec:
+  endpointSelector: {}
+  ingress:
+  # Only the Tailscale ingress proxy may reach the dashboard.
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: tailscale
