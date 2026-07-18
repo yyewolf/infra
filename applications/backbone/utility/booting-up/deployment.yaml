@@ -15,6 +15,15 @@ spec:
       containers:
         - name: caddy
           image: mirror.gcr.io/caddy@sha256:cfeb0b281bc44a5a51fecde39e9e577c60d863c0b6196e6bbdf58fd00960887f
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - NET_BIND_SERVICE
+            seccompProfile:
+              type: RuntimeDefault
           ports:
             - containerPort: 80
           volumeMounts:

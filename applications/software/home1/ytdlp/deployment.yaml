@@ -28,5 +28,12 @@ spec:
       containers:
       - name: yt-dlp-webui
         image: ghcr.io/marcopiovanello/yt-dlp-web-ui@sha256:a8ae96007ee3f306a1079b4edb81a6b87dc685a6e8b822cd52aa0b026cf10ff3
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          seccompProfile:
+            type: RuntimeDefault
         ports:
         - containerPort: 3033

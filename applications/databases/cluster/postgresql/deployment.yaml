@@ -15,9 +15,25 @@ spec:
         k8up.io/backupcommand: sh -c 'pg_dumpall --user=postgres --clean'
         k8up.io/file-extension: .sql
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: postgres
           image: ghcr.io/tensorchord/pgvecto-rs:pg17-v0.4.0@sha256:0e7abbc5fe9252d05d99492ccae04ac27b1b2a1a8297d51e9ddba27fbd52b2c3
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
           ports:
             - containerPort: 5432
           env:

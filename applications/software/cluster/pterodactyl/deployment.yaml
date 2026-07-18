@@ -74,10 +74,20 @@ spec:
         runAsUser: 500
         runAsGroup: 500
         fsGroup: 500
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: worker
         image: mirror.gcr.io/ccarney16/pterodactyl-panel:v1.12.1@sha256:c637ee7903def812bce692514b69f35fb9442aa28310b0ba7eb63fbd386726a6
         command: [ "p:worker" ]
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          capabilities:
+            drop:
+              - ALL
+          seccompProfile:
+            type: RuntimeDefault
         envFrom:
         - secretRef:
             name: env-secret
@@ -141,6 +151,10 @@ spec:
       - name: cron
         image: mirror.gcr.io/ccarney16/pterodactyl-panel:v1.12.1@sha256:c637ee7903def812bce692514b69f35fb9442aa28310b0ba7eb63fbd386726a6
         command: [ "p:cron" ]
+        securityContext:
+          allowPrivilegeEscalation: false
+          seccompProfile:
+            type: RuntimeDefault
         envFrom:
         - secretRef:
             name: env-secret
@@ -203,6 +217,10 @@ spec:
       containers:
       - name: panel
         image: mirror.gcr.io/ccarney16/pterodactyl-panel:v1.12.1@sha256:c637ee7903def812bce692514b69f35fb9442aa28310b0ba7eb63fbd386726a6
+        securityContext:
+          allowPrivilegeEscalation: false
+          seccompProfile:
+            type: RuntimeDefault
         envFrom:
         - secretRef:
             name: env-secret

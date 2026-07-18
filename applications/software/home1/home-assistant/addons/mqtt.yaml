@@ -51,9 +51,23 @@ spec:
         - key: PrivateNode
           operator: Equal
           value: home1
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1883
+        runAsGroup: 1883
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: mosquitto
           image: eclipse-mosquitto:2.0@sha256:212f89e1eaeb2c322d6441b64396e3346026674db8fa9c27beac293405c32b3c
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
           ports:
             - containerPort: 1883
           volumeMounts:

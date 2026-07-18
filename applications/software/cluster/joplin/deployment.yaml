@@ -13,10 +13,24 @@ spec:
         app: joplin
     spec:
       automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - image: mirror.gcr.io/joplin/server:latest@sha256:0877bfba41a943017c42c58e90db9d8d548bfe699b5e410248b5b879371734f9
           imagePullPolicy: IfNotPresent
           name: joplin
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
           envFrom:
             - secretRef:
                 name: joplin-secret

@@ -19,9 +19,25 @@ spec:
       - key: "PrivateNode"
         operator: "Equal"
         value: "home1"
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: postgres
         image: ghcr.io/immich-app/postgres:16-vectorchord0.4.3-pgvector0.8.1-pgvectors0.3.0@sha256:0851d187e1f512300b3fcf7911641aa94075a3bfe457f2600ec8637ca1cb9139
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          capabilities:
+            drop:
+              - ALL
+          seccompProfile:
+            type: RuntimeDefault
         ports:
         - containerPort: 5432
         env:

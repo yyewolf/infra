@@ -15,6 +15,10 @@ spec:
       containers:
         - name: pgadmin
           image: mirror.gcr.io/dpage/pgadmin4:9.15@sha256:cefc4cc6b7d9d71a9e81e76fb9d7e14038ab5661b539a190eea1b63fa612589a
+          securityContext:
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
           ports:
             - containerPort: 80
           env:

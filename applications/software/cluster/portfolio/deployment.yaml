@@ -17,8 +17,30 @@ spec:
         runAsNonRoot: true
         runAsUser: 65532
         runAsGroup: 65532
+        fsGroup: 65532
         seccompProfile:
           type: RuntimeDefault
+      initContainers:
+      - image: ghcr.io/yyewolf/portfolio:2.1.6@sha256:f30293cfdc7338966ffef2be651fe5f97752a3363431db6fdc7bee1f972cf08c
+        name: init-nginx-dirs
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          runAsNonRoot: true
+          runAsUser: 65532
+          runAsGroup: 65532
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        command:
+        - sh
+        - -c
+        - mkdir -p /var/lib/nginx/tmp/client_body /var/lib/nginx/logs
+        volumeMounts:
+        - name: nginx
+          mountPath: /var/lib/nginx
       containers:
       - image: ghcr.io/yyewolf/portfolio:2.1.6@sha256:f30293cfdc7338966ffef2be651fe5f97752a3363431db6fdc7bee1f972cf08c
         imagePullPolicy: IfNotPresent
@@ -42,10 +64,10 @@ spec:
             cpu: 200m
             memory: 200Mi
         volumeMounts:
-        - name: nginx-tmp
-          mountPath: /var/lib/nginx/tmp
-        - name: nginx-logs
-          mountPath: /var/lib/nginx/logs
+        - name: nginx
+          mountPath: /var/lib/nginx
+        - name: nginx-run
+          mountPath: /run/nginx
         readinessProbe:
           httpGet:
             path: /
@@ -53,7 +75,7 @@ spec:
           initialDelaySeconds: 1
           periodSeconds: 1
       volumes:
-      - name: nginx-tmp
+      - name: nginx
         emptyDir: {}
-      - name: nginx-logs
+      - name: nginx-run
         emptyDir: {}
