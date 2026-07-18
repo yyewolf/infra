@@ -1,0 +1,33 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: hubble
+  namespace: flux-system
+spec:
+  interval: 30m
+  targetNamespace: kube-system
+  releaseName: hubble
+  chart:
+    spec:
+      chart: cilium
+      version: 1.19.1
+      sourceRef:
+        kind: HelmRepository
+        name: hubble
+      interval: 12h
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    agent:
+      enabled: false
+    operator:
+      enabled: false
+    hubble:
+      relay:
+        enabled: true
+      ui:
+        enabled: true

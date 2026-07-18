@@ -40,6 +40,7 @@ resources:
 - infrastructure/backbone/utility/cilium.yaml
 # - infrastructure/backbone/utility/falco.yaml
 - infrastructure/backbone/utility/flux-webhook.yaml
+- infrastructure/backbone/utility/hubble.yaml
 - infrastructure/backbone/utility/keda.yaml
 - infrastructure/backbone/utility/metrics-server.yaml
 - infrastructure/backbone/utility/storage.yaml
