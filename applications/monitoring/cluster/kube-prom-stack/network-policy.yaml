@@ -3,7 +3,13 @@ kind: CiliumNetworkPolicy
 metadata:
   name: policy
 spec:
-  endpointSelector: {}
+  endpointSelector:
+    matchExpressions:
+    - key: app.kubernetes.io/name
+      operator: NotIn
+      values:
+      - prometheus
+      - prometheus-blackbox-exporter
   ingress:
   - fromEndpoints:
     - matchLabels:

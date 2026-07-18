@@ -1,0 +1,17 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: policy-prometheus
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: monitoring
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kgateway
+  - fromEntities:
+    - host

@@ -4,6 +4,8 @@ namespace: monitoring
 
 resources:
 - network-policy.yaml
+- network-policy-prometheus.yaml
+- network-policy-blackbox.yaml
 - namespace.yaml
 - secret-sops.yaml
 - repository.yaml
