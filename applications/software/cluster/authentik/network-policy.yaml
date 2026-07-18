@@ -23,6 +23,18 @@ spec:
         io.kubernetes.pod.namespace: kgateway
   - toEndpoints:
     - matchLabels:
+        io.kubernetes.pod.namespace: servarr
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: scrutiny
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: syncthing
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: ytdlp
+  - toEndpoints:
+    - matchLabels:
         io.kubernetes.pod.namespace: postgresql
         app: postgres
     toPorts:
