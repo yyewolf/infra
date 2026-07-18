@@ -21,3 +21,5 @@ spec:
   - toEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: local-path-temp-storage
+  - toEntities:
+    - kube-apiserver
