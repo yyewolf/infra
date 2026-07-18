@@ -31,6 +31,13 @@ spec:
     - matchLabels:
         io.kubernetes.pod.namespace: authentik
         app: authentik-outpost
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kgateway
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP
   - toCIDRSet:
     - cidr: 0.0.0.0/0
       except:
