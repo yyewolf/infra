@@ -17,17 +17,39 @@ spec:
         app: pterodactyl
         component: redis
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
       containers:
-        - name: redis
-          image: mirror.gcr.io/redis:8.6.3-alpine@sha256:d146f83b1e0f02fc27c26a50cee39338c736674c5959db84363e6ae3cd9e02d2
-          args: ["--save", "", "--appendonly", "no"]
-          resources:
-            requests:
-              cpu: "0"
-              memory: "0"
-            limits:
-              cpu: "200m"
-              memory: "128Mi"
+      - name: redis
+        image: mirror.gcr.io/redis:8.6.3-alpine@sha256:d146f83b1e0f02fc27c26a50cee39338c736674c5959db84363e6ae3cd9e02d2
+        args: [ "--save", "", "--appendonly", "no" ]
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        resources:
+          requests:
+            cpu: "0"
+            memory: "0"
+          limits:
+            cpu: "200m"
+            memory: "128Mi"
+      volumes:
+      - name: data
+        emptyDir: {}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -53,48 +75,48 @@ spec:
         runAsGroup: 500
         fsGroup: 500
       containers:
-        - name: worker
-          image: mirror.gcr.io/ccarney16/pterodactyl-panel:v1.12.1@sha256:c637ee7903def812bce692514b69f35fb9442aa28310b0ba7eb63fbd386726a6
-          command: ["p:worker"]
-          envFrom:
-            - secretRef:
-                name: env-secret
-          volumeMounts:
-            - name: conf-secret
-              mountPath: /data/pterodactyl.conf
-              subPath: pterodactyl.conf
-            - name: logs
-              mountPath: /var/www/html/storage/logs
-            - name: app
-              mountPath: /var/www/html/storage/app
-            - name: cache
-              mountPath: /var/www/html/storage/framework/cache
-            - name: sessions
-              mountPath: /var/www/html/storage/framework/sessions
-            - name: views
-              mountPath: /var/www/html/storage/framework/views
-          resources:
-            requests:
-              cpu: "0"
-              memory: "0"
-            limits:
-              cpu: "500m"
-              memory: "256Mi"
-      volumes:
+      - name: worker
+        image: mirror.gcr.io/ccarney16/pterodactyl-panel:v1.12.1@sha256:c637ee7903def812bce692514b69f35fb9442aa28310b0ba7eb63fbd386726a6
+        command: [ "p:worker" ]
+        envFrom:
+        - secretRef:
+            name: env-secret
+        volumeMounts:
         - name: conf-secret
-          secret:
-            secretName: conf-secret
+          mountPath: /data/pterodactyl.conf
+          subPath: pterodactyl.conf
         - name: logs
-          emptyDir: 
-            medium: Memory
-        - name: cache
-          emptyDir: {}
-        - name: sessions
-          emptyDir: {}
-        - name: views
-          emptyDir: {}
+          mountPath: /var/www/html/storage/logs
         - name: app
-          emptyDir: {}
+          mountPath: /var/www/html/storage/app
+        - name: cache
+          mountPath: /var/www/html/storage/framework/cache
+        - name: sessions
+          mountPath: /var/www/html/storage/framework/sessions
+        - name: views
+          mountPath: /var/www/html/storage/framework/views
+        resources:
+          requests:
+            cpu: "0"
+            memory: "0"
+          limits:
+            cpu: "500m"
+            memory: "256Mi"
+      volumes:
+      - name: conf-secret
+        secret:
+          secretName: conf-secret
+      - name: logs
+        emptyDir:
+          medium: Memory
+      - name: cache
+        emptyDir: {}
+      - name: sessions
+        emptyDir: {}
+      - name: views
+        emptyDir: {}
+      - name: app
+        emptyDir: {}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -116,44 +138,44 @@ spec:
         component: cron
     spec:
       containers:
-        - name: cron
-          image: mirror.gcr.io/ccarney16/pterodactyl-panel:v1.12.1@sha256:c637ee7903def812bce692514b69f35fb9442aa28310b0ba7eb63fbd386726a6
-          command: ["p:cron"]
-          envFrom:
-            - secretRef:
-                name: env-secret
-          volumeMounts:
-            - name: conf-secret
-              mountPath: /data/pterodactyl.conf
-              subPath: pterodactyl.conf
-            - name: cron-tmpfs-logs
-              mountPath: /var/www/html/storage/logs
-            - name: cache
-              mountPath: /var/www/html/storage/framework/cache
-            - name: sessions
-              mountPath: /var/www/html/storage/framework/sessions
-            - name: views
-              mountPath: /var/www/html/storage/framework/views
-          resources:
-            requests:
-              cpu: "0"
-              memory: "0"
-            limits:
-              cpu: "1"
-              memory: "256Mi"
-      volumes:
+      - name: cron
+        image: mirror.gcr.io/ccarney16/pterodactyl-panel:v1.12.1@sha256:c637ee7903def812bce692514b69f35fb9442aa28310b0ba7eb63fbd386726a6
+        command: [ "p:cron" ]
+        envFrom:
+        - secretRef:
+            name: env-secret
+        volumeMounts:
         - name: conf-secret
-          secret:
-            secretName: conf-secret
+          mountPath: /data/pterodactyl.conf
+          subPath: pterodactyl.conf
         - name: cron-tmpfs-logs
-          emptyDir:
-            medium: Memory
+          mountPath: /var/www/html/storage/logs
         - name: cache
-          emptyDir: {}
+          mountPath: /var/www/html/storage/framework/cache
         - name: sessions
-          emptyDir: {}
+          mountPath: /var/www/html/storage/framework/sessions
         - name: views
-          emptyDir: {}
+          mountPath: /var/www/html/storage/framework/views
+        resources:
+          requests:
+            cpu: "0"
+            memory: "0"
+          limits:
+            cpu: "1"
+            memory: "256Mi"
+      volumes:
+      - name: conf-secret
+        secret:
+          secretName: conf-secret
+      - name: cron-tmpfs-logs
+        emptyDir:
+          medium: Memory
+      - name: cache
+        emptyDir: {}
+      - name: sessions
+        emptyDir: {}
+      - name: views
+        emptyDir: {}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -175,42 +197,42 @@ spec:
         component: panel
     spec:
       hostAliases:
-        - ip: "10.96.42.42"
-          hostnames:
-          - "saubian.tail5ec535.ts.net"
+      - ip: "10.96.42.42"
+        hostnames:
+        - "saubian.tail5ec535.ts.net"
       containers:
-        - name: panel
-          image: mirror.gcr.io/ccarney16/pterodactyl-panel:v1.12.1@sha256:c637ee7903def812bce692514b69f35fb9442aa28310b0ba7eb63fbd386726a6
-          envFrom:
-            - secretRef:
-                name: env-secret
-          ports:
-            - containerPort: 8080
-          volumeMounts:
-            - name: nginx-config
-              mountPath: /entrypoint.d/20-tls-config.sh
-              subPath: 20-tls-config.sh
-            - name: conf-secret
-              mountPath: /data/pterodactyl.conf
-              subPath: pterodactyl.conf
-          resources:
-            requests:
-              cpu: "0"
-              memory: "0"
-            limits:
-              cpu: "500m"
-              memory: "512Mi"
-          readinessProbe:
-            httpGet:
-              path: /
-              port: 8080
-            initialDelaySeconds: 3
-            periodSeconds: 10
-      volumes:
+      - name: panel
+        image: mirror.gcr.io/ccarney16/pterodactyl-panel:v1.12.1@sha256:c637ee7903def812bce692514b69f35fb9442aa28310b0ba7eb63fbd386726a6
+        envFrom:
+        - secretRef:
+            name: env-secret
+        ports:
+        - containerPort: 8080
+        volumeMounts:
         - name: nginx-config
-          configMap:
-            defaultMode: 0755
-            name: pterodactyl-nginx-config
+          mountPath: /entrypoint.d/20-tls-config.sh
+          subPath: 20-tls-config.sh
         - name: conf-secret
-          secret:
-            secretName: conf-secret
+          mountPath: /data/pterodactyl.conf
+          subPath: pterodactyl.conf
+        resources:
+          requests:
+            cpu: "0"
+            memory: "0"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 3
+          periodSeconds: 10
+      volumes:
+      - name: nginx-config
+        configMap:
+          defaultMode: 493
+          name: pterodactyl-nginx-config
+      - name: conf-secret
+        secret:
+          secretName: conf-secret

@@ -14,15 +14,31 @@ spec:
       labels:
         app: error-pages
     spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
       containers:
-        - name: error-pages
-          image: tarampampam/error-pages@sha256:978c1f83e8f26742743ec3b565214ed9f2296cb5171b592071a6569dceac8c26
-          ports:
-            - containerPort: 8080
-              name: http
-          env:
-            - name: TEMPLATE_NAME 
-              value: "ghost"
+      - name: error-pages
+        image: tarampampam/error-pages@sha256:978c1f83e8f26742743ec3b565214ed9f2296cb5171b592071a6569dceac8c26
+        ports:
+        - containerPort: 8080
+          name: http
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        env:
+        - name: TEMPLATE_NAME
+          value: "ghost"
 ---
 kind: Service
 apiVersion: v1
@@ -33,6 +49,6 @@ spec:
   selector:
     app: error-pages
   ports:
-    - protocol: TCP
-      port: 80
-      targetPort: http
+  - protocol: TCP
+    port: 80
+    targetPort: http

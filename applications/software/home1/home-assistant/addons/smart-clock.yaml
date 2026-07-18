@@ -14,26 +14,41 @@ spec:
         app: smartclock
     spec:
       tolerations:
-        - key: PrivateNode
-          operator: Equal
-          value: home1
+      - key: PrivateNode
+        operator: Equal
+        value: home1
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
       containers:
-        - name: smartclock
-          image: ghcr.io/yyewolf/web-smart-clock:latest@sha256:a6ea74648e69d5144cea25c8d30a2c1421ff83aa65cfb9fb31b14680f0a2d950
-          imagePullPolicy: Always
-          ports:
-            - containerPort: 8080
-          env:
-            - name: PORT
-              value: "8080"
-            - name: HOST_ID
-              value: "smartclock0"
-            - name: SNAPSERVER_HOST
-              value: "192.168.1.95"
-            - name: SNAPSERVER_PORT
-              value: "1704"
-            - name: TZ
-              value: "Europe/Paris"
+      - name: smartclock
+        image: ghcr.io/yyewolf/web-smart-clock:latest@sha256:a6ea74648e69d5144cea25c8d30a2c1421ff83aa65cfb9fb31b14680f0a2d950
+        imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        ports:
+        - containerPort: 8080
+        env:
+        - name: PORT
+          value: "8080"
+        - name: HOST_ID
+          value: "smartclock0"
+        - name: SNAPSERVER_HOST
+          value: "192.168.1.95"
+        - name: SNAPSERVER_PORT
+          value: "1704"
+        - name: TZ
+          value: "Europe/Paris"
 ---
 apiVersion: v1
 kind: Service
@@ -44,7 +59,7 @@ spec:
     app: smartclock
   type: NodePort
   ports:
-    - protocol: TCP
-      port: 8080
-      targetPort: 8080
-      nodePort: 30080
+  - protocol: TCP
+    port: 8080
+    targetPort: 8080
+    nodePort: 30080

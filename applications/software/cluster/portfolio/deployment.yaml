@@ -13,10 +13,27 @@ spec:
         app: portfolio
     spec:
       automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - image: ghcr.io/yyewolf/portfolio:2.1.6@sha256:f30293cfdc7338966ffef2be651fe5f97752a3363431db6fdc7bee1f972cf08c
         imagePullPolicy: IfNotPresent
         name: portfolio
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+            add:
+            - NET_BIND_SERVICE
+          seccompProfile:
+            type: RuntimeDefault
         resources:
           requests:
             cpu: 0m
@@ -24,9 +41,19 @@ spec:
           limits:
             cpu: 200m
             memory: 200Mi
+        volumeMounts:
+        - name: nginx-tmp
+          mountPath: /var/lib/nginx/tmp
+        - name: nginx-logs
+          mountPath: /var/lib/nginx/logs
         readinessProbe:
           httpGet:
             path: /
             port: 80
           initialDelaySeconds: 1
           periodSeconds: 1
+      volumes:
+      - name: nginx-tmp
+        emptyDir: {}
+      - name: nginx-logs
+        emptyDir: {}
