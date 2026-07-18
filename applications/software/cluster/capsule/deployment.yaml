@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: caddy
-          image: mirror.gcr.io/caddy@sha256:cfeb0b281bc44a5a51fecde39e9e577c60d863c0b6196e6bbdf58fd00960887f
+          image: mirror.gcr.io/caddy@sha256:844f60b64e4724a5aa8245e019dace0d3f199f7433ce6c57676cb30a920dbad9
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
