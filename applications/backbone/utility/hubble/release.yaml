@@ -22,8 +22,7 @@ spec:
     remediation:
       retries: 3
   values:
-    agent:
-      enabled: false
+    agent: false
     operator:
       enabled: false
     hubble:
