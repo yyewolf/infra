@@ -18,7 +18,13 @@ spec:
         - name: cyberchef
           image: ghcr.io/gchq/cyberchef:11.1.0@sha256:76d1ebd550b87d260f96e02d8dce347fb86c6667dbd4ddff8f58430bdf98c423
           ports:
-            - containerPort: 80
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 1
+            periodSeconds: 1
           resources:
             requests:
               cpu: 0m
