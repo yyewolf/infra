@@ -4,6 +4,9 @@ metadata:
   name: pgadmin
 spec:
   ingressClassName: tailscale
+  tls:
+    - hosts:
+        - pgadmin
   rules:
     - http:
         paths:

@@ -9,4 +9,5 @@ resources:
 - torrent.yaml
 - services.yaml
 - routes.yaml
+- joal-ingress.yaml
 - nordvpn-sops.yaml

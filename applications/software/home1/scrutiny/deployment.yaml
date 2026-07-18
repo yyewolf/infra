@@ -21,6 +21,9 @@ spec:
       - name: scrutiny
         image: ghcr.io/analogj/scrutiny:v0.9.2-omnibus@sha256:f5bf4878381fcfe63bf61b96ff6f91de8b1b8c187ec0e86c65309946fa359e2e
         imagePullPolicy: IfNotPresent
+        env:
+        - name: SCRUTINY_WEB_LISTEN_BASEPATH
+          value: /scrutiny
         ports:
         - name: http
           containerPort: 8080

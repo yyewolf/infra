@@ -5,20 +5,26 @@ metadata:
 spec:
   endpointSelector:
     matchLabels:
-      app: scrutiny
+      app: caddy
   ingress:
+  # Only the Tailscale ingress proxy may reach the router.
   - fromEndpoints:
     - matchLabels:
-        io.kubernetes.pod.namespace: dashboard
+        io.kubernetes.pod.namespace: tailscale
   egress:
   - toEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: kube-system
+        k8s-app: coredns
     toPorts:
     - ports:
       - port: "53"
         protocol: UDP
       - port: "53"
         protocol: TCP
+  # Reach the proxied backends. `host`/`remote-node` cover the hostNetwork
+  # targets (esphome, music-assistant) whose service endpoints resolve to node IPs.
   - toEntities:
-    - world
+    - cluster
+    - host
+    - remote-node

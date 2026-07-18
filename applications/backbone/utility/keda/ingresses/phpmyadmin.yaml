@@ -4,6 +4,9 @@ metadata:
   name: phpmyadmin
 spec:
   ingressClassName: tailscale
+  tls:
+    - hosts:
+        - phpmyadmin
   rules:
     - http:
         paths:
@@ -11,6 +14,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: phpmyadmin
+                name: keda-add-ons-http-interceptor-proxy
                 port:
-                  number: 80
+                  number: 8080

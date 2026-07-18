@@ -25,6 +25,14 @@ Two constraints drive every exception below:
 | `backbone/tailscale` (DaemonSet) | mesh VPN: `privileged`, `hostNetwork`, `/dev/net/tun` | core host networking |
 | `backbone/sysbox-deploy` (DaemonSet) | installs the sysbox runtime onto nodes; mounts host filesystem | must be privileged by design |
 
+**Network exposure mitigation.** These privileged host-access workloads cannot be
+hardened at the pod level, so their blast radius is instead reduced at the network
+edge: `scrutiny`, `esphome`, `zigbee2mqtt`, `music-assistant` and the torrent WebUIs
+(`qbittorrent`/`joal`) are **Tailscale-only**, reached solely through the internal
+dashboard router (`dashboard.<tailnet>.ts.net`, `applications/software/home1/dashboard/`).
+They have no public HTTPRoute and are off Authentik SSO — only devices on the tailnet
+can reach them.
+
 ## Kept host access / special runtime, but hardened where tolerated
 
 Added `allowPrivilegeEscalation: false` + `seccompProfile: RuntimeDefault` (and

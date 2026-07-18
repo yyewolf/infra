@@ -5,5 +5,5 @@ namespace: postgresql
 resources:
   - deployment.yaml
   - service.yaml
-  - ingress.yaml
+  - httpscaledobject.yaml
   - ../../../../../reusables/booting-up-fallback

@@ -4,6 +4,9 @@ metadata:
   name: radar
 spec:
   ingressClassName: tailscale
+  tls:
+    - hosts:
+        - radar
   rules:
     - http:
         paths:

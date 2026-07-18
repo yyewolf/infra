@@ -10,6 +10,7 @@ resources:
 - infrastructure/databases/home1/mariadb.yaml
 
 - infrastructure/software/home1/album.yaml
+- infrastructure/software/home1/dashboard.yaml
 - infrastructure/software/home1/home-assistant.yaml
 - infrastructure/software/home1/mqtt.yaml
 - infrastructure/software/home1/paperless.yaml

@@ -14,7 +14,6 @@
 | cyberchef | `kebab.hackcorp.net`, `kebab.yewolf.fr` | keda interceptor | Scale-to-zero |
 | capsule | `capsule.hackcorp.net`, `capsule.yewolf.fr` | keda interceptor | Scale-to-zero |
 | home-assistant | `ha.yewolf.fr` | `home-assistant:8080` | |
-| esphome | `esphome.yewolf.fr` | `esphome:6052` | |
 | paperless | `paperless.yewolf.fr` | `paperless:8000` | OIDC config in-app (not route-level) |
 | registry | `registry.yewolf.fr` | `harbor:80` | Harbor container registry |
 | album (immich) | `album.yewolf.fr` | `immich-server:2283` | Photo gallery |
@@ -53,11 +52,10 @@ All proxied through `ak-outpost-proxy:9000`, configured in `applications/softwar
 | bazarr | `bazarr.yewolf.fr` | `bazarr:80` | servarr |
 | prowlarr | `prowlarr.yewolf.fr` | `prowlarr:80` | servarr |
 | flaresolverr | `flaresolverr.yewolf.fr` | `flaresolverr:80` | servarr |
-| qbittorrent | `qbittorrent.yewolf.fr` | `qbittorrent:80` | torrent-stack |
-| joal | `joal.yewolf.fr` | `joal:80` | torrent-stack |
 | dl | `dl.yewolf.fr` | qbittorrent (via gluetun VPN) | torrent-stack |
-| scrutiny | `scrutiny.yewolf.fr` | `scrutiny:80` | scrutiny |
 | syncthing web | `syncthing.yewolf.fr` | syncthing:8384 | syncthing |
+
+> `qbittorrent` moved to Tailscale-only (dashboard router below); `joal` moved to its own Tailscale host.
 
 ---
 
@@ -67,9 +65,29 @@ All proxied through `ak-outpost-proxy:9000`, configured in `applications/softwar
 
 | App | Hostname | Backend |
 |-----|----------|---------|
-| radar | Tailscale ingress | `radar:9280` |
-| pgadmin | `keda-pgadmin-ingress.tail5ec535.ts.net` | keda interceptor (scale-to-zero) |
-| phpmyadmin | Tailscale ingress | `phpmyadmin:80` |
+| radar | `radar.tail5ec535.ts.net` | `radar:9280` |
+| pgadmin | `pgadmin.tail5ec535.ts.net` | keda interceptor (scale-to-zero) |
+| phpmyadmin | `phpmyadmin.tail5ec535.ts.net` | keda interceptor (scale-to-zero) |
+| dashboard router | `dashboard.tail5ec535.ts.net` | `caddy:80` (namespace `dashboard`) |
+| joal / Rustatio | `joal.tail5ec535.ts.net` | `joal.servarr:80` — root-anchored SPA, own host (linked from dashboard) |
+
+#### Dashboard router (single hostname, path-routed)
+
+One Caddy pod behind one Tailscale Ingress. Static dashboard at `/`, each app under a
+path. `applications/software/home1/dashboard/`.
+
+| Path | Backend | Prefix handling | Notes |
+|------|---------|-----------------|-------|
+| `/` | Caddy `file_server` | — | static links page |
+| `/scrutiny/` | `scrutiny.scrutiny:80` | kept | emits absolute links — app base-path `SCRUTINY_WEB_LISTEN_BASEPATH=/scrutiny` |
+| `/esphome/` | `esphome.home-assistant:6052` | stripped | relative assets (HA-ingress design), no app config |
+| `/zigbee2mqtt/` | `zigbee2mqtt.home-assistant:8080` | stripped | relative assets, no app config |
+| `/qbittorrent/` | `qbittorrent.servarr:80` | stripped | enable "Reverse proxy support" in WebUI; needs `dashboard` in servarr netpol |
+| `/music/` | `music-assistant-server.home-assistant:8095` | stripped | relative assets; websocket derives from location |
+
+joal/Rustatio is **not** in the router — it's a root-anchored SPA (absolute `/assets` +
+absolute API paths, no base-path option), so it has its own Tailscale hostname
+(`joal.tail5ec535.ts.net`) and the dashboard just links to it.
 
 ### Internal-Only (No External Exposure)
 
@@ -82,9 +100,9 @@ All proxied through `ak-outpost-proxy:9000`, configured in `applications/softwar
 | mariadb | Database (ClusterIP) |
 | ytdlp | `yt-dlp-webui:80` (ClusterIP) |
 | satisfactory | Game server (ClusterIP) |
-| music-assistant | Home Assistant addon |
+| music-assistant | Home Assistant addon — now reachable via dashboard router `/music` |
 | snapserver | Home Assistant addon |
-| zigbee2mqtt | Home Assistant addon |
+| zigbee2mqtt | Home Assistant addon — now reachable via dashboard router `/zigbee2mqtt` |
 | frigate | Home Assistant addon |
 | smart-clock | Home Assistant addon |
 | piper | Home Assistant addon |
@@ -100,4 +118,4 @@ All proxied through `ak-outpost-proxy:9000`, configured in `applications/softwar
 ---
 
 **Gateway**: kgateway terminates TLS for `*.yewolf.fr`, `*.hackcorp.net`, `yewolf.fr`, `hackcorp.net`.  
-**Scale-to-zero**: portfolio, capsule, cyberchef, stirlingpdf, and pgadmin use KEDA `HTTPScaledObject`.
+**Scale-to-zero**: portfolio, capsule, cyberchef, stirlingpdf, pgadmin, and phpmyadmin use KEDA `HTTPScaledObject`.

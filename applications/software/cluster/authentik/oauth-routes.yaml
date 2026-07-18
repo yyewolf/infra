@@ -3,15 +3,15 @@ kind: HTTPRoute
 metadata:
   name: oauth-proxy
 spec:
+  # scrutiny + torrent WebUIs (qbittorrent/joal) moved to Tailscale-only, reached via
+  # the internal dashboard router (dashboard.<tailnet>.ts.net). Removed from SSO.
+  # (dl stays on SSO.)
   hostnames:
   - radarr.yewolf.fr
   - sonarr.yewolf.fr
-  - qbittorrent.yewolf.fr
   - bazarr.yewolf.fr
   - prowlarr.yewolf.fr
   - flaresolverr.yewolf.fr
-  - joal.yewolf.fr
-  - scrutiny.yewolf.fr
   - syncthing.yewolf.fr
   - dl.yewolf.fr
   parentRefs:

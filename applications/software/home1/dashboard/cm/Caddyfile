@@ -1,0 +1,53 @@
+{
+	admin off
+	auto_https off
+}
+
+:80 {
+	encode gzip
+
+	# --- scrutiny: emits ABSOLUTE /scrutiny/... redirects, so it must know its
+	#     base path. KEEP the prefix; app set with SCRUTINY_WEB_LISTEN_BASEPATH. ---
+	handle /scrutiny/* {
+		reverse_proxy scrutiny.scrutiny.svc.cluster.local:80
+	}
+
+	# --- everything below emits RELATIVE asset paths (./assets/...), so it works
+	#     under any sub-path once the prefix is STRIPPED. No app config needed. ---
+
+	redir /esphome /esphome/
+	handle_path /esphome/* {
+		reverse_proxy esphome.home-assistant.svc.cluster.local:6052
+	}
+
+	redir /zigbee2mqtt /zigbee2mqtt/
+	handle_path /zigbee2mqtt/* {
+		reverse_proxy zigbee2mqtt.home-assistant.svc.cluster.local:8080
+	}
+
+	# qbittorrent: enable "Reverse proxy support" in WebUI > Advanced.
+	redir /qbittorrent /qbittorrent/
+	handle_path /qbittorrent/* {
+		reverse_proxy qbittorrent.servarr.svc.cluster.local:80 {
+			header_up X-Forwarded-Host {host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+
+	# joal/Rustatio is NOT here — it's a root-anchored SPA and lives on its own
+	# Tailscale hostname (servarr-joal-ingress.<tailnet>.ts.net). Dashboard links out.
+
+	# music-assistant: root-anchored SPA + websockets, no sub-path support upstream.
+	# Wired per the "force all" decision; revisit with a dedicated ts hostname if
+	# it can't be made to work.
+	redir /music /music/
+	handle_path /music/* {
+		reverse_proxy music-assistant-server.home-assistant.svc.cluster.local:8095
+	}
+
+	# --- dashboard ---
+	handle {
+		root * /srv
+		file_server
+	}
+}

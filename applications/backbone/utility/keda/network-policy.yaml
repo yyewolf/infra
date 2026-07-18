@@ -5,6 +5,11 @@ metadata:
 spec:
   endpointSelector: {}
   ingress:
+  - fromEntities:
+    - host
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
   - fromEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: tailscale

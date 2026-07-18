@@ -1,17 +1,17 @@
 apiVersion: http.keda.sh/v1alpha1
 kind: HTTPScaledObject
 metadata:
-  name: pgadmin
+  name: phpmyadmin
 spec:
   hosts:
-    - pgadmin.tail5ec535.ts.net
+    - phpmyadmin.tail5ec535.ts.net
   pathPrefixes:
     - /
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: pgadmin
-    service: pgadmin
+    name: phpmyadmin
+    service: phpmyadmin
     port: 80
   coldStartTimeoutFailoverRef:
     service: service-fallback

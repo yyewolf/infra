@@ -13,6 +13,14 @@ spec:
   - fromEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: authentik
+  # Internal dashboard router (Tailscale-only) reaches the qbittorrent WebUI.
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: dashboard
+  # Tailscale ingress proxy serves joal/Rustatio on its own ts hostname.
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: tailscale
   egress:
   - toEndpoints:
     - matchLabels:

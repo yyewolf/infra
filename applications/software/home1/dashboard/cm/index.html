@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Internal Dashboard</title>
+  <style>
+    :root {
+      --bg: #0e1116;
+      --card: #171b22;
+      --border: #262c36;
+      --fg: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f6f8fa;
+        --card: #ffffff;
+        --border: #d0d7de;
+        --fg: #1f2328;
+        --muted: #656d76;
+        --accent: #0969da;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 3rem 1.25rem;
+      font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    h1 {
+      margin: 0 0 .3rem;
+      font-size: 1.6rem;
+      letter-spacing: -.02em;
+    }
+
+    header p {
+      margin: 0;
+      color: var(--muted);
+      font-size: .95rem;
+    }
+
+    .section {
+      width: 100%;
+      max-width: 720px;
+      margin: 1.75rem 0 .75rem;
+      font-size: .8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--muted);
+    }
+
+    .section:first-of-type {
+      margin-top: 0;
+    }
+
+    .grid {
+      width: 100%;
+      max-width: 720px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: .9rem;
+    }
+
+    a.card {
+      display: flex;
+      flex-direction: column;
+      gap: .25rem;
+      padding: 1rem 1.1rem;
+      border-radius: 12px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--fg);
+      text-decoration: none;
+      transition: border-color .15s ease, transform .15s ease;
+    }
+
+    a.card:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+
+    .name {
+      font-weight: 600;
+    }
+
+    .path {
+      color: var(--muted);
+      font-size: .8rem;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+    }
+
+    footer {
+      margin-top: 2.5rem;
+      color: var(--muted);
+      font-size: .8rem;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Internal Dashboard</h1>
+    <p>Tailscale-only services · home1</p>
+  </header>
+  <h2 class="section">Proxied here</h2>
+  <nav class="grid">
+    <a class="card" href="/scrutiny/"><span class="name">Scrutiny</span><span class="path">/scrutiny · disk
+        SMART</span></a>
+    <a class="card" href="/esphome/"><span class="name">ESPHome</span><span class="path">/esphome · device
+        builder</span></a>
+    <a class="card" href="/zigbee2mqtt/"><span class="name">Zigbee2MQTT</span><span class="path">/zigbee2mqtt</span></a>
+    <a class="card" href="/music/"><span class="name">Music Assistant</span><span class="path">/music</span></a>
+    <a class="card" href="/qbittorrent/"><span class="name">qBittorrent</span><span class="path">/qbittorrent</span></a>
+  </nav>
+
+  <h2 class="section">Own hostname ↗</h2>
+  <nav class="grid">
+    <a class="card" href="https://joal.tail5ec535.ts.net/"><span class="name">Joal / Ratio</span><span
+        class="path">joal.ts.net</span></a>
+    <a class="card" href="https://radar.tail5ec535.ts.net/"><span class="name">Radar</span><span
+        class="path">radar.ts.net</span></a>
+    <a class="card" href="https://pgadmin.tail5ec535.ts.net/"><span class="name">pgAdmin</span><span
+        class="path">pgadmin.ts.net · scale-to-zero</span></a>
+    <a class="card" href="https://phpmyadmin.tail5ec535.ts.net/"><span class="name">phpMyAdmin</span><span
+        class="path">phpmyadmin.ts.net · scale-to-zero</span></a>
+  </nav>
+  <footer>Reachable only over the tailnet.</footer>
+</body>
+
+</html>

@@ -4,3 +4,4 @@ namespace: keda
 
 resources:
   - pgadmin.yaml
+  - phpmyadmin.yaml

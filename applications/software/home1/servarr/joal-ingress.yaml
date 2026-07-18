@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: joal
+spec:
+  # Rustatio is a root-anchored SPA (absolute /assets + absolute API paths) with no
+  # base-path option, so it can't live under the dashboard router's sub-path. It gets
+  # its own Tailscale hostname instead: joal.<tailnet>.ts.net
+  ingressClassName: tailscale
+  tls:
+  - hosts:
+    - joal
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: joal
+                port:
+                  number: 80
