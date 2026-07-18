@@ -23,13 +23,12 @@ spec:
       containers:
       - name: gluetun
         image: qmcgaw/gluetun:v3@sha256:1a5bf4b4820a879cdf8d93d7ef0d2d963af56670c9ebff8981860b6804ebc8ab
+        # VPN sidecar: seccomp/no-new-privs left off — OpenVPN auth proved
+        # unreliable under them (see HARDENING-EXCEPTIONS.md). Keep only NET_ADMIN.
         securityContext:
-          allowPrivilegeEscalation: false
           capabilities:
             add:
             - NET_ADMIN
-          seccompProfile:
-            type: RuntimeDefault
         env:
         - name: NETWORK
           value: container
@@ -82,11 +81,10 @@ spec:
           mountPath: /data
       - name: rustatio
         image: ghcr.io/takitsu21/rustatio:latest@sha256:7c028e22c52e56540f4cc3b9baf2933eee238a68c2d46ba557d72b0ffb50539b
+        # PUID/gosu image: entrypoint chowns /app + /data, so it needs CHOWN/SETUID.
+        # Keep default caps; harden with no-priv-esc + seccomp only.
         securityContext:
           allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
           seccompProfile:
             type: RuntimeDefault
         env:

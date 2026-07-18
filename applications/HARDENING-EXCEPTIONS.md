@@ -35,9 +35,9 @@ dropped caps where the app allows) while keeping the host feature they require:
 | `servarr` nvidia-device-plugin | `runtimeClassName: nvidia`, hostPath device-plugins | already had no-priv-esc + drop ALL |
 | `servarr` jellyfin | `runtimeClassName: nvidia` (GPU transcode) + shared `/tank` hostPath | no-priv-esc + seccomp (can't sysbox: one runtimeClass + shared hostPath) |
 | `servarr` sonarr/radarr/prowlarr/bazarr | LSIO (s6, must init as root) + shared `/tank` hostPath | no-priv-esc + seccomp |
-| `servarr/torrent` gluetun | VPN: `NET_ADMIN` + tun | no-priv-esc + seccomp (caps kept for the tunnel) |
+| `servarr/torrent` gluetun | VPN: `NET_ADMIN` + tun | **none** — `NET_ADMIN` only; seccomp + no-priv-esc omitted (OpenVPN auth was unreliable under them, verified live) |
 | `servarr/torrent` qbittorrent | LSIO + shared hostPath | no-priv-esc + seccomp |
-| `servarr/torrent` rustatio | shared hostPath | no-priv-esc + seccomp + drop ALL |
+| `servarr/torrent` rustatio | shared hostPath; PUID/gosu entrypoint chowns `/app`+`/data` | no-priv-esc + seccomp (caps kept — needs CHOWN/SETUID) |
 | `home-assistant/addons/snapserver` | `hostNetwork` (audio streaming/discovery) | no-priv-esc + seccomp |
 
 ## Deferred — sysbox candidates pending verification
