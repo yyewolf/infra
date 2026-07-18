@@ -19,10 +19,10 @@ spec:
     auth:
       mode: none
     rbac:
+      helm: true
+      podExec: true
+      portForward: true
       crdGroups:
-        # Read-only visibility into every CRD on the cluster (http.keda.sh,
-        # tailscale.com, k8up.io, gateway.kgateway.dev, ceph.rook.io, etc.),
-        # future-proof as new operators are added.
         all: true
     # Exposed through a standalone tailscale Ingress (see ingress.yaml), not the
     # chart's built-in ingress.
