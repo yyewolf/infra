@@ -17,6 +17,13 @@ spec:
   - fromEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: dashboard
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: home-assistant
+    toPorts:
+    - ports:
+      - port: "1883"
+        protocol: TCP
   egress:
   - toEndpoints:
     - matchLabels:
