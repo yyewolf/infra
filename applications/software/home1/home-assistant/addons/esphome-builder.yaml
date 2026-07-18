@@ -41,7 +41,7 @@ spec:
       dnsPolicy: ClusterFirstWithHostNet
       containers:
         - name: esphome
-          image: ghcr.io/esphome/esphome:latest@sha256:c1a2a042e351ed07d7e8e703f3b51dec9f836921cdfc867a5fd5472bad36b9fb
+          image: ghcr.io/esphome/esphome:latest@sha256:959ef36e5ea97c8309429f0ba1405ddb2eead19019b81e6e9518e683dff5191c
           # Sub-path routing is handled entirely by the dashboard router: esphome's
           # dashboard emits relative asset URLs (designed for HA ingress), so Caddy
           # just strips the /esphome prefix — no app-side flag needed.
