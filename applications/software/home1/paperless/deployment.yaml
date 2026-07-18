@@ -24,6 +24,12 @@ spec:
       containers:
       - name: paperless
         image: ghcr.io/paperless-ngx/paperless-ngx:2.20.15@sha256:6c86cad803970ea782683a8e80e7403444c5bf3cf70de63b4d3c8e87500db92f
+        # paperless-ngx uses s6-overlay: starts as root, drops to USERMAP_UID.
+        # Keep root+caps for the init; harden with no-priv-esc + seccomp.
+        securityContext:
+          allowPrivilegeEscalation: false
+          seccompProfile:
+            type: RuntimeDefault
         ports:
         - containerPort: 8000
         env:
