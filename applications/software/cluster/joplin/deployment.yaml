@@ -17,6 +17,7 @@ spec:
         runAsNonRoot: true
         runAsUser: 1000
         runAsGroup: 1000
+        fsGroup: 1000
         seccompProfile:
           type: RuntimeDefault
       containers:
@@ -34,6 +35,12 @@ spec:
           envFrom:
             - secretRef:
                 name: joplin-secret
+          # pm2 (PM2_HOME=/opt/pm2) and yarn need writable dirs when non-root
+          volumeMounts:
+            - name: pm2
+              mountPath: /opt/pm2
+            - name: tmp
+              mountPath: /tmp
           resources:
             requests:
               cpu: 0m
@@ -41,3 +48,8 @@ spec:
             limits:
               cpu: 200m
               memory: 600Mi
+      volumes:
+        - name: pm2
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
