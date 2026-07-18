@@ -25,7 +25,7 @@ spec:
         - containerPort: 3000
         securityContext:
           allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
+          readOnlyRootFilesystem: false
           runAsNonRoot: true
           capabilities:
             drop:

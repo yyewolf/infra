@@ -10,9 +10,13 @@ spec:
         io.kubernetes.pod.namespace: kgateway
   - fromEndpoints:
     - matchLabels:
-        io.kubernetes.pod.namespace: stalwart
-  - fromEntities:
-    - world
+        io.kubernetes.pod.namespace: tailscale
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: mqtt
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: dashboard
   egress:
   - toEndpoints:
     - matchLabels:
@@ -26,22 +30,24 @@ spec:
         protocol: TCP
   - toEndpoints:
     - matchLabels:
-        io.kubernetes.pod.namespace: authentik
-        app: authentik-outpost
+        io.kubernetes.pod.namespace: home-assistant
   - toEndpoints:
     - matchLabels:
-        io.kubernetes.pod.namespace: stalwart
+        io.kubernetes.pod.namespace: kgateway
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: authentik
+        app: authentik-outpost
   - toEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: tailscale
         tailscale.com/parent-resource: dk1
   - toEndpoints:
     - matchLabels:
-        io.kubernetes.pod.namespace: postgresql
-        app: postgres
+        io.kubernetes.pod.namespace: mqtt
     toPorts:
     - ports:
-      - port: "5432"
+      - port: "1883"
         protocol: TCP
   - toCIDRSet:
     - cidr: 0.0.0.0/0

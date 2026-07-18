@@ -6,10 +6,11 @@ spec:
   endpointSelector: {}
   ingress:
   - fromEndpoints:
-    - {}
-  - fromEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: kgateway
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: home-assistant
   egress:
   - toEndpoints:
     - matchLabels:
@@ -23,13 +24,4 @@ spec:
         protocol: TCP
   - toEndpoints:
     - matchLabels:
-        io.kubernetes.pod.namespace: registry
-  - toEndpoints:
-    - matchLabels:
-        io.kubernetes.pod.namespace: tailscale
-        tailscale.com/parent-resource: dk1
-  - toCIDRSet:
-    - cidr: 0.0.0.0/0
-      except:
-      - 10.0.0.0/8
-      - 192.168.0.0/16
+        io.kubernetes.pod.namespace: mqtt

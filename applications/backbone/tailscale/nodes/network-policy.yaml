@@ -1,15 +1,12 @@
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
-  name: policy
+  name: policy-tailscale
+  namespace: kube-system
 spec:
-  endpointSelector: {}
-  ingress:
-  - fromEndpoints:
-    - {}
-  - fromEndpoints:
-    - matchLabels:
-        io.kubernetes.pod.namespace: kgateway
+  endpointSelector:
+    matchLabels:
+      app: tailscale
   egress:
   - toEndpoints:
     - matchLabels:
@@ -21,13 +18,6 @@ spec:
         protocol: UDP
       - port: "53"
         protocol: TCP
-  - toEndpoints:
-    - matchLabels:
-        io.kubernetes.pod.namespace: registry
-  - toEndpoints:
-    - matchLabels:
-        io.kubernetes.pod.namespace: tailscale
-        tailscale.com/parent-resource: dk1
   - toCIDRSet:
     - cidr: 0.0.0.0/0
       except:

@@ -3,6 +3,7 @@ kind: Kustomization
 namespace: k8up
 
 resources:
+  - network-policy.yaml
   - namespace.yaml
   - release.yaml
   - repository.yaml

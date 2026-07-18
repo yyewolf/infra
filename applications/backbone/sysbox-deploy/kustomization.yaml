@@ -1,3 +1,4 @@
 resources:
+- network-policy.yaml
 - registry-secret-sops.yaml
 - daemonset.yaml

@@ -3,6 +3,7 @@ kind: Kustomization
 namespace: kgateway-system
 
 resources:
+- network-policy.yaml
 - namespace.yaml
 - repository.yaml
 - release.yaml

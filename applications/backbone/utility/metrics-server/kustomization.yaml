@@ -3,5 +3,6 @@ kind: Kustomization
 namespace: kube-system
 
 resources:
+  - network-policy.yaml
   - repository.yaml
   - release.yaml

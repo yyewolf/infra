@@ -6,13 +6,10 @@ spec:
   endpointSelector: {}
   ingress:
   - fromEndpoints:
-    - matchLabels:
-        io.kubernetes.pod.namespace: kgateway
+    - {}
   - fromEndpoints:
     - matchLabels:
-        io.kubernetes.pod.namespace: stalwart
-  - fromEntities:
-    - world
+        io.kubernetes.pod.namespace: kgateway
   egress:
   - toEndpoints:
     - matchLabels:
@@ -26,22 +23,13 @@ spec:
         protocol: TCP
   - toEndpoints:
     - matchLabels:
-        io.kubernetes.pod.namespace: authentik
-        app: authentik-outpost
+        io.kubernetes.pod.namespace: pterodactyl
   - toEndpoints:
     - matchLabels:
-        io.kubernetes.pod.namespace: stalwart
-  - toEndpoints:
-    - matchLabels:
-        io.kubernetes.pod.namespace: tailscale
-        tailscale.com/parent-resource: dk1
-  - toEndpoints:
-    - matchLabels:
-        io.kubernetes.pod.namespace: postgresql
-        app: postgres
+        io.kubernetes.pod.namespace: mariadb
     toPorts:
     - ports:
-      - port: "5432"
+      - port: "3306"
         protocol: TCP
   - toCIDRSet:
     - cidr: 0.0.0.0/0

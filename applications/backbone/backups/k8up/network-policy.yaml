@@ -4,12 +4,6 @@ metadata:
   name: policy
 spec:
   endpointSelector: {}
-  ingress:
-  - fromEndpoints:
-    - {}
-  - fromEndpoints:
-    - matchLabels:
-        io.kubernetes.pod.namespace: kgateway
   egress:
   - toEndpoints:
     - matchLabels:
@@ -23,11 +17,7 @@ spec:
         protocol: TCP
   - toEndpoints:
     - matchLabels:
-        io.kubernetes.pod.namespace: registry
-  - toEndpoints:
-    - matchLabels:
-        io.kubernetes.pod.namespace: tailscale
-        tailscale.com/parent-resource: dk1
+        io.kubernetes.pod.namespace: k8up
   - toCIDRSet:
     - cidr: 0.0.0.0/0
       except:

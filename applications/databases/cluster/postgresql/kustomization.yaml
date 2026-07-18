@@ -3,10 +3,10 @@ kind: Kustomization
 namespace: postgresql
 
 resources:
-  - namespace.yaml
-  - secret-sops.yaml
-  - deployment.yaml
-  - pvc.yaml
-  - service.yaml
-  - ./pgadmin
-  - ../../../../reusables/backup
+- namespace.yaml
+- secret-sops.yaml
+- deployment.yaml
+- pvc.yaml
+- service.yaml
+- ./pgadmin
+- ../../../../reusables/backup

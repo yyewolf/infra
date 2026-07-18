@@ -3,7 +3,7 @@ kind: Kustomization
 namespace: tailscale
 
 resources:
-  - namespace.yaml
-  - values-sops.yaml
-  - release.yaml
-  - repository.yaml
+- namespace.yaml
+- values-sops.yaml
+- release.yaml
+- repository.yaml

@@ -1,6 +1,7 @@
 namespace: authentik
 
 resources:
+- network-policy.yaml
 - namespace.yaml
 - secret-sops.yaml
 - helmrepository.yaml

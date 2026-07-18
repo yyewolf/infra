@@ -1,6 +1,7 @@
 namespace: kgateway
 
 resources:
+- network-policy.yaml
 - error-pages.yaml
 - gateway-extension.yaml
 - httproute-catch-all.yaml

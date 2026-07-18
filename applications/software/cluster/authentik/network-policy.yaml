@@ -4,15 +4,6 @@ metadata:
   name: policy
 spec:
   endpointSelector: {}
-  ingress:
-  - fromEndpoints:
-    - matchLabels:
-        io.kubernetes.pod.namespace: kgateway
-  - fromEndpoints:
-    - matchLabels:
-        io.kubernetes.pod.namespace: stalwart
-  - fromEntities:
-    - world
   egress:
   - toEndpoints:
     - matchLabels:
@@ -27,14 +18,9 @@ spec:
   - toEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: authentik
-        app: authentik-outpost
   - toEndpoints:
     - matchLabels:
-        io.kubernetes.pod.namespace: stalwart
-  - toEndpoints:
-    - matchLabels:
-        io.kubernetes.pod.namespace: tailscale
-        tailscale.com/parent-resource: dk1
+        io.kubernetes.pod.namespace: kgateway
   - toEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: postgresql

@@ -3,6 +3,7 @@ kind: Kustomization
 namespace: mqtt
 
 resources:
+- network-policy.yaml
 - namespace.yaml
 - cert.yaml
 - secret-sops.yaml

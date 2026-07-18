@@ -3,6 +3,7 @@ kind: Kustomization
 namespace: cert-manager
 
 resources:
+  - network-policy.yaml
   - namespace.yaml
   - repository.yaml
   - release.yaml

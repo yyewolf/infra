@@ -3,6 +3,7 @@ kind: Kustomization
 namespace: kyverno
 
 resources:
+- network-policy.yaml
 - namespace.yaml
 - repository.yaml
 - release.yaml

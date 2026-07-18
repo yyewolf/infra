@@ -3,6 +3,7 @@ kind: Kustomization
 namespace: home-assistant
 
 resources:
+- network-policy.yaml
 - namespace.yaml
 - local-service.yaml
 - repo.yaml

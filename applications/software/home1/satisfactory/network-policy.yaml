@@ -7,12 +7,7 @@ spec:
   ingress:
   - fromEndpoints:
     - matchLabels:
-        io.kubernetes.pod.namespace: kgateway
-  - fromEndpoints:
-    - matchLabels:
-        io.kubernetes.pod.namespace: stalwart
-  - fromEntities:
-    - world
+        io.kubernetes.pod.namespace: monitoring
   egress:
   - toEndpoints:
     - matchLabels:
@@ -26,15 +21,7 @@ spec:
         protocol: TCP
   - toEndpoints:
     - matchLabels:
-        io.kubernetes.pod.namespace: authentik
-        app: authentik-outpost
-  - toEndpoints:
-    - matchLabels:
-        io.kubernetes.pod.namespace: stalwart
-  - toEndpoints:
-    - matchLabels:
-        io.kubernetes.pod.namespace: tailscale
-        tailscale.com/parent-resource: dk1
+        io.kubernetes.pod.namespace: satisfactory
   - toEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: postgresql
