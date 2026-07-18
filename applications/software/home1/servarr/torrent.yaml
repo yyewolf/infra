@@ -24,9 +24,12 @@ spec:
       - name: gluetun
         image: qmcgaw/gluetun:v3@sha256:1a5bf4b4820a879cdf8d93d7ef0d2d963af56670c9ebff8981860b6804ebc8ab
         securityContext:
+          allowPrivilegeEscalation: false
           capabilities:
             add:
             - NET_ADMIN
+          seccompProfile:
+            type: RuntimeDefault
         env:
         - name: NETWORK
           value: container
@@ -59,6 +62,10 @@ spec:
               key: password
       - name: qbittorrent
         image: linuxserver/qbittorrent:latest@sha256:715d2bfbcf1cd3d734cbbd4fbd599eb7ea0642eaa079a372dd0d343f59516700
+        securityContext:
+          allowPrivilegeEscalation: false
+          seccompProfile:
+            type: RuntimeDefault
         env:
         - name: PUID
           value: "1000"
@@ -75,6 +82,13 @@ spec:
           mountPath: /data
       - name: rustatio
         image: ghcr.io/takitsu21/rustatio:latest@sha256:7c028e22c52e56540f4cc3b9baf2933eee238a68c2d46ba557d72b0ffb50539b
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
         env:
         - name: PORT
           value: "8090"

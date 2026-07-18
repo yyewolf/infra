@@ -45,6 +45,10 @@ spec:
       containers:
         - name: snapcast
           image: docker.io/sweisgerber/snapcast:latest@sha256:b4f581111a5634cfc14a78319cd77d9a277ffaf40381d54540c789069f6b8ef6
+          securityContext:
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
           livenessProbe:
             tcpSocket:
               port: 1780
