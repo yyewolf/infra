@@ -60,7 +60,7 @@ spec:
               name: nordvpn-secret
               key: password
       - name: qbittorrent
-        image: linuxserver/qbittorrent:latest@sha256:715d2bfbcf1cd3d734cbbd4fbd599eb7ea0642eaa079a372dd0d343f59516700
+        image: linuxserver/qbittorrent:latest@sha256:b024436f8ca665d16d9a997d26fd27fdf867ee5566ba09f32764e7b2976d3e02
         securityContext:
           allowPrivilegeEscalation: false
           seccompProfile:
