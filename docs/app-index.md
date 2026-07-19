@@ -45,8 +45,9 @@
 
 Routed directly to each app's Service; a kgateway `TrafficPolicy` on each `HTTPRoute` calls out to
 `ak-outpost-proxy:9000` (`/outpost.goauthentik.io/auth/envoy`) via the `authentik-ext-auth`
-`GatewayExtension` (`applications/backbone/gateway/kgateway-ext/gateway-extension-authentik.yaml`).
-Authentik providers for these apps run in Forward Auth (domain level) mode, cookie domain `yewolf.fr`.
+`GatewayExtension`. Authentik providers for these apps run in Forward Auth (domain level) mode,
+cookie domain `yewolf.fr`. Full design, gotchas, and how to add an app:
+[authentik-extauth.md](authentik-extauth.md).
 
 | App | Hostname | Backend | Namespace |
 |-----|----------|---------|-----------|
