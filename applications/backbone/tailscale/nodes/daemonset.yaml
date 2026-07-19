@@ -79,16 +79,6 @@ spec:
           echo "Chrooting into host filesystem..."
           cp /config/authkey /host/tmp/authkey
           chroot /host /bin/bash -c '
-            if [[ "$(uname -r)" != 6.8.12* ]]; then
-              add-apt-repository ppa:cappelikan/ppa -y
-              apt update
-              apt install -y mainline policykit-1
-              mainline install 6.8.12
-              reboot
-            else
-              echo "✅ Kernel $(uname -r) is already 6.8.12 — no action needed."
-            fi
-
             curl -fsSL https://tailscale.com/install.sh | sh
             systemctl disable --now tailscaled || true
             tailscaled --state=/var/lib/tailscale/tailscaled.state &
