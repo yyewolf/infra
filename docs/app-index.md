@@ -29,6 +29,7 @@
 | uptime-kuma | `uptime-aurelien.yewolf.fr` | `uptime-kuma:3001` | |
 | flux-webhook | `flux-webhook.hackcorp.net`, `flux-webhook.yewolf.fr` | `notification-controller:80` | |
 | saubian | `saubian.yewolf.fr` | `saubian-tailscale-service:8080` | Tailscale subnet router |
+| flaresolverr | `flaresolverr.yewolf.fr`, `flaresolverr.hackcorp.net` | `flaresolverr:80` | Unauthenticated API used by radarr/sonarr (route not managed in this repo) |
 
 ### Public TCP (non-HTTP)
 
@@ -43,7 +44,10 @@
 
 ## Externally Accessible via Authentik SSO
 
-All proxied through `ak-outpost-proxy:9000`, configured in `applications/software/cluster/authentik/oauth-routes.yaml`.
+Routed directly to each app's Service; a kgateway `TrafficPolicy` on each `HTTPRoute` calls out to
+`ak-outpost-proxy:9000` (`/outpost.goauthentik.io/auth/envoy`) via the `authentik-ext-auth`
+`GatewayExtension` (`applications/backbone/gateway/kgateway-ext/gateway-extension-authentik.yaml`).
+Authentik providers for these apps run in Forward Auth (domain level) mode, cookie domain `yewolf.fr`.
 
 | App | Hostname | Backend | Namespace |
 |-----|----------|---------|-----------|
@@ -51,10 +55,11 @@ All proxied through `ak-outpost-proxy:9000`, configured in `applications/softwar
 | sonarr | `sonarr.yewolf.fr` | `sonarr:80` | servarr |
 | bazarr | `bazarr.yewolf.fr` | `bazarr:80` | servarr |
 | prowlarr | `prowlarr.yewolf.fr` | `prowlarr:80` | servarr |
-| flaresolverr | `flaresolverr.yewolf.fr` | `flaresolverr:80` | servarr |
-| dl | `dl.yewolf.fr` | qbittorrent (via gluetun VPN) | torrent-stack |
-| syncthing web | `syncthing.yewolf.fr` | syncthing:8384 | syncthing |
+| dl | `dl.yewolf.fr` | youtube downloader (`yt-dlp-webui:80`) | ytdlp |
+| syncthing web | `syncthing.yewolf.fr` | `syncthing:8384` | syncthing |
 
+> `flaresolverr` is intentionally left unauthenticated (used as an API by radarr/sonarr, not a
+> browser app) — it keeps its own direct route.
 > `qbittorrent` moved to Tailscale-only (dashboard router below); `joal` moved to its own Tailscale host.
 
 ---

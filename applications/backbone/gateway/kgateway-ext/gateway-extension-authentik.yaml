@@ -1,0 +1,34 @@
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: GatewayExtension
+metadata:
+  name: authentik-ext-auth
+spec:
+  type: ExtAuth
+  extAuth:
+    headersToForward:
+      - X-Forwarded-For
+      - X-Real-Ip
+      - accept
+      - cookie
+      - authorization
+      - proxy-authorization
+      - x-forwarded-proto
+    httpService:
+      backendRef:
+        name: ak-outpost-proxy
+        namespace: authentik
+        port: 9000
+      pathPrefix: /outpost.goauthentik.io/auth/envoy
+      authorizationResponse:
+        headersToBackend:
+          - X-Authentik-Uid
+          - X-Authentik-Username
+          - X-Authentik-Name
+          - X-Authentik-Email
+          - X-Authentik-Groups
+          - X-Authentik-Entitlements
+        headersToClient:
+          - Set-Cookie
+          - Location
+        headersToClientOnSuccess:
+          - Set-Cookie

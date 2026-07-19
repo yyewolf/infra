@@ -4,6 +4,8 @@ resources:
 - network-policy.yaml
 - error-pages.yaml
 - gateway-extension.yaml
+- gateway-extension-authentik.yaml
+- reference-grant.yaml
 - httproute-catch-all.yaml
 - release.yaml
 - repository.yaml

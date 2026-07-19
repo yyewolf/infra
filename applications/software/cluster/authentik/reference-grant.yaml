@@ -1,0 +1,22 @@
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: allow-ext-auth-to-outpost-proxy
+spec:
+  from:
+    - group: gateway.kgateway.dev
+      kind: GatewayExtension
+      namespace: kgateway
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      namespace: servarr
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      namespace: syncthing
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      namespace: ytdlp
+  to:
+    - group: ""
+      kind: Service
+      name: ak-outpost-proxy

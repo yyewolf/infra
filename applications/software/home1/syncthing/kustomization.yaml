@@ -11,6 +11,7 @@ resources:
 - routing/service.yaml
 - routing/listenerset.yaml
 - routing/route.yaml
+- routing/httproute-web.yaml
 
 - backup/schedule.yaml
 - ../../../../reusables/backup-secret

@@ -27,6 +27,210 @@ spec:
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
+  name: radarr
+spec:
+  parentRefs:
+  - name: kgateway
+    namespace: kgateway
+    sectionName: https
+  hostnames:
+  - "radarr.yewolf.fr"
+  rules:
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: ak-outpost-proxy
+      namespace: authentik
+      port: 9000
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /outpost.goauthentik.io
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: radarr
+      port: 80
+      weight: 1
+    timeouts:
+      request: 0s
+      backendRequest: 0s
+    matches:
+    - path:
+        type: PathPrefix
+        value: /
+---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: TrafficPolicy
+metadata:
+  name: radarr-ext-auth
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: radarr
+  extAuth:
+    extensionRef:
+      name: authentik-ext-auth
+      namespace: kgateway
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: sonarr
+spec:
+  parentRefs:
+  - name: kgateway
+    namespace: kgateway
+    sectionName: https
+  hostnames:
+  - "sonarr.yewolf.fr"
+  rules:
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: ak-outpost-proxy
+      namespace: authentik
+      port: 9000
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /outpost.goauthentik.io
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: sonarr
+      port: 80
+      weight: 1
+    timeouts:
+      request: 0s
+      backendRequest: 0s
+    matches:
+    - path:
+        type: PathPrefix
+        value: /
+---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: TrafficPolicy
+metadata:
+  name: sonarr-ext-auth
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: sonarr
+  extAuth:
+    extensionRef:
+      name: authentik-ext-auth
+      namespace: kgateway
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: bazarr
+spec:
+  parentRefs:
+  - name: kgateway
+    namespace: kgateway
+    sectionName: https
+  hostnames:
+  - "bazarr.yewolf.fr"
+  rules:
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: ak-outpost-proxy
+      namespace: authentik
+      port: 9000
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /outpost.goauthentik.io
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: bazarr
+      port: 80
+      weight: 1
+    timeouts:
+      request: 0s
+      backendRequest: 0s
+    matches:
+    - path:
+        type: PathPrefix
+        value: /
+---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: TrafficPolicy
+metadata:
+  name: bazarr-ext-auth
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: bazarr
+  extAuth:
+    extensionRef:
+      name: authentik-ext-auth
+      namespace: kgateway
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: prowlarr
+spec:
+  parentRefs:
+  - name: kgateway
+    namespace: kgateway
+    sectionName: https
+  hostnames:
+  - "prowlarr.yewolf.fr"
+  rules:
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: ak-outpost-proxy
+      namespace: authentik
+      port: 9000
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /outpost.goauthentik.io
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: prowlarr
+      port: 80
+      weight: 1
+    timeouts:
+      request: 0s
+      backendRequest: 0s
+    matches:
+    - path:
+        type: PathPrefix
+        value: /
+---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: TrafficPolicy
+metadata:
+  name: prowlarr-ext-auth
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: prowlarr
+  extAuth:
+    extensionRef:
+      name: authentik-ext-auth
+      namespace: kgateway
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
   name: jellyseerr
 spec:
   parentRefs:
