@@ -6,13 +6,13 @@ spec:
   type: ExtAuth
   extAuth:
     headersToForward:
-      - X-Forwarded-For
-      - X-Real-Ip
-      - accept
-      - cookie
-      - authorization
-      - proxy-authorization
-      - x-forwarded-proto
+    - X-Forwarded-For
+    - X-Real-Ip
+    - accept
+    - cookie
+    - authorization
+    - proxy-authorization
+    - x-forwarded-proto
     httpService:
       backendRef:
         name: ak-outpost-proxy
@@ -21,14 +21,17 @@ spec:
       pathPrefix: /outpost.goauthentik.io/auth/envoy
       authorizationResponse:
         headersToBackend:
-          - X-Authentik-Uid
-          - X-Authentik-Username
-          - X-Authentik-Name
-          - X-Authentik-Email
-          - X-Authentik-Groups
-          - X-Authentik-Entitlements
+        - cookie
+        - x-authentik-uid
+        - x-authentik-username
+        - x-authentik-name
+        - x-authentik-email
+        - x-authentik-groups
+        - x-authentik-entitlements
         headersToClient:
-          - Set-Cookie
-          - Location
+        - cookie
+        - set-cookie
+        - location
         headersToClientOnSuccess:
-          - Set-Cookie
+        - cookie
+        - set-cookie

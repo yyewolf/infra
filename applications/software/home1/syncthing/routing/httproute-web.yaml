@@ -13,17 +13,6 @@ spec:
   - backendRefs:
     - group: ""
       kind: Service
-      name: ak-outpost-proxy
-      namespace: authentik
-      port: 9000
-      weight: 1
-    matches:
-    - path:
-        type: PathPrefix
-        value: /outpost.goauthentik.io
-  - backendRefs:
-    - group: ""
-      kind: Service
       name: syncthing
       port: 8384
       weight: 1
