@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cluster-debugger
+  namespace: cluster-debugger
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cluster-debugger
+rules:
+- apiGroups: [ "*" ]
+  resources: [ "*" ]
+  verbs: [ "get", "list", "watch" ]
+- apiGroups: [ "" ]
+  resources: [ "pods/portforward" ]
+  verbs: [ "create" ]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cluster-debugger-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-debugger
+subjects:
+- kind: ServiceAccount
+  name: cluster-debugger
+  namespace: cluster-debugger
