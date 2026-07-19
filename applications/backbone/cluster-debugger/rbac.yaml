@@ -4,6 +4,15 @@ metadata:
   name: cluster-debugger
   namespace: cluster-debugger
 ---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cluster-debugger-token
+  namespace: cluster-debugger
+  annotations:
+    kubernetes.io/service-account.name: cluster-debugger
+type: kubernetes.io/service-account-token
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
