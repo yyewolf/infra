@@ -20,3 +20,5 @@ spec:
         protocol: TCP
   - toEntities:
     - host
+  - toEntities:
+    - kube-apiserver
