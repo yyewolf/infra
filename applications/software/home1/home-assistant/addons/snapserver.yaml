@@ -44,7 +44,7 @@ spec:
           value: home1
       containers:
         - name: snapcast
-          image: docker.io/sweisgerber/snapcast:latest@sha256:b4f581111a5634cfc14a78319cd77d9a277ffaf40381d54540c789069f6b8ef6
+          image: docker.io/sweisgerber/snapcast:latest@sha256:2825284e5b354a74defb6a2ad13a9859b62e572391055fde46d3c355e364404d
           securityContext:
             allowPrivilegeEscalation: false
             seccompProfile:
