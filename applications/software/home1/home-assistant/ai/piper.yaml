@@ -33,7 +33,7 @@ spec:
         location: home1
       containers:
         - name: piper
-          image: lscr.io/linuxserver/piper:latest@sha256:fa717fb19e17d4ce0529f7b288edff6c48d22cd385cf2e4ecefb928af3e5c627
+          image: lscr.io/linuxserver/piper:latest@sha256:b2b96bd4385a6e86feecced34b8af25ff30b6eb466f48426993871d005815006
           securityContext:
             allowPrivilegeEscalation: false
             seccompProfile:
