@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: roundcube
-          image: mirror.gcr.io/roundcube/roundcubemail:latest@sha256:e4f537d7ff16bba24ed8f3a6ed6dfe557cfd831b26afe112e6bb3562c131fb31
+          image: mirror.gcr.io/roundcube/roundcubemail:latest@sha256:89083b9d7034e9a6345248db296e2fa6870533d24724741d3a523433433ffde7
           securityContext:
             allowPrivilegeEscalation: false
             seccompProfile:
