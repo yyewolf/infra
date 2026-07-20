@@ -7,7 +7,7 @@ spec:
   chart:
     spec:
       chart: home-assistant
-      version: 0.3.41
+      version: 0.3.70
       sourceRef:
         kind: HelmRepository
         name: home-assistant
@@ -21,14 +21,14 @@ spec:
       - 10.0.0.0/8
       - 192.168.0.0/16
     additionalVolumes:
-      - hostPath:
-          path: >-
-            /dev/serial/by-id/usb-Itead_Sonoff_Zigbee_3.0_USB_Dongle_Plus_V2_0a83b9ece0c2ef11b0cbecb08048b910-if00-port0
-          type: CharDevice
-        name: usb
+    - hostPath:
+        path: >-
+          /dev/serial/by-id/usb-Itead_Sonoff_Zigbee_3.0_USB_Dongle_Plus_V2_0a83b9ece0c2ef11b0cbecb08048b910-if00-port0
+        type: CharDevice
+      name: usb
     additionalMounts:
-      - mountPath: /dev/ttyUSB0
-        name: usb
+    - mountPath: /dev/ttyUSB0
+      name: usb
     securityContext:
       privileged: true
     image:
