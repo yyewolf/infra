@@ -21,7 +21,7 @@ spec:
         value: "home1"
       containers:
       - name: sonarr
-        image: mirror.gcr.io/linuxserver/sonarr:4.0.17@sha256:02bc962946fef994e67a38152446df25c10a52f8583aefeeb6467f9dd44cab99
+        image: mirror.gcr.io/linuxserver/sonarr:4.0.19@sha256:24acea2956a0ccb11f103877d9f4f8576600fb34bff34820ed749c2256dab89f
         securityContext:
           allowPrivilegeEscalation: false
           seccompProfile:
