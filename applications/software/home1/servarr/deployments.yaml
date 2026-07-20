@@ -244,7 +244,7 @@ spec:
       terminationGracePeriodSeconds: 1
       containers:
       - name: jellyfin
-        image: mirror.gcr.io/linuxserver/jellyfin:10.11.8@sha256:e622a48adf7193c7d626c2325a40f9b01c932c8e7bf3f50ffa40e7e9b6ce1d39
+        image: mirror.gcr.io/linuxserver/jellyfin:10.11.10@sha256:be2bd22d5e27451ebc14b326d8a6554e1f51c79f4431d6c71522565ed17f06ea
         securityContext:
           allowPrivilegeEscalation: false
           seccompProfile:
