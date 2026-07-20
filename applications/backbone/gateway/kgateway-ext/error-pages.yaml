@@ -23,7 +23,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: error-pages
-        image: tarampampam/error-pages@sha256:978c1f83e8f26742743ec3b565214ed9f2296cb5171b592071a6569dceac8c26
+        image: tarampampam/error-pages@sha256:f23f8042a2804669315fd232281d0ccecf1959332314a46e02ca2482064064a6
         ports:
         - containerPort: 8080
           name: http
