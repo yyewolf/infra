@@ -402,7 +402,7 @@ spec:
         value: "home1"
       containers:
       - name: bazarr
-        image: mirror.gcr.io/linuxserver/bazarr:1.5.6@sha256:4b5e510042bf471c8bafab89cada9774fba2fb25f16ec64235151cacbe847c10
+        image: mirror.gcr.io/linuxserver/bazarr:1.5.6@sha256:047222423d6d8556a88581b189175bec57f286f120b52ba29c0390fe6babaa5a
         securityContext:
           allowPrivilegeEscalation: false
           seccompProfile:
