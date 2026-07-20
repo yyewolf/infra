@@ -23,7 +23,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: redis
-        image: mirror.gcr.io/redis:8.8.0@sha256:0a972391db0b24ec336e35d1bc98b237237e26f82bf5120cf2f6b1688d1df973
+        image: mirror.gcr.io/redis:8.8.0@sha256:234c902a2db49461a129e2d4aeff85b28cf20187ed274a67f6e50995fa713c7b
         ports:
         - containerPort: 6379
         securityContext:
