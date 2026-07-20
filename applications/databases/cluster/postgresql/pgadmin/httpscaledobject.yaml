@@ -4,9 +4,9 @@ metadata:
   name: pgadmin
 spec:
   hosts:
-    - pgadmin.tail5ec535.ts.net
+  - pgadmin.goby-beaufort.ts.net
   pathPrefixes:
-    - /
+  - /
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment

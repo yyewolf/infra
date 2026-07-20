@@ -23,7 +23,7 @@ spec:
         - containerPort: 80
         env:
         - name: PMA_ABSOLUTE_URI
-          value: https://phpmyadmin.tail5ec535.ts.net
+          value: https://phpmyadmin.goby-beaufort.ts.net
         - name: PMA_HOST
           value: mariadb
         startupProbe:

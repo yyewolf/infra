@@ -69,11 +69,11 @@ cookie domain `yewolf.fr`. Full design, gotchas, and how to add an app:
 
 | App | Hostname | Backend |
 |-----|----------|---------|
-| radar | `radar.tail5ec535.ts.net` | `radar:9280` |
-| pgadmin | `pgadmin.tail5ec535.ts.net` | keda interceptor (scale-to-zero) |
-| phpmyadmin | `phpmyadmin.tail5ec535.ts.net` | keda interceptor (scale-to-zero) |
-| dashboard router | `dashboard.tail5ec535.ts.net` | `caddy:80` (namespace `dashboard`) |
-| joal / Rustatio | `joal.tail5ec535.ts.net` | `joal.servarr:80` — root-anchored SPA, own host (linked from dashboard) |
+| radar | `radar.goby-beaufort.ts.net` | `radar:9280` |
+| pgadmin | `pgadmin.goby-beaufort.ts.net` | keda interceptor (scale-to-zero) |
+| phpmyadmin | `phpmyadmin.goby-beaufort.ts.net` | keda interceptor (scale-to-zero) |
+| dashboard router | `dashboard.goby-beaufort.ts.net` | `caddy:80` (namespace `dashboard`) |
+| joal / Rustatio | `joal.goby-beaufort.ts.net` | `joal.servarr:80` — root-anchored SPA, own host (linked from dashboard) |
 
 #### Dashboard router (single hostname, path-routed)
 
@@ -91,7 +91,7 @@ path. `applications/software/home1/dashboard/`.
 
 joal/Rustatio is **not** in the router — it's a root-anchored SPA (absolute `/assets` +
 absolute API paths, no base-path option), so it has its own Tailscale hostname
-(`joal.tail5ec535.ts.net`) and the dashboard just links to it.
+(`joal.goby-beaufort.ts.net`) and the dashboard just links to it.
 
 ### Internal-Only (No External Exposure)
 

@@ -4,9 +4,9 @@ metadata:
   name: phpmyadmin
 spec:
   hosts:
-    - phpmyadmin.tail5ec535.ts.net
+  - phpmyadmin.goby-beaufort.ts.net
   pathPrefixes:
-    - /
+  - /
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
