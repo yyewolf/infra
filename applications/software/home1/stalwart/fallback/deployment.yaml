@@ -22,7 +22,7 @@ spec:
     spec:
       containers:
       - name: stalwart
-        image: stalwartlabs/stalwart:latest@sha256:dcf575db2d53d9ef86d6ced8abe4ba491984659a0f8862cc6079ee7b41c3c568
+        image: stalwartlabs/stalwart:latest@sha256:25001929f36a62521cedc50f12527080dac4cf6a0cc31b617b669d921cafc36a
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
