@@ -5,6 +5,8 @@ metadata:
 spec:
   endpointSelector: {}
   ingress:
+  - fromEntities:
+    - host
   - fromEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: kgateway
@@ -23,6 +25,12 @@ spec:
     toPorts:
     - ports:
       - port: "1883"
+        protocol: TCP
+  - fromEntities:
+    - world
+    toPorts:
+    - ports:
+      - port: "8080"
         protocol: TCP
   egress:
   - toEndpoints:
