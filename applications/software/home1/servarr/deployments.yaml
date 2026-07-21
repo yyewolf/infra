@@ -12,6 +12,14 @@ spec:
       labels:
         app: sonarr
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
       automountServiceAccountToken: false
       nodeSelector:
         location: home1
@@ -23,7 +31,6 @@ spec:
       - name: sonarr
         image: mirror.gcr.io/linuxserver/sonarr:4.0.19@sha256:24acea2956a0ccb11f103877d9f4f8576600fb34bff34820ed749c2256dab89f
         securityContext:
-          allowPrivilegeEscalation: false
           seccompProfile:
             type: RuntimeDefault
         ports:
@@ -35,11 +42,19 @@ spec:
           value: "1000"
         - name: TZ
           value: "Europe/Paris"
+        - name: S6_YES_I_WANT_A_WORLD_WRITABLE_RUN_BECAUSE_KUBERNETES
+          value: "1"
+        - name: S6_READ_ONLY_ROOT
+          value: "1"
+        - name: S6_VERBOSITY
+          value: "2"
         volumeMounts:
         - name: config
           mountPath: /config
         - name: data
           mountPath: /data
+        - name: run
+          mountPath: /run
         resources:
           requests:
             cpu: 100m
@@ -56,6 +71,8 @@ spec:
         hostPath:
           path: /tank/servarr
           type: Directory
+      - name: run
+        emptyDir: {}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -71,6 +88,14 @@ spec:
       labels:
         app: radarr
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
       automountServiceAccountToken: false
       nodeSelector:
         location: home1
@@ -82,7 +107,6 @@ spec:
       - name: radarr
         image: mirror.gcr.io/linuxserver/radarr:6.3.0@sha256:e35056574cdc695a9ee745aa1ecda9eab3842450bf4b7b8471b023790fa3861d
         securityContext:
-          allowPrivilegeEscalation: false
           seccompProfile:
             type: RuntimeDefault
         ports:
@@ -94,11 +118,19 @@ spec:
           value: "1000"
         - name: TZ
           value: "Europe/Paris"
+        - name: S6_YES_I_WANT_A_WORLD_WRITABLE_RUN_BECAUSE_KUBERNETES
+          value: "1"
+        - name: S6_READ_ONLY_ROOT
+          value: "1"
+        - name: S6_VERBOSITY
+          value: "2"
         volumeMounts:
         - name: config
           mountPath: /config
         - name: data
           mountPath: /data
+        - name: run
+          mountPath: /run
         resources:
           requests:
             cpu: 100m
@@ -115,6 +147,8 @@ spec:
         hostPath:
           path: /tank/servarr
           type: Directory
+      - name: run
+        emptyDir: {}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -130,6 +164,14 @@ spec:
       labels:
         app: prowlarr
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
       automountServiceAccountToken: false
       nodeSelector:
         location: home1
@@ -141,7 +183,6 @@ spec:
       - name: prowlarr
         image: mirror.gcr.io/linuxserver/prowlarr:2.4.0@sha256:4fd7a166c8f46dd3370a871c250ee577d6c2ae97a0dbe0e3614b5ef736205620
         securityContext:
-          allowPrivilegeEscalation: false
           seccompProfile:
             type: RuntimeDefault
         ports:
@@ -153,9 +194,17 @@ spec:
           value: "1000"
         - name: TZ
           value: "Europe/Paris"
+        - name: S6_YES_I_WANT_A_WORLD_WRITABLE_RUN_BECAUSE_KUBERNETES
+          value: "1"
+        - name: S6_READ_ONLY_ROOT
+          value: "1"
+        - name: S6_VERBOSITY
+          value: "2"
         volumeMounts:
         - name: config
           mountPath: /config
+        - name: run
+          mountPath: /run
         resources:
           requests:
             cpu: 100m
@@ -168,6 +217,8 @@ spec:
         hostPath:
           path: /tank/servarr/config/prowlarr
           type: DirectoryOrCreate
+      - name: run
+        emptyDir: {}
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -246,7 +297,6 @@ spec:
       - name: jellyfin
         image: mirror.gcr.io/linuxserver/jellyfin:10.11.10@sha256:be2bd22d5e27451ebc14b326d8a6554e1f51c79f4431d6c71522565ed17f06ea
         securityContext:
-          allowPrivilegeEscalation: false
           seccompProfile:
             type: RuntimeDefault
         ports:
@@ -295,6 +345,14 @@ spec:
       labels:
         app: jellyseerr
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
       automountServiceAccountToken: false
       nodeSelector:
         location: home1
@@ -306,7 +364,6 @@ spec:
       - name: jellyseerr
         image: ghcr.io/seerr-team/seerr:v3.3.0@sha256:c92d2dc117f62185e7bcb88cd56efd374ea79210eaf433275449e8d5988eb5a8
         securityContext:
-          allowPrivilegeEscalation: false
           seccompProfile:
             type: RuntimeDefault
         ports:
@@ -346,6 +403,14 @@ spec:
       labels:
         app: flaresolverr
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
       automountServiceAccountToken: false
       nodeSelector:
         location: home1
@@ -357,7 +422,6 @@ spec:
       - name: flaresolverr
         image: ghcr.io/flaresolverr/flaresolverr:v3.5.0@sha256:139dfee1c6f89249c8d665d1333a42e8ec74ec0a86bc6bb1c8461e10d3a66a47
         securityContext:
-          allowPrivilegeEscalation: false
           seccompProfile:
             type: RuntimeDefault
         ports:
@@ -393,6 +457,14 @@ spec:
       labels:
         app: bazarr
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
       automountServiceAccountToken: false
       nodeSelector:
         location: home1
@@ -404,7 +476,6 @@ spec:
       - name: bazarr
         image: mirror.gcr.io/linuxserver/bazarr:1.6.0@sha256:4c30dc0bb9a5d223075e7f5d12c77bd293c4b460f86d696dbe64763104c1e88c
         securityContext:
-          allowPrivilegeEscalation: false
           seccompProfile:
             type: RuntimeDefault
         ports:
@@ -416,6 +487,12 @@ spec:
           value: "1000"
         - name: TZ
           value: "Europe/Paris"
+        - name: S6_YES_I_WANT_A_WORLD_WRITABLE_RUN_BECAUSE_KUBERNETES
+          value: "1"
+        - name: S6_READ_ONLY_ROOT
+          value: "1"
+        - name: S6_VERBOSITY
+          value: "2"
         volumeMounts:
         - name: config
           mountPath: /config
@@ -423,6 +500,8 @@ spec:
           mountPath: /tv
         - name: media-movies
           mountPath: /movies
+        - name: run
+          mountPath: /run
         resources:
           requests:
             cpu: 100m
@@ -443,3 +522,5 @@ spec:
         hostPath:
           path: /tank/servarr/media/movies
           type: DirectoryOrCreate
+      - name: run
+        emptyDir: {}
