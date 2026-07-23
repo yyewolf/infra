@@ -4,6 +4,12 @@ variable "input_allowed_ports" {
   default     = ["8729", "443"]
 }
 
+variable "wireguard_port" {
+  description = "UDP port for WireGuard incoming traffic"
+  type        = number
+  default     = 51820
+}
+
 variable "lan_interface_list" {
   description = "Interface list name for LAN interfaces"
   type        = string

@@ -41,6 +41,15 @@ resource "routeros_ip_firewall_filter" "input_services" {
   protocol = "tcp"
 }
 
+resource "routeros_ip_firewall_filter" "input_wireguard" {
+  action       = "accept"
+  chain        = "input"
+  comment      = "defconf: accept WireGuard"
+  dst_port     = tostring(var.wireguard_port)
+  protocol     = "udp"
+  place_before = routeros_ip_firewall_filter.input_drop_not_lan.id
+}
+
 resource "routeros_ip_firewall_filter" "input_drop_not_lan" {
   action            = "drop"
   chain             = "input"

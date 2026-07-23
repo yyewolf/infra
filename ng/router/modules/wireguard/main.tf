@@ -22,10 +22,10 @@ resource "routeros_ip_address" "wg_address" {
 resource "routeros_interface_wireguard_peer" "peers" {
   for_each = var.peers
 
-  interface         = routeros_interface_wireguard.wg.name
-  public_key        = each.value.public_key
-  allowed_address   = [each.value.address]
-  comment           = each.key
-  endpoint_address  = try(split(":", each.value.endpoint)[0], null)
-  endpoint_port     = try(split(":", each.value.endpoint)[1], null)
+  interface        = routeros_interface_wireguard.wg.name
+  public_key       = each.value.public_key
+  allowed_address  = compact([each.value.address, var.lan_subnet])
+  comment          = each.key
+  endpoint_address = try(split(":", each.value.endpoint)[0], null)
+  endpoint_port    = try(split(":", each.value.endpoint)[1], null)
 }

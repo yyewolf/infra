@@ -27,8 +27,9 @@ ng/
 - **SOPS encrypted files** must match pattern `.*-sops\.yaml$` in `.sops.yaml` at repo root. Encrypted keys go under `secrets:` key (matches `encrypted_regex: ^(data|stringData|secrets)$`).
 - **RouterOS provider** connects to `https://192.168.1.49` with `insecure = true` (self-signed cert, no IP SANs).
 - **Terraform modules** in `modules/` each declare their own `required_providers { routeros {} }` block (no version pin in sub-modules).
-- **WireGuard identities** — private keys are under `secrets:` (encrypted), public keys/addresses/ports under `identities:` (plaintext). Use `nonsensitive()` on the identities map when iterating peers since Terraform marks the whole `data.sops_file.raw` as sensitive.
+- **WireGuard identities** — private keys are under `secrets:` (encrypted), public keys/addresses/ports/endpoint under `identities:` (plaintext). Use `nonsensitive()` on the identities map when iterating peers since Terraform marks the whole `data.sops_file.raw` as sensitive.
 - **Firewall rule IDs** — this router uses hex IDs (*A, *B, etc.), numbering starts at *1 (not *0).
+- **LAN bridge** — all LAN interfaces (ether2-5, sfp1) + WireGuard are bridged on `bridge1` (subnet `10.200.0.0/24`, bridge IP `10.200.0.1`). WG peers get addresses on the same subnet (e.g., `10.200.0.2/32`) — they appear on the same L2 domain.
 
 ## Rules
 

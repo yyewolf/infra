@@ -21,8 +21,14 @@ variable "listen_port" {
 }
 
 variable "interface_address" {
-  description = "IP address to assign to the interface"
+  description = "IP address to assign to the WireGuard interface"
   type        = string
+}
+
+variable "lan_subnet" {
+  description = "Optional LAN subnet to include in each peer's allowed_address"
+  type        = string
+  default     = null
 }
 
 variable "peers" {
