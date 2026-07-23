@@ -1,0 +1,44 @@
+secrets:
+    edge-0:
+        private_key: ENC[AES256_GCM,data:xPHF5wpLU/xL2sF+7654Eq5YEMPHR5tSYMlTk63qbj8TbefOZzPCyfs55jw=,iv:lX2gsTEmtZiApiCiv2Ygcp+QsfCoA5UvznpavKoUOuw=,tag:FuCnFZgiSMJ7rZA6oDT8hA==,type:str]
+    home-router-0:
+        private_key: ENC[AES256_GCM,data:b1hW3Te0c0X/cPOsQaZwTlagxY8TgreVJ4WedrUbmvXrpOOxCPBbgWJTadk=,iv:SYAbqfujLAtI7EUXnIW7uwu0JV8TNwql6T+EXsJO1a0=,tag:qjUX6eVV0b+nNmjomPhEpQ==,type:str]
+identities:
+    edge-0:
+        public_key: CP0GXWk5wT9Pb3TAijdzGCtXkH7WmnQ4Q0cfuUkNEBk=
+        address: 10.10.0.2/32
+        listen_port: 51820
+        endpoint: 1.2.3.4:51820
+    home-router-0:
+        public_key: Y+1b2aqY/pR7HiENax1a1xwWYBAHCl0jGJpR4qPjxyM=
+        address: 10.10.0.1/32
+        listen_port: 51820
+        endpoint: ""
+sops:
+    encrypted_regex: ^(data|stringData|secrets)$
+    lastmodified: "2026-07-23T18:40:24Z"
+    mac: ENC[AES256_GCM,data:HhpQ2WzsHgXwsD8X6EU1E7UKhz5jRxliJpSfntA6M1/KU+h8x20V8378b+qwAKj1esEJy75cJDYJfMb4liXOwXt9eo/wptIkLtaWWxnB2niuTI3iADdrhuge36qo+z/QmFsiLfP12q4nS3fZAiTLoK3Ol2IfV2TuMIQTV86xsIg=,iv:s0CuQFzrvMrzMOpWpf7pnnBulGT/fl0ii6RBVsBG6OY=,tag:zaAuI8qC5uVzmgV9gQa+zQ==,type:str]
+    pgp:
+        - created_at: "2026-07-23T18:39:41Z"
+          enc: |-
+            -----BEGIN PGP MESSAGE-----
+
+            hF4DC4LUCsV/V+wSAQdAE0rFUfdS43NBfJlyQ0B6QniPaf+RNKhyFUm4EF1z1HQw
+            Li0S0uEWPpj2dkyIFOwUjPOwf9lerIZUW+UDqNnBGxmwhAZt8zEMzxvd+4ep+c0A
+            0lwBbIEILK9S5YM03P4c3zeSBs5qaPbbN8LS7OCDmu4VT/1Qj1CA8aL564yI3AFI
+            EdPhP3G7/DGR/yAUuVO7SoKHLO0gK2XEIJtdC7pq2dYvutWGxx52Tpx5PHDoVQ==
+            =VuJl
+            -----END PGP MESSAGE-----
+          fp: 459895EB0A5F446D3831E99F95F6A162E4A71B06
+        - created_at: "2026-07-23T18:39:41Z"
+          enc: |-
+            -----BEGIN PGP MESSAGE-----
+
+            hF4D8q6e3Tem1ZoSAQdAblt7ftPx2inwZ8uzUp7sjYXPP8JUO51iz37K0iPhEy4w
+            3NqzsuhHoxJ0su8s9cjRvtEbmA1+X93u04LhWvj73RrSfZTMxm57y26jaZ1dLpHX
+            0lwBSvbDtLEcYcgLnIhYDORQujovSzqEJ76rTigj6I43nkIcIwtLr/rEpnHDUqD2
+            A6Z7ph4p/W8akdA2rStQnGKmmbLlS+GsDKKsClEOizzr76p6lyzT+yeOQLzN1g==
+            =BrfH
+            -----END PGP MESSAGE-----
+          fp: DF7F5D62376A57228F35FE4C665F8C5B8E0732E5
+    version: 3.13.1
