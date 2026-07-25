@@ -112,33 +112,71 @@ emit_wireguard() {
 
 # ------------------------------------------------------------------- schematic
 
-# Uploads schematic.yaml and prints the resulting ID. The factory is
+# Uploads a schematic file and prints the resulting ID. The factory is
 # content-addressed, so re-uploading an unchanged file returns the same ID and
-# costs nothing but a round trip. Cached so render/iso do not both re-upload.
-cmd_schematic() {
+# costs nothing but a round trip. Each cache file holds the hash of its input
+# and the ID that came back, so render/iso do not both re-upload.
+resolve_schematic() {
     need curl
-    local cache="$OUT/schematic-id" hash
-    hash="$(sha256sum "$SCHEMATIC" | cut -d' ' -f1)"
+    local file="$1" cache="$2" hash
+    hash="$(sha256sum "$file" | cut -d' ' -f1)"
 
     if [ -f "$cache" ] && [ "$(head -n1 "$cache")" = "$hash" ]; then
         tail -n1 "$cache"
         return
     fi
 
-    info "uploading schematic to $FACTORY"
+    info "uploading $(basename "$file") to $FACTORY"
     local id
-    id="$(curl -fsSL -X POST --data-binary "@$SCHEMATIC" "$FACTORY/schematics" |
+    id="$(curl -fsSL -X POST --data-binary "@$file" "$FACTORY/schematics" |
         jq -r '.id')"
     [ -n "$id" ] && [ "$id" != "null" ] || die "factory did not return a schematic ID"
 
-    mkdir -p "$OUT"
+    mkdir -p "$(dirname "$cache")"
     printf '%s\n%s\n' "$hash" "$id" >"$cache"
     printf '%s' "$id"
 }
 
+# The base schematic: what the ISO is built from, and what any node without
+# per-node extensions installs. ng/openstack reads out/schematic-id directly to
+# build edge-0's Glance image, so this file's meaning is load-bearing outside
+# this script — it is the *base* ID, never a node's merged one.
+cmd_schematic() {
+    resolve_schematic "$SCHEMATIC" "$OUT/schematic-id"
+}
+
+# A node's own schematic ID. Nodes with no 'extensions' in cluster.yaml share
+# the base one; the rest get schematic.yaml with their extra extensions merged
+# in, written to out/schematics/<node>.yaml and resolved separately. That is the
+# whole point of the per-node list: adding an extension to one host must not
+# change the installer image of any other.
+node_schematic_id() {
+    local n="$1"
+    local extras=()
+    mapfile -t extras < <(cfg ".nodes.\"$n\".extensions[]?")
+    [ ${#extras[@]} -eq 0 ] && { cmd_schematic; return; }
+
+    # edge-0 and any future off-LAN node are built by Terraform from
+    # out/schematic-id, not from anything this function writes. Giving one
+    # extensions here would have it install an image the cloud instance was
+    # never booted from — silently, and only visible after a reboot.
+    if [ -n "$(node_field "$n" wireguard.peer)" ]; then
+        die "node $n has per-node extensions, but off-LAN nodes are imaged by ng/openstack from the base schematic — put them in schematic.yaml instead"
+    fi
+
+    local merged="$OUT/schematics/$n.yaml" list=""
+    for e in "${extras[@]}"; do list+="\"$e\","; done
+    mkdir -p "$OUT/schematics"
+    yq ".customization.systemExtensions.officialExtensions =
+          ((.customization.systemExtensions.officialExtensions // []) + [${list%,}] | unique)" \
+        "$SCHEMATIC" >"$merged"
+
+    resolve_schematic "$merged" "$OUT/schematics/$n.id"
+}
+
 installer_image() {
     printf 'factory.talos.dev/metal-installer/%s:%s' \
-        "$(cmd_schematic)" "$(cfg .talos_version)"
+        "$(node_schematic_id "$1")" "$(cfg .talos_version)"
 }
 
 # ------------------------------------------------------------------------- iso
@@ -241,7 +279,7 @@ cmd_render() {
         for n in "${targets[@]}"; do require_node "$n"; done
     fi
 
-    local name vip gateway subnet subnet6 gateway6 wg_subnet wg_mtu version k8s image
+    local name vip gateway subnet subnet6 gateway6 wg_subnet wg_mtu version k8s
     name="$(cfg .name)"
     vip="$(cfg .network.vip)"
     gateway="$(cfg .network.gateway)"
@@ -262,8 +300,6 @@ cmd_render() {
             die "nodes/$n.yaml still says disk: REPLACE_ME — run '$0 disks <ip>' and set the real device"
         fi
     done
-
-    image="$(installer_image)"
 
     mkdir -p "$OUT/patches"
     chmod 700 "$OUT"
@@ -307,7 +343,7 @@ cmd_render() {
     # These come from cluster.yaml, so a subset render still produces configs
     # that trust every node.
     for n in "${targets[@]}"; do
-        local type address address6 selector patch wg_peer
+        local type address address6 selector patch wg_peer image
         type="$(node_field "$n" type)"
         address="$(node_field "$n" address)"
         address6="$(node_field "$n" address6)"
@@ -333,6 +369,10 @@ cmd_render() {
         # that already exists from an earlier render.
         : >"$patch"
         chmod 600 "$patch"
+
+        # Per node, not once for the whole run: a node with extra extensions
+        # installs a different image from the rest of the cluster.
+        image="$(installer_image "$n")"
 
         {
             echo "# Generated by talos.sh from cluster.yaml. Do not edit."
@@ -489,6 +529,25 @@ cmd_apply() {
     fi
 }
 
+# Applying a config is not enough to change the image a node is *running*:
+# machine.install.image only decides what the next install writes. A new Talos
+# version or a changed extension list needs this, which reboots the node onto
+# the new image. One node at a time — with three control-plane nodes, etcd
+# tolerates exactly one being away.
+cmd_upgrade() {
+    local n="${1:-}"
+    [ -n "$n" ] || die "usage: $0 upgrade <node>"
+    require_node "$n"
+
+    local ip image
+    ip="$(node_field "$n" address)"
+    image="$(installer_image "$n")"
+
+    info "upgrading $n ($ip) to $image"
+    talosctl --talosconfig "$(talosconfig)" \
+        upgrade --nodes "$ip" --endpoints "$ip" --image "$image"
+}
+
 # Run once, against one control-plane node only. It creates etcd; the other two
 # join it. Running it twice, or on a second node, forks the cluster.
 cmd_bootstrap() {
@@ -530,6 +589,8 @@ usage: ./talos.sh <command>
 
   Image
     schematic            resolve schematic.yaml to an Image Factory ID
+                         (the base image; per-node extensions are resolved
+                          separately by render)
     iso                  download the metal ISO for that schematic
     usb /dev/sdX         write the ISO to a USB key (destructive, asks first)
 
@@ -540,6 +601,7 @@ usage: ./talos.sh <command>
   Bring-up
     disks <ip>           list disks on a node in maintenance mode
     apply <node> [ip]    apply a config; pass the maintenance IP the first time
+    upgrade <node>       reboot a node onto its current installer image
     bootstrap [node]     create etcd on one control-plane node (once, ever)
     kubeconfig           fetch the cluster kubeconfig
     health               check cluster health
@@ -555,6 +617,7 @@ secrets) shift; cmd_secrets "$@" ;;
 render) shift; cmd_render "$@" ;;
 disks) shift; cmd_disks "$@" ;;
 apply) shift; cmd_apply "$@" ;;
+upgrade) shift; cmd_upgrade "$@" ;;
 bootstrap) shift; cmd_bootstrap "$@" ;;
 kubeconfig) shift; cmd_kubeconfig ;;
 health) shift; cmd_health ;;

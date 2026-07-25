@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - flux-system/
   - infrastructure/cilium/ks.yaml
+  - infrastructure/kata/ks.yaml
   - platform/cert-manager/ks.yaml
   - platform/certificates/ks.yaml
   - platform/envoy-gateway/ks.yaml

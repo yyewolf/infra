@@ -13,7 +13,7 @@ be deleted and rebuilt at any time from git plus `secrets-sops-all.yaml`.
 ## Layout
 
 ```
-cluster.yaml            addressing, versions, node inventory — the source of truth
+cluster.yaml            addressing, versions, node inventory, per-node extensions
 schematic.yaml          Image Factory schematic (system extensions, kernel args)
 secrets-sops-all.yaml   cluster PKI and tokens, SOPS-encrypted (generated once)
 patches/common.yaml     applied to every node
@@ -190,12 +190,76 @@ the router, `/interface wireguard peers print` shows the last handshake.
   config, so editing it in Terraform destroys and recreates the VM. To change a
   running `edge-0`, re-render and `talosctl apply-config` over the tunnel.
 
+## System extensions
+
+`schematic.yaml` is the image every node shares — microcode, iSCSI tools. A
+node can also carry extras of its own, listed under `extensions:` in its
+`cluster.yaml` entry:
+
+```yaml
+cp-0:
+  type: controlplane
+  address: 10.200.0.11
+  address6: fdde:c64:7096::11
+  extensions:
+    - siderolabs/kata-containers
+```
+
+`render` merges those into `schematic.yaml`, resolves the result to its own
+Image Factory ID (cached in `out/schematics/<node>.id`) and points only that
+node's `machine.install.image` at it. Nodes without extras keep the base ID, so
+adding an extension to one host does not re-image the others.
+
+Off-LAN nodes are excluded on purpose: `ng/openstack` builds `edge-0`'s Glance
+image from `out/schematic-id`, the *base* ID, so an extension listed on
+`edge-0` would have it install an image it never booted from. `render` refuses
+rather than let that through — extensions that node needs go in
+`schematic.yaml`.
+
+### Kata Containers
+
+`cp-0`, `cp-1` and `cp-2` carry `siderolabs/kata-containers`. Pods that ask for
+it run under a lightweight VM with their own kernel instead of sharing the
+host's. The extension registers the containerd runtime handlers itself; the
+`RuntimeClass` objects that expose them come from Flux
+(`ng/flux/infrastructure/kata`), one per hypervisor:
+
+| class | hypervisor | when |
+|---|---|---|
+| `kata` | Cloud Hypervisor | the default: fast boot, low overhead |
+| `kata-qemu` | QEMU | passes the CPU virt flag through, so the guest can run VMs |
+
+```yaml
+spec:
+  runtimeClassName: kata
+```
+
+Both classes carry a `nodeSelector` for `node-role.kubernetes.io/control-plane`,
+which on this cluster means the three LAN hosts. `edge-0` is a cloud instance
+with no nested virtualization and does not have the extension, so without that
+selector a kata pod could be scheduled there and fail at the kubelet with an
+unknown runtime handler.
+
+KVM needs no configuration — Talos builds `kvm`, `kvm_amd` and `kvm_intel` into
+the kernel rather than shipping them as modules.
+
 ## Upgrades
 
 Bump `talos_version` in `cluster.yaml`, then `./talos.sh render`. The installer
-image in each config now points at the new version; `talosctl upgrade` per node
-picks it up. Changing `schematic.yaml` (adding a system extension, say) works
-the same way — a new schematic ID, a new installer image, one upgrade per node.
+image in each config now points at the new version, and:
+
+```sh
+./talos.sh upgrade cp-0        # then cp-1, then cp-2
+```
+
+reboots each node onto it. One at a time: with three control-plane nodes, etcd
+tolerates exactly one being away.
+
+Changing the extension list — `schematic.yaml` or a node's `extensions:` —
+works the same way. It is a new schematic ID and a new installer image, and
+`apply` alone will not deliver it: `machine.install.image` only decides what the
+*next* install writes, so an extension added to a running node needs the
+upgrade.
 
 ## Notes
 

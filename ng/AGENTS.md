@@ -51,6 +51,9 @@ ng/
 - **Firewall rule IDs** — this router uses hex IDs (*A, *B, etc.), numbering starts at *1 (not *0).
 - **Firewall rule order** — `modules/ip-firewall` pins every rule with `place_before` pointing at its successor, so table order equals declaration order regardless of when Terraform creates things. Adding a rule means splicing it into that chain.
 - **Talos** — `talos/cluster.yaml` is the only place node addresses are written; `talos.sh render` derives hostnames, static addressing, VIP, cert SANs and the installer image from it. Never hand-edit anything in `talos/out/` — it is regenerated and holds decrypted PKI.
+- **System extensions are per node, not just per cluster** — `talos/schematic.yaml` is the shared image; a node can add its own under `extensions:` in its `cluster.yaml` entry, and `render` resolves the merged list to a separate Image Factory ID for that node alone. Off-LAN nodes cannot use it — `ng/openstack` builds `edge-0` from the base `out/schematic-id`, so `render` refuses if a WireGuard node lists extensions.
+- **Kata Containers runs on cp-0/1/2 only** — `siderolabs/kata-containers` is in those three nodes' extensions, deliberately not `edge-0`'s (no nested virt, and changing its config means Terraform recreating the instance). The extension registers the containerd handlers itself; the `kata` and `kata-qemu` RuntimeClasses live in `flux/infrastructure/kata` and pin scheduling to control-plane nodes so a kata pod cannot land on the edge.
+- **Extension and version changes need `talos.sh upgrade <node>`, not `apply`** — `machine.install.image` only decides what the next install writes, so a running node keeps its old image until it is upgraded onto the new one. One node at a time; etcd tolerates one of three being away.
 - **`-sops-all.yaml` suffix** — encrypts *every* value, not just keys named `secrets`. Required for bundles like the Talos PKI where the sensitive material is not under a `secrets:` key.
 - **OpenStack edge-0** — a Talos worker, not a general-purpose VM. Its `user_data` *is* the machine config rendered by `ng/talos/talos.sh render edge-0`; `ng/openstack` defines no cluster config of its own and only reads `ng/talos/` (for the version, schematic ID and rendered config) and the WG registry (for the listen port). There is no cloud-init and no SSH.
 - **edge-0 joins over WireGuard only** — the tunnel is declared in the Talos machine config, so it is up before the kubelet starts and the node never contacts the control plane over the bare internet. Its cluster address (`10.200.255.2`) is on `wg0`, not on the cloud NIC.
@@ -111,6 +114,10 @@ cd ng/router && terraform init
 # Render edge-0's machine config first — ng/openstack consumes it
 ./ng/talos/talos.sh schematic && ./ng/talos/talos.sh render edge-0
 
+# Reboot a node onto its current installer image (after a version or
+# extension change). One node at a time.
+./ng/talos/talos.sh render && ./ng/talos/talos.sh upgrade cp-0
+
 # Plan edge-0 OpenStack changes (uses encrypted state)
 ./ng/openstack/tf.sh plan
 
@@ -126,6 +133,7 @@ flux bootstrap git --url=https://github.com/yyewolf/infra.git --branch=main --pa
 # Force Flux to reconcile (without waiting for the interval)
 flux reconcile kustomization shared
 flux reconcile kustomization cilium
+flux reconcile kustomization kata
 flux reconcile kustomization cert-manager
 flux reconcile kustomization certificates
 flux reconcile kustomization envoy-gateway

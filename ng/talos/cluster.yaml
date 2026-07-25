@@ -74,20 +74,42 @@ service_subnets:
 #     address6: fdde:c64:7096::11
 #     interface: enp1s0
 #
+# 'extensions' is also optional: system extensions layered on top of
+# schematic.yaml for this node alone. talos.sh resolves the merged list to its
+# own Image Factory ID and points only that node's installer at it, so a
+# hardware- or role-specific extension does not force every other node to be
+# re-imaged. Extensions every node wants belong in schematic.yaml.
+#
 # Hardware details (the install disk) live in nodes/<name>.yaml instead.
 nodes:
+  # The three LAN hosts are bare metal with hardware virtualization, so they
+  # carry kata-containers: workloads that ask for the 'kata' RuntimeClass run
+  # inside a lightweight VM instead of sharing the host kernel. The extension
+  # registers the containerd runtime handlers by itself; the RuntimeClass
+  # objects come from ng/flux/infrastructure/kata.
+  #
+  # Deliberately not on edge-0: it is a cloud instance with no nested
+  # virtualization, and adding an extension there rewrites its machine config,
+  # which is its OpenStack user_data — Terraform would destroy and recreate the
+  # node to deliver it.
   cp-0:
     type: controlplane
     address: 10.200.0.11
     address6: fdde:c64:7096::11
+    extensions:
+      - siderolabs/kata-containers
   cp-1:
     type: controlplane
     address: 10.200.0.12
     address6: fdde:c64:7096::12
+    extensions:
+      - siderolabs/kata-containers
   cp-2:
     type: controlplane
     address: 10.200.0.13
     address6: fdde:c64:7096::13
+    extensions:
+      - siderolabs/kata-containers
 
   # Cloud worker on Infomaniak OpenStack (see ng/openstack). It is not on the
   # LAN: its physical NIC takes a DHCP lease from the cloud and exists only to

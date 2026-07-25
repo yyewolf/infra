@@ -1,0 +1,43 @@
+# Kata Containers runtime classes.
+#
+# The containerd runtime handlers themselves come from the
+# siderolabs/kata-containers system extension, which ships its own CRI config
+# drop-in — there is nothing to configure on the node. These objects are only
+# what lets a pod ask for one, with 'runtimeClassName: kata'.
+#
+# The extension is in cp-0/cp-1/cp-2's schematic (ng/talos/cluster.yaml) and
+# deliberately not in edge-0's: the cloud instance has no nested virtualization
+# and a kata pod landing there would fail to start with an unknown runtime
+# handler. The nodeSelector below is what keeps that from happening — it is
+# merged into every pod that selects the class, so scheduling is constrained
+# rather than left to fail at the kubelet.
+---
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: kata
+# Cloud Hypervisor: fast boot, small memory footprint. The default choice.
+handler: kata
+overhead:
+  podFixed:
+    cpu: 250m
+    memory: 130Mi
+scheduling:
+  nodeSelector:
+    node-role.kubernetes.io/control-plane: ""
+---
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: kata-qemu
+# QEMU instead. Heavier, but on x86-64 it passes the host CPU's virtualization
+# flag through, so the guest can itself run VMs. Only worth it for a workload
+# that needs nested virt.
+handler: kata-qemu
+overhead:
+  podFixed:
+    cpu: 250m
+    memory: 160Mi
+scheduling:
+  nodeSelector:
+    node-role.kubernetes.io/control-plane: ""

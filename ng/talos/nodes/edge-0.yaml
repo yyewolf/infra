@@ -11,7 +11,3 @@
 machine:
   install:
     disk: /dev/vda
-  taints:
-  - key: edge-0
-    value: "true"
-    effect: NoSchedule
