@@ -6,11 +6,12 @@
 # own flagless 'runsc' handler is also present on the node but deliberately has
 # no RuntimeClass here: nothing should reach it by accident.
 #
-# Only cp-2 carries the extension for now, so the nodeSelector pins to that
-# host by name rather than to the control-plane role the way kata does. A pod
-# asking for this class on cp-0 or cp-1 would be admitted and then fail at the
-# kubelet with an unknown runtime handler. Widen both together: the extension
-# list in ng/talos/cluster.yaml first, then this selector.
+# All three LAN hosts carry it, so the selector matches the control-plane role,
+# same as kata. edge-0 does not have the extension — a pod that landed there
+# would be admitted and then fail at the kubelet with an unknown runtime
+# handler, which is exactly what the selector prevents. Any node added to the
+# extension list in ng/talos/cluster.yaml is covered automatically as long as
+# it is a control-plane node; anything else needs this selector revisited.
 ---
 apiVersion: node.k8s.io/v1
 kind: RuntimeClass
@@ -25,4 +26,4 @@ overhead:
     memory: 64Mi
 scheduling:
   nodeSelector:
-    kubernetes.io/hostname: cp-2
+    node-role.kubernetes.io/control-plane: ""

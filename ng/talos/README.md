@@ -243,6 +243,62 @@ unknown runtime handler.
 KVM needs no configuration — Talos builds `kvm`, `kvm_amd` and `kvm_intel` into
 the kernel rather than shipping them as modules.
 
+### gVisor
+
+`cp-2` also carries `siderolabs/gvisor`. Where kata gives a pod its own kernel
+in a VM, gVisor gives it a userspace kernel — the sentry — which intercepts
+syscalls in a normal host process. Cheaper than a VM, a narrower syscall surface
+than runc, and no virtualization needed.
+
+Unlike kata it is not extension-only. It needs machine config too, which is what
+the per-node `patches:` key in `cluster.yaml` delivers:
+
+```yaml
+cp-2:
+  extensions:
+    - siderolabs/gvisor
+  patches:
+    - gvisor.yaml
+```
+
+`patches/gvisor.yaml` does two things. It raises `user.max_user_namespaces` —
+Talos ships it at 0 per the KSPP recommendation and every runsc container fails
+to start without it, which is why the sysctl is scoped to this node rather than
+put in `common.yaml`. And it registers a `runsc-netraw` containerd handler
+running stock runsc with two flags:
+
+| flag | why |
+|---|---|
+| `--net-raw` | without it runsc strips `CAP_NET_RAW`, so ping, dhclient and dockerd get `EPERM` |
+| `--allow-packet-socket-write` | Docker 28+ sends unsolicited ARP/NA when bringing an interface up |
+
+Both let the sandbox craft arbitrary packets onto the pod network. That is a
+real weakening of gVisor's *network* isolation — the syscall boundary is
+untouched — so the extension's own flagless `runsc` handler is left registered
+and unused rather than overridden. The `gvisor` RuntimeClass
+(`ng/flux/infrastructure/gvisor`) points at `runsc-netraw` and pins scheduling
+to `cp-2` by hostname, since it is the only node with the extension.
+
+```yaml
+spec:
+  runtimeClassName: gvisor
+```
+
+Two Talos rules constrain how that config is written, and both fail *hard* —
+`writeUserFiles` aborts the boot sequence before the kubelet starts, leaving the
+node up on `apid` but `NotReady` with `/etc/kubernetes` read-only:
+
+- **`machine.files` may only `create` under `/var`.** Anywhere else needs
+  `overwrite` or `append` on a file that already exists. That is why the runsc
+  config lives at `/var/cri/conf.d/runsc-netraw.toml`.
+- **There is exactly one CRI drop-in path**, `/etc/cri/conf.d/20-customization.part`.
+  Talos special-cases it and injects the content as a config patch; any other
+  name under that directory falls through to the file writer and hits the rule
+  above. All CRI customization for a node shares that one file.
+
+Recovery, if it happens anyway: the node still answers `talosctl`, so fix the
+config and `./talos.sh apply <node>` — no console needed.
+
 ## Upgrades
 
 Bump `talos_version` in `cluster.yaml`, then `./talos.sh render`. The installer

@@ -88,6 +88,12 @@ nodes:
   # registers the containerd runtime handlers by itself; the RuntimeClass
   # objects come from ng/flux/infrastructure/kata.
   #
+  # They also carry gVisor, which needs no virtualization but, unlike kata, does
+  # need machine config to go with the extension — a sysctl and the CRI handler
+  # definition. That is what 'patches' is for: files under patches/ applied to
+  # the listed node alone. All three must carry the same pair, or a pod that
+  # asks for the 'gvisor' RuntimeClass fails at whichever node it lands on.
+  #
   # Deliberately not on edge-0: it is a cloud instance with no nested
   # virtualization, and adding an extension there rewrites its machine config,
   # which is its OpenStack user_data — Terraform would destroy and recreate the
@@ -98,18 +104,27 @@ nodes:
     address6: fdde:c64:7096::11
     extensions:
       - siderolabs/kata-containers
+      - siderolabs/gvisor
+    patches:
+      - gvisor.yaml
   cp-1:
     type: controlplane
     address: 10.200.0.12
     address6: fdde:c64:7096::12
     extensions:
       - siderolabs/kata-containers
+      - siderolabs/gvisor
+    patches:
+      - gvisor.yaml
   cp-2:
     type: controlplane
     address: 10.200.0.13
     address6: fdde:c64:7096::13
     extensions:
       - siderolabs/kata-containers
+      - siderolabs/gvisor
+    patches:
+      - gvisor.yaml
 
   # Cloud worker on Infomaniak OpenStack (see ng/openstack). It is not on the
   # LAN: its physical NIC takes a DHCP lease from the cloud and exists only to

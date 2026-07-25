@@ -1,0 +1,61 @@
+# gVisor, for nodes that carry the siderolabs/gvisor extension.
+#
+# The extension already registers a stock 'runsc' handler pointing at its own
+# /etc/cri/conf.d/runsc.toml, which sets no flags at all. That file ships inside
+# the extension's read-only layer, so the flags we want cannot be added to it.
+# Instead this registers a second handler, 'runsc-netraw', with a config file of
+# our own — the stock handler stays available and untouched.
+#
+# The 'runsc_config' table is a plain string map that the containerd shim turns
+# into runsc command-line flags, so values are quoted strings, not booleans.
+
+machine:
+  sysctls:
+    # gVisor's sentry creates an unprivileged user namespace per sandbox. Talos
+    # follows the KSPP recommendation and ships this at 0, which makes every
+    # runsc container fail to start. Nodes without the extension keep the
+    # hardened default — that is why this lives here and not in common.yaml.
+    user.max_user_namespaces: "11255"
+
+  files:
+    # This exact path, and no other. Talos special-cases it: rather than writing
+    # a file, it injects the content as a CRI config patch. Any other name under
+    # /etc/cri/conf.d falls through to the generic file writer, which refuses to
+    # create anything outside /var — and a failed file write aborts the whole
+    # boot sequence at writeUserFiles, before the kubelet ever starts.
+    #
+    # Being the one customization slot, it is also where any future CRI config
+    # for this node has to go. Add to this table, do not add a second file.
+    - path: /etc/cri/conf.d/20-customization.part
+      op: create
+      permissions: 0o644
+      content: |
+        [plugins."io.containerd.cri.v1.runtime".containerd.runtimes.runsc-netraw]
+          runtime_type = "io.containerd.runsc.v1"
+
+        [plugins."io.containerd.cri.v1.runtime".containerd.runtimes.runsc-netraw.options]
+          TypeUrl = "io.containerd.runsc.v1.options"
+          ConfigPath = "/var/cri/conf.d/runsc-netraw.toml"
+
+    # Under /var because that is the only tree machine.files may create in. It
+    # is read by runsc via the ConfigPath above, not by containerd's config
+    # merger, so living outside /etc/cri/conf.d costs nothing.
+    - path: /var/cri/conf.d/runsc-netraw.toml
+      op: create
+      permissions: 0o644
+      content: |
+        [runsc_config]
+          # Raw sockets. Without this runsc strips CAP_NET_RAW from the
+          # container, so anything that opens an AF_PACKET or SOCK_RAW socket
+          # — ping, dhclient, dockerd — gets EPERM.
+          net-raw = "true"
+
+          # Writes on AF_PACKET sockets, which net-raw alone does not grant.
+          # Docker 28+ sends unsolicited ARP/NA when it brings an interface up
+          # and fails without it.
+          #
+          # Both flags hand the sandbox the ability to craft arbitrary packets
+          # onto the pod's network. That is a real weakening of the gVisor
+          # boundary on the network side — the syscall boundary is unaffected —
+          # so it belongs to this handler only, never to the stock 'runsc'.
+          allow-packet-socket-write = "true"

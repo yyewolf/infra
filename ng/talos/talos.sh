@@ -470,8 +470,20 @@ cmd_render() {
             fi
         } >"$patch"
 
+        # Extra patches this node asked for in cluster.yaml. They sit between
+        # the generated patch and the hardware facts on purpose: a node patch
+        # may reference nothing derived from cluster.yaml, and nodes/<n>.yaml
+        # stays the last word on the install disk.
+        local extra_patches=()
+        for p in $(node_field "$n" 'patches[]?'); do
+            [ -f "$DIR/patches/$p" ] ||
+                die "node $n lists patch '$p' but $DIR/patches/$p does not exist"
+            extra_patches+=(--patch "@$DIR/patches/$p")
+        done
+
         (umask 077 && talosctl machineconfig patch "$OUT/base/$type.yaml" \
             --patch "@$patch" \
+            "${extra_patches[@]+"${extra_patches[@]}"}" \
             --patch "@$DIR/nodes/$n.yaml" \
             --output "$OUT/$n.yaml")
         info "rendered $OUT/$n.yaml ($type, $address)"
