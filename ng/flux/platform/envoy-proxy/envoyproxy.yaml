@@ -11,9 +11,9 @@ spec:
           nodeSelector:
             kubernetes.io/hostname: edge-0
           tolerations:
-            - key: edge-0
-              value: "true"
-              effect: NoSchedule
+          - key: edge-0
+            value: "true"
+            effect: NoSchedule
       envoyService:
         type: LoadBalancer
         externalTrafficPolicy: Local

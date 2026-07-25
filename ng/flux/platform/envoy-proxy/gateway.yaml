@@ -5,54 +5,26 @@ metadata:
 spec:
   gatewayClassName: eg
   listeners:
-    - protocol: HTTP
-      port: 80
-      name: http
-      allowedRoutes:
-        namespaces:
-          from: All
-    - protocol: HTTPS
-      port: 443
-      name: https
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - kind: Secret
-            group: ""
-            name: hackcorp-host-secret
-            namespace: cert-manager
-          - kind: Secret
-            group: ""
-            name: yewolf.fr
-            namespace: cert-manager
-      allowedRoutes:
-        namespaces:
-          from: All
-    - protocol: QUIC
-      port: 443
-      name: https-http3-yewolf
-      hostname: "*.yewolf.fr"
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - kind: Secret
-            group: ""
-            name: yewolf.fr
-            namespace: cert-manager
-      allowedRoutes:
-        namespaces:
-          from: All
-    - protocol: QUIC
-      port: 443
-      name: https-http3-hackcorp
-      hostname: "*.hackcorp.net"
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - kind: Secret
-            group: ""
-            name: hackcorp-host-secret
-            namespace: cert-manager
-      allowedRoutes:
-        namespaces:
-          from: All
+  - protocol: HTTP
+    port: 80
+    name: http
+    allowedRoutes:
+      namespaces:
+        from: All
+  - protocol: HTTPS
+    port: 443
+    name: https
+    tls:
+      mode: Terminate
+      certificateRefs:
+      - kind: Secret
+        group: ""
+        name: hackcorp-host-secret
+        namespace: cert-manager
+      - kind: Secret
+        group: ""
+        name: yewolf.fr
+        namespace: cert-manager
+    allowedRoutes:
+      namespaces:
+        from: All
