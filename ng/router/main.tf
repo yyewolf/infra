@@ -95,10 +95,10 @@ module "wireguard" {
   source = "./modules/wireguard"
 
   interface_name    = "wireguard1"
+  interface_list    = var.lan_interface_list
   comment           = local.wg_self_name
   private_key       = local.wg_self_secret.private_key
   listen_port       = local.wg_self.listen_port
   interface_address = local.wg_self.address
-  lan_subnet        = local.lan_subnet
   peers             = local.wg_peers
 }

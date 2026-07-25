@@ -1,9 +1,16 @@
 secrets:
+    admin-0:
+        private_key: ENC[AES256_GCM,data:tCyD8KO/3P6pkADVPUbmze+A9yGYQFiFpfoeblY1X3h4NYXvTe1A25LHqR0=,iv:zOm94gv5MERY04qYy4CSWAcjjTNwpFDLMocRRr0dnNc=,tag:e4nkQocx7diXE7faU/nQzQ==,type:str]
     edge-0:
-        private_key: ENC[AES256_GCM,data:H9r4waOHH68DuPUJ9et50Nup8yatkpAKqxTJ7ThPgO331n0AAf+LtqE67FU=,iv:6jMMI5Hu5RAhNF0gS4/AF9+I0dIIES4wIQy1JoDpzJ4=,tag:Qe2xKiupmJsrnEHWkottVA==,type:str]
+        private_key: ENC[AES256_GCM,data:XYGHUeHR2dYrUeAS6hFqKEdQSYZtsd2iIpdAYTTmtcKxMvPX8ceHLS5QHRQ=,iv:ZO5FE6r4Pmq/i94nSrYtlsM3EqjhycaIyKB/xcCtt8U=,tag:rTq6AHsBjhF3fHhTbgwKDA==,type:str]
     home-router-0:
-        private_key: ENC[AES256_GCM,data:BhROG3/njRqqOS6IZ1ru6Do/JT5DoQgb/R2RD+zEce0h7H9toiPSyS9Ocbw=,iv:GgCLLjH+4XijLwRrgNaFZ60u851CPLHu9aFnl95AVEI=,tag:pHujE5bKvsSURhjjdcpdrg==,type:str]
+        private_key: ENC[AES256_GCM,data:9nqMT0hfRtV72zLK1NMh8SM9D3hfjwd8ZUmJN7/SzHSF0eyQ88Id1eaxvdk=,iv:+nbpFTbUJiVHqwB3ZukRy+8u2zwlrX1XBvHfs+TdPEE=,tag:p98qZEdM5gInLh5ptUFeXg==,type:str]
 identities:
+    admin-0:
+        public_key: qs+JUzKunKBQNoiG7xmerFZvFjkzl9ZGY1C5ZS8DIkg=
+        address: 10.200.255.3/32
+        listen_port: 51820
+        endpoint: 192.168.1.52:51820
     edge-0:
         public_key: CP0GXWk5wT9Pb3TAijdzGCtXkH7WmnQ4Q0cfuUkNEBk=
         address: 10.200.255.2/32
@@ -16,29 +23,29 @@ identities:
         endpoint: ""
 sops:
     encrypted_regex: ^(data|stringData|secrets)$
-    lastmodified: "2026-07-23T19:17:33Z"
-    mac: ENC[AES256_GCM,data:4AZJH0aGLCFzP+3dRDCbRpAWa8sPxp2wC1ody32KRBLR3M+v9eG85A8xOicC90kY2ERtDjUVxlsuOlnoFNXgYvEodLOKSsWOHyQWR8gMhwew3aWw8nfiJkYCaie5nn+w5gdu35koLsXKI5n8xJHEjgHOH0mqvSWRm602qyeaqzo=,iv:LYDfBPDpy7eIUI3Bq1G73QXjg4zT6vktF3DK4mMa5mo=,tag:j1DlfByBPqtF5kFi4ai/OQ==,type:str]
+    lastmodified: "2026-07-25T09:07:56Z"
+    mac: ENC[AES256_GCM,data:h4302dGmkBqbC6FWbkO3duApNijwk7awSFJiz4U+C8v8tI5eJlCFTV0RputGo6+CMNXmo+DZ82apqiDRDC+Irmxo9E/tKAL25oij7y4AuyzCqMRSzrvwKr2H9jK4gnxfawhXeVK2grrFUkfD85n98JCsDw41qbFWvRI1KuJlWKQ=,iv:VUYYuKF88bWXoiAV4IScoRp/v030oCTblfZL3fPorCU=,tag:a8+207x435/yfr3wJ9F36g==,type:str]
     pgp:
-        - created_at: "2026-07-23T19:17:33Z"
+        - created_at: "2026-07-25T09:07:25Z"
           enc: |-
             -----BEGIN PGP MESSAGE-----
 
-            hF4DC4LUCsV/V+wSAQdAebbCu/o81xRE4gcGkSubXi56LCSydTgil9M3hKFuxTYw
-            hKRUa881jQXgkwVDJtaFg5jNfvCN1Ege8MqkuNjJ0WPoCGD7QbcZ4p4Y2h0NAWDV
-            0l4BMM5MmiPY8XcGW+OtlXIQGWbsXXSZV+kfL36Mlc8GWLYp4nFbaoziIRoA58nB
-            0fiLkVnEiqIQviUWD34ZOo1roeALTnIiN/TKALiYYrXHa9saPnJ1HQjWx33kicwo
-            =vwph
+            hF4DC4LUCsV/V+wSAQdAGVUYnxheHmUK0MV3kUEWi9LKq26lXln9pGJ6l14DTHMw
+            x0NAQKro/y3fYCtQQ8+nCiKrYVbpDE912ZE+HY3hughRjhCgg+u6t+sNFpBnMIHv
+            0l4BuSMH2QS/BqoQM6KQ6L0691NWUTbU9ykYwwyJl+dAX3zdSGjX/LIuSL9gbKWm
+            bQt225N9Oh995l0GY0kEvNLu+fqKzYMyIAirJzpdgpHoLFx9NOPYqQuBD1EzpwBQ
+            =wYv5
             -----END PGP MESSAGE-----
           fp: 459895EB0A5F446D3831E99F95F6A162E4A71B06
-        - created_at: "2026-07-23T19:17:33Z"
+        - created_at: "2026-07-25T09:07:25Z"
           enc: |-
             -----BEGIN PGP MESSAGE-----
 
-            hF4D8q6e3Tem1ZoSAQdAM7FoTnaMJ4mI4vVkOjh2/RCONkNwyOJZer0Aw5AAtiww
-            JaGMhFswZ8diAXxF3+stB4X9vzDj3tmBjQqGwiIb/+BL8O70pvVBqdyn58qtSxS2
-            0l4BFKyVSnOzpB0CXMV2frYlKfmMyAANy1t6dvb6g5ry+DRHwvOot+UPP8W9sHUz
-            QvKXjs/P21zJzq5rPKZN8r8A3RDb52110jzmFlio4g8ut3vhE2fUMdrOn4qtHNkL
-            =TQQs
+            hF4D8q6e3Tem1ZoSAQdAXgDLu8IM/N7vawjVchP06SVJQv1VwSf6ScIy68thoHIw
+            fcllnOVY2+PxjHcyhTgRUbMwlfzxmFYYMicAqQiH6AtPSLkTYQZ5K+7XWytzygtP
+            0l4Bs1Vo06I/vTUuyJWEQhsbnVflzWYak4kFvbnqVoJTE2cmMsp07/QaZ7qeY3/6
+            buRVsmosV1ky/eNtRtUzkc9IJ4Q6GmyQ/YIN1fkEH5hPPPr4YnjmIQeJrzPdUZOi
+            =Dznv
             -----END PGP MESSAGE-----
           fp: DF7F5D62376A57228F35FE4C665F8C5B8E0732E5
     version: 3.13.1

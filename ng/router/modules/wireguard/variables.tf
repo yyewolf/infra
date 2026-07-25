@@ -25,10 +25,16 @@ variable "interface_address" {
   type        = string
 }
 
-variable "lan_subnet" {
-  description = "Optional LAN subnet to include in each peer's allowed_address"
+variable "interface_list" {
+  description = "Interface list to add the WireGuard interface to, so firewall rules can treat the tunnel as inside. Null leaves it out of every list"
   type        = string
   default     = null
+}
+
+variable "persistent_keepalive" {
+  description = "Keepalive interval for peers we dial, keeps the NAT mapping on our side open so the peer can reach us"
+  type        = string
+  default     = "25s"
 }
 
 variable "peers" {
@@ -37,6 +43,7 @@ variable "peers" {
     public_key = string
     address    = string
     endpoint   = optional(string)
+    routes     = optional(list(string), [])
   }))
   default = {}
 }

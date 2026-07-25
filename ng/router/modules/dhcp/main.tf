@@ -13,13 +13,13 @@ resource "routeros_ip_pool" "pool" {
 }
 
 resource "routeros_ip_dhcp_server" "server" {
-  name          = var.name
-  interface     = var.interface
-  address_pool  = routeros_ip_pool.pool.name
-  lease_time    = var.lease_time
+  name                      = var.name
+  interface                 = var.interface
+  address_pool              = routeros_ip_pool.pool.name
+  lease_time                = var.lease_time
   dynamic_lease_identifiers = "client-mac,client-id"
-  authoritative = "yes"
-  add_arp       = true
+  authoritative             = "yes"
+  add_arp                   = true
 }
 
 resource "routeros_ip_dhcp_server_network" "network" {
