@@ -16,6 +16,12 @@ variable "lan_interface_list" {
   default     = "LAN"
 }
 
+variable "blocked_lan_destinations" {
+  description = "Subnets LAN clients must not reach through the router, typically the upstream network on the WAN side"
+  type        = list(string)
+  default     = []
+}
+
 variable "wan_interface_list" {
   description = "Interface list name for WAN interfaces"
   type        = string

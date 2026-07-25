@@ -1,7 +1,7 @@
 terraform {
   required_providers {
     routeros = {
-      source  = "terraform-routeros/routeros"
+      source = "terraform-routeros/routeros"
     }
   }
 }
@@ -26,5 +26,6 @@ resource "routeros_ip_dhcp_client" "wan" {
 }
 
 resource "routeros_ip_dns" "dns" {
-  mdns_repeat_ifaces = [var.interface_name]
+  mdns_repeat_ifaces    = [var.interface_name]
+  allow_remote_requests = true
 }

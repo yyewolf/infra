@@ -57,6 +57,17 @@ resource "routeros_ip_firewall_filter" "input_drop_not_lan" {
   in_interface_list = "!${var.lan_interface_list}"
 }
 
+resource "routeros_ip_firewall_filter" "forward_drop_blocked_destinations" {
+  for_each = toset(var.blocked_lan_destinations)
+
+  action            = "drop"
+  chain             = "forward"
+  comment           = "drop LAN traffic to ${each.key}"
+  dst_address       = each.key
+  in_interface_list = var.lan_interface_list
+  place_before      = routeros_ip_firewall_filter.forward_ipsec_in.id
+}
+
 resource "routeros_ip_firewall_filter" "forward_ipsec_in" {
   action       = "accept"
   chain        = "forward"
@@ -102,9 +113,9 @@ resource "routeros_ip_firewall_filter" "forward_drop_wan_new" {
 }
 
 resource "routeros_ip_firewall_nat" "srcnat_masquerade" {
-  action            = "masquerade"
-  chain             = "srcnat"
-  comment           = "defconf: masquerade"
-  ipsec_policy      = "out,none"
+  action             = "masquerade"
+  chain              = "srcnat"
+  comment            = "defconf: masquerade"
+  ipsec_policy       = "out,none"
   out_interface_list = var.wan_interface_list
 }
