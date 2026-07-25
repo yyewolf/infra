@@ -3,6 +3,7 @@ kind: Kustomization
 namespace: envoy-gateway-system
 
 resources:
-  - envoyproxy.yaml
-  - gatewayclass.yaml
-  - gateway.yaml
+- envoyproxy.yaml
+- gatewayclass.yaml
+- gateway.yaml
+- http3.yaml

@@ -37,11 +37,11 @@ spec:
     - world
     toPorts:
     - ports:
-      - port: "80"
+      - port: "10080"
         protocol: TCP
-      - port: "443"
+      - port: "10443"
         protocol: TCP
-      - port: "443"
+      - port: "10443"
         protocol: UDP
   egress:
   - toEntities:
