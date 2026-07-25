@@ -5,3 +5,5 @@ resources:
   - infrastructure/cilium/ks.yaml
   - platform/cert-manager/ks.yaml
   - platform/certificates/ks.yaml
+  - platform/envoy-gateway/ks.yaml
+  - platform/envoy-proxy/ks.yaml

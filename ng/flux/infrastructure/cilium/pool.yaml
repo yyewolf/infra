@@ -1,0 +1,20 @@
+apiVersion: "cilium.io/v2alpha1"
+kind: CiliumLoadBalancerIPPool
+metadata:
+  name: envoy-public-ips
+spec:
+  blocks:
+    - cidr: "83.228.250.128/32"
+    - cidr: "2001:1600:16:10::227/128"
+---
+apiVersion: "cilium.io/v2alpha1"
+kind: CiliumL2AnnouncementPolicy
+metadata:
+  name: envoy-l2-policy
+spec:
+  loadBalancerIPs: true
+  nodeSelector:
+    matchLabels:
+      kubernetes.io/hostname: edge-0
+  interfaces:
+    - "^ens"

@@ -38,7 +38,7 @@ ng/
 ├── flux/                 # Flux CD configuration
     ├── flux-system/      # Bootstrap — do not hand-edit
     ├── infrastructure/   # Cluster-critical: Cilium, CNI, storage, ingress
-    ├── platform/         # Services apps depend on: cert-manager, monitoring
+    ├── platform/         # Services apps depend on: cert-manager, envoy, monitoring
     └── apps/             # User applications
 ```
 
@@ -64,7 +64,7 @@ ng/
   - **Adding a new app**: create `platform/<app>/` with `ks.yaml` + `kustomization.yaml` + resources, then add `platform/<app>/ks.yaml` to the root `ng/flux/kustomization.yaml`. The root Kustomization is the only place per-app KS CRDs are collected — not the parent directory.
   - The old directory-level Kustomizations (`infrastructure`, `platform`, `apps`) are deliberately absent. A per-app `cilium` Kustomization replaces them; the `ks.yaml` lives at `infrastructure/cilium/ks.yaml`, not `infrastructure/ks.yaml`.
 - **edge-0 taint** — the cloud worker node carries `edge-0=true:NoSchedule`. Applications that tolerate this run on the edge (usually stateless, ingress-terminating workloads). Everything else stays on the LAN nodes by default — no `nodeSelector` needed on every workload.
-- **Cilium is Flux-managed** via a HelmRelease in `ng/flux/infrastructure/cilium/`. The original `ng/cluster/cilium/values.yaml` is kept as documentation but is no longer consumed by `install.sh`. When changing Cilium values, update both files to keep them in sync.
+- **Envoy Gateway** is the ingress controller (`envoy-gateway` KS). CRDs are installed via the `gateway-crds` Helm chart (`crds.gatewayAPI.channel: experimental` + `crds.envoyGateway.enabled: true`), the controller via the `eg` chart (`install.crds: Skip` since CRDs are managed separately). The proxy (`envoy-proxy` KS) is pinned to `edge-0` via `EnvoyProxy`, uses `externalIPs` to bind the public addresses directly, and terminates TLS with QUIC/HTTP3 listeners. HTTP/HTTPS (TCP 80, 443) plus QUIC (UDP 443) are opened in the OpenStack security group.
 - **Infomaniak has no floating IPs at all** — no network in the project is flagged `external`, so there is no pool to allocate from, and floating IPs are an IPv4 NAT construct with no IPv6 equivalent on any OpenStack. Instances attach directly to a shared dual-stack provider network (`ext-net1`: 21 public v4 /24s + `2001:1600:16:10::/64`, `dhcpv6-stateful`) and the port holds the public v4 and v6. `ext-v6only1` is the v6-only alternative. Do not reintroduce floating-IP or `enable_v6_fip`-style resources.
 - **The edge-0 port is directly on the internet** — no NAT, no floating-IP indirection. The security group is the only thing in front of apid (50000) and the kubelet (10250). Neutron denies ingress by default, so the rules in `main.tf` are exhaustive; adding one exposes a port to the world.
 - **edge-0's public IPv6 is ingress only** — never make it the node's Kubernetes address. `kubelet.nodeIP.validSubnets` pins the node to the WireGuard overlay; registering under the public v6 would route inter-node traffic over the open internet.
@@ -124,9 +124,12 @@ cd ng/openstack && terraform init
 flux bootstrap git --url=https://github.com/yyewolf/infra.git --branch=main --path=./ng/flux
 
 # Force Flux to reconcile (without waiting for the interval)
+flux reconcile kustomization shared
 flux reconcile kustomization cilium
 flux reconcile kustomization cert-manager
 flux reconcile kustomization certificates
+flux reconcile kustomization envoy-gateway
+flux reconcile kustomization envoy-proxy
 
 # Watch Flux status
 flux get kustomizations --watch

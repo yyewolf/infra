@@ -1,0 +1,21 @@
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyProxy
+metadata:
+  name: edge-proxy
+spec:
+  provider:
+    type: Kubernetes
+    kubernetes:
+      envoyDeployment:
+        pod:
+          nodeSelector:
+            kubernetes.io/hostname: edge-0
+          tolerations:
+            - key: edge-0
+              value: "true"
+              effect: NoSchedule
+      envoyService:
+        type: LoadBalancer
+        externalTrafficPolicy: Local
+        annotations:
+          io.cilium/lb-ipam-ips: "83.228.250.128,2001:1600:16:10::227"

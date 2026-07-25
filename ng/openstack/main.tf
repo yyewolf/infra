@@ -162,6 +162,76 @@ resource "openstack_networking_secgroup_rule_v2" "icmp_v6" {
   description       = "ICMPv6: NDP and PMTUD, required for working IPv6"
 }
 
+# Envoy Gateway terminates HTTP, HTTPS, and QUIC/HTTP3 on edge-0's public
+# IPs. The proxy listens on externalIPs set via EnvoyProxy, so the traffic
+# lands directly on the VM's NIC. Opens both families: dual-stack services
+# that bind a v6 address are unreachable without this.
+resource "openstack_networking_secgroup_rule_v2" "http_v4" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 80
+  port_range_max    = 80
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = openstack_networking_secgroup_v2.edge.id
+  description       = "Envoy Gateway HTTP"
+}
+
+resource "openstack_networking_secgroup_rule_v2" "https_v4" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 443
+  port_range_max    = 443
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = openstack_networking_secgroup_v2.edge.id
+  description       = "Envoy Gateway HTTPS"
+}
+
+resource "openstack_networking_secgroup_rule_v2" "quic_v4" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "udp"
+  port_range_min    = 443
+  port_range_max    = 443
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = openstack_networking_secgroup_v2.edge.id
+  description       = "Envoy Gateway QUIC/HTTP3"
+}
+
+resource "openstack_networking_secgroup_rule_v2" "http_v6" {
+  direction         = "ingress"
+  ethertype         = "IPv6"
+  protocol          = "tcp"
+  port_range_min    = 80
+  port_range_max    = 80
+  remote_ip_prefix  = "::/0"
+  security_group_id = openstack_networking_secgroup_v2.edge.id
+  description       = "Envoy Gateway HTTP over IPv6"
+}
+
+resource "openstack_networking_secgroup_rule_v2" "https_v6" {
+  direction         = "ingress"
+  ethertype         = "IPv6"
+  protocol          = "tcp"
+  port_range_min    = 443
+  port_range_max    = 443
+  remote_ip_prefix  = "::/0"
+  security_group_id = openstack_networking_secgroup_v2.edge.id
+  description       = "Envoy Gateway HTTPS over IPv6"
+}
+
+resource "openstack_networking_secgroup_rule_v2" "quic_v6" {
+  direction         = "ingress"
+  ethertype         = "IPv6"
+  protocol          = "udp"
+  port_range_min    = 443
+  port_range_max    = 443
+  remote_ip_prefix  = "::/0"
+  security_group_id = openstack_networking_secgroup_v2.edge.id
+  description       = "Envoy Gateway QUIC/HTTP3 over IPv6"
+}
+
 # An explicit port rather than letting Nova create one, so the addresses are a
 # first-class output and the security group is attached before the instance
 # ever boots.

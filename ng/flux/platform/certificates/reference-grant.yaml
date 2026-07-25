@@ -6,7 +6,7 @@ spec:
   from:
   - group: gateway.networking.k8s.io
     kind: Gateway
-    namespace: kgateway
+    namespace: envoy-gateway-system
   to:
   - group: ""
     kind: Secret
