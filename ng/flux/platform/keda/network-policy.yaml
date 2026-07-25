@@ -1,0 +1,242 @@
+# One policy per workload. Cilium's default-deny is per-direction and per-
+# endpoint: a rule with only `egress` leaves that endpoint's ingress wide open,
+# so ingress is spelled out wherever the set of callers is actually fixed.
+#
+# Nothing here may reach `world`. A trigger that talks to a cloud API (SQS,
+# Azure Service Bus, ...) needs a toFQDNs rule added to keda-operator.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: keda-operator
+spec:
+  endpointSelector:
+    matchLabels:
+      app: keda-operator
+  ingress:
+  # The metrics adapter pulls metric values over gRPC.
+  - fromEndpoints:
+    - matchLabels:
+        app: keda-operator-metrics-apiserver
+    toPorts:
+    - ports:
+      - port: "9666"
+        protocol: TCP
+  egress:
+  - toEntities:
+    - kube-apiserver
+    toPorts:
+    - ports:
+      - port: "6443"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+  # Trigger scalers dial whatever a ScaledObject points at — the HTTP add-on's
+  # external scaler today, a Prometheus or a broker tomorrow. The target set is
+  # user-defined, so it can only be bounded to the cluster.
+  - toEntities:
+    - cluster
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: keda-operator-metrics-apiserver
+spec:
+  endpointSelector:
+    matchLabels:
+      app: keda-operator-metrics-apiserver
+  ingress:
+  # Registered as an APIService, so the aggregation layer calls in.
+  - fromEntities:
+    - kube-apiserver
+    toPorts:
+    - ports:
+      - port: "6443"
+        protocol: TCP
+  egress:
+  - toEntities:
+    - kube-apiserver
+    toPorts:
+    - ports:
+      - port: "6443"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        app: keda-operator
+    toPorts:
+    - ports:
+      - port: "9666"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: keda-admission-webhooks
+spec:
+  endpointSelector:
+    matchLabels:
+      app: keda-admission-webhooks
+  ingress:
+  - fromEntities:
+    - kube-apiserver
+    toPorts:
+    - ports:
+      - port: "9443"
+        protocol: TCP
+  egress:
+  - toEntities:
+    - kube-apiserver
+    toPorts:
+    - ports:
+      - port: "6443"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: keda-add-ons-http-operator
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: keda-add-ons-http
+      app.kubernetes.io/component: operator
+  egress:
+  - toEntities:
+    - kube-apiserver
+    toPorts:
+    - ports:
+      - port: "6443"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: keda-add-ons-http-interceptor
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: keda-add-ons-http
+      app.kubernetes.io/component: interceptor
+  ingress:
+  # Proxy port. Requests arrive from the Envoy proxy, because an HTTPRoute for
+  # a scaled app names this Service as its backend. An in-cluster client
+  # calling a scaled app directly would have to be added here.
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: envoy-gateway-system
+        app.kubernetes.io/name: envoy
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
+  # Admin port. The external scaler polls it for the pending-request count.
+  - fromEndpoints:
+    - matchLabels:
+        app.kubernetes.io/part-of: keda-add-ons-http
+        app.kubernetes.io/component: scaler
+    toPorts:
+    - ports:
+      - port: "9090"
+        protocol: TCP
+  egress:
+  - toEntities:
+    - kube-apiserver
+    toPorts:
+    - ports:
+      - port: "6443"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+  # Forwards to the Service named by each HTTPScaledObject's scaleTargetRef,
+  # in whatever namespace the app lives.
+  - toEntities:
+    - cluster
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: keda-add-ons-http-scaler
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: keda-add-ons-http
+      app.kubernetes.io/component: scaler
+  ingress:
+  # KEDA's operator is the only gRPC client of an external scaler.
+  - fromEndpoints:
+    - matchLabels:
+        app: keda-operator
+    toPorts:
+    - ports:
+      - port: "9090"
+        protocol: TCP
+  egress:
+  - toEntities:
+    - kube-apiserver
+    toPorts:
+    - ports:
+      - port: "6443"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        app.kubernetes.io/part-of: keda-add-ons-http
+        app.kubernetes.io/component: interceptor
+    toPorts:
+    - ports:
+      - port: "9090"
+        protocol: TCP

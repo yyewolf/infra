@@ -1,0 +1,57 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: keda-add-ons-http
+spec:
+  interval: 30m
+  dependsOn:
+    - name: keda
+  chart:
+    spec:
+      chart: keda-add-ons-http
+      version: "0.15.0"
+      sourceRef:
+        kind: HelmRepository
+        name: keda
+      interval: 12h
+  install:
+    crds: CreateReplace
+  upgrade:
+    crds: CreateReplace
+  values:
+    # The interceptor sits in the request path: it holds a request open while
+    # the target scales from zero, then forwards it. Every scale-to-zero route
+    # goes through keda-add-ons-http-interceptor-proxy:8080 in this namespace.
+    interceptor:
+      replicas:
+        min: 1
+        max: 10
+      # How long a held request waits for the target to have a ready replica
+      # before the interceptor gives up.
+      readinessTimeout: 30s
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          memory: 256Mi
+      pdb:
+        enabled: false
+
+    # The external scaler KEDA queries for pending-request counts.
+    scaler:
+      replicas: 1
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          memory: 256Mi
+
+    operator:
+      resources:
+        requests:
+          cpu: 25m
+          memory: 64Mi
+        limits:
+          memory: 256Mi
