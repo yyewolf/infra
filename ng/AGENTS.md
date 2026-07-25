@@ -27,12 +27,19 @@ ng/
 │   ├── variables.tf      # flavor, networks, instance name
 │   └── tf.sh             # State encryption wrapper
 ├── talos/                # Talos cluster definition (see talos/README.md)
-    ├── cluster.yaml      # Addressing, versions, node inventory — source of truth
-    ├── schematic.yaml    # Image Factory schematic
-    ├── secrets-sops-all.yaml  # Cluster PKI, fully encrypted
-    ├── patches/          # common / controlplane / worker config patches
-    ├── nodes/            # Per-node hardware facts (install disk)
-    └── talos.sh          # Driver: iso, usb, secrets, render, apply, bootstrap
+│   ├── cluster.yaml      # Addressing, versions, node inventory — source of truth
+│   ├── schematic.yaml    # Image Factory schematic
+│   ├── secrets-sops-all.yaml  # Cluster PKI, fully encrypted
+│   ├── patches/          # common / controlplane / worker config patches
+│   ├── nodes/            # Per-node hardware facts (install disk)
+│   └── talos.sh          # Driver: iso, usb, secrets, render, apply, bootstrap
+├── cluster/              # Cluster infrastructure values (reference)
+│   └── cilium/           # Cilium values.yaml — applied via Flux, kept as doc
+├── flux/                 # Flux CD configuration
+    ├── flux-system/      # Bootstrap — do not hand-edit
+    ├── infrastructure/   # Cluster-critical: Cilium, CNI, storage, ingress
+    ├── platform/         # Services apps depend on: cert-manager, monitoring
+    └── apps/             # User applications
 ```
 
 ## Key conventions
@@ -50,6 +57,13 @@ ng/
 - **WireGuard addresses are cross-checked** — `talos.sh render` reads `ng/wireguard/identities-sops.yaml` and refuses to render if a node's address there disagrees with `cluster.yaml`. The router derives its routes from the same registry, so a mismatch would produce a tunnel that handshakes and carries nothing.
 - **`gen-identity.sh` regenerates the keypair every run** — re-running it for a deployed node invalidates that node's rendered config. Set the endpoint at the same time as the initial key, not afterwards.
 - **`network.wg_mtu` in `talos/cluster.yaml` and `MTU` in `cluster/cilium/values.yaml` must move together** (both 1420). Pod payload 1370 + VXLAN 50 exactly fills the tunnel.
+- **Flux layered sync** — manifests in `ng/flux` are reconciled in three layers with `dependsOn`:
+  - `infrastructure` (no deps): Cilium, CNI, storage, ingress controllers. Installed first because platform and apps depend on the pod network and storage.
+  - `platform` (dependsOn: `infrastructure`): cert-manager, monitoring/observability, external secrets. Services apps need before they can run.
+  - `apps` (dependsOn: `platform`): user-facing applications.
+  - Each layer is a Flux `Kustomization` under `flux-system` namespace, sourced from the same `GitRepository` (`flux-system`) that the bootstrap created. Add new layers by creating a dir with a `ks.yaml` (Flux Kustomization CRD) and referencing it from the root `ng/flux/kustomization.yaml`.
+- **edge-0 taint** — the cloud worker node carries `edge-0=true:NoSchedule`. Applications that tolerate this run on the edge (usually stateless, ingress-terminating workloads). Everything else stays on the LAN nodes by default — no `nodeSelector` needed on every workload.
+- **Cilium is Flux-managed** via a HelmRelease in `ng/flux/infrastructure/cilium/`. The original `ng/cluster/cilium/values.yaml` is kept as documentation but is no longer consumed by `install.sh`. When changing Cilium values, update both files to keep them in sync.
 - **Infomaniak has no floating IPs at all** — no network in the project is flagged `external`, so there is no pool to allocate from, and floating IPs are an IPv4 NAT construct with no IPv6 equivalent on any OpenStack. Instances attach directly to a shared dual-stack provider network (`ext-net1`: 21 public v4 /24s + `2001:1600:16:10::/64`, `dhcpv6-stateful`) and the port holds the public v4 and v6. `ext-v6only1` is the v6-only alternative. Do not reintroduce floating-IP or `enable_v6_fip`-style resources.
 - **The edge-0 port is directly on the internet** — no NAT, no floating-IP indirection. The security group is the only thing in front of apid (50000) and the kubelet (10250). Neutron denies ingress by default, so the rules in `main.tf` are exhaustive; adding one exposes a port to the world.
 - **edge-0's public IPv6 is ingress only** — never make it the node's Kubernetes address. `kubelet.nodeIP.validSubnets` pins the node to the WireGuard overlay; registering under the public v6 would route inter-node traffic over the open internet.
@@ -104,4 +118,15 @@ cd ng/router && terraform init
 
 # Init (no state file needed)
 cd ng/openstack && terraform init
+
+# Bootstrap Flux on the cluster (one-time, after Cilium is healthy)
+flux bootstrap git --url=https://github.com/yyewolf/infra.git --branch=main --path=./ng/flux
+
+# Force Flux to reconcile (without waiting for the interval)
+flux reconcile kustomization infrastructure
+flux reconcile kustomization platform
+flux reconcile kustomization apps
+
+# Watch Flux status
+flux get kustomizations --watch
 ```

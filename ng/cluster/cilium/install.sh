@@ -2,10 +2,10 @@
 #
 # Installs or upgrades Cilium on the ng cluster.
 #
-# This runs by hand rather than through Flux on purpose: Flux needs a working
-# pod network to run at all, so the CNI cannot be the thing Flux installs first.
-# Once Cilium is up and Flux is bootstrapped, this same values.yaml can move to
-# a HelmRelease and this script retires.
+# DEPRECATED: Cilium is now managed by Flux via
+# ng/flux/infrastructure/cilium/helmrelease.yaml. This script is kept for
+# manual recovery if Flux is unavailable. The values.yaml is still the source
+# of truth for Cilium config — keep both files in sync when changing values.
 
 set -euo pipefail
 
