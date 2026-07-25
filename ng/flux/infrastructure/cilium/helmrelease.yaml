@@ -47,26 +47,36 @@ spec:
     securityContext:
       capabilities:
         ciliumAgent:
-          - CHOWN
-          - KILL
-          - NET_ADMIN
-          - NET_RAW
-          - IPC_LOCK
-          - SYS_ADMIN
-          - SYS_RESOURCE
-          - DAC_OVERRIDE
-          - FOWNER
-          - SETGID
-          - SETUID
+        - CHOWN
+        - KILL
+        - NET_ADMIN
+        - NET_RAW
+        - IPC_LOCK
+        - SYS_ADMIN
+        - SYS_RESOURCE
+        - DAC_OVERRIDE
+        - FOWNER
+        - SETGID
+        - SETUID
         cleanCiliumState:
-          - NET_ADMIN
-          - SYS_ADMIN
-          - SYS_RESOURCE
+        - NET_ADMIN
+        - SYS_ADMIN
+        - SYS_RESOURCE
 
     routingMode: tunnel
     tunnelProtocol: vxlan
 
     MTU: 1420
+
+    bpf:
+      masquerade: true
+
+    dnsProxy:
+      enabled: true
+      enableTransparentMode: true
+
+    toFQDNs:
+      enableDNSCompression: true
 
     operator:
       replicas: 2

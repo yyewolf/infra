@@ -32,6 +32,9 @@ spec:
         protocol: UDP
       - port: "53"
         protocol: TCP
+      rules:
+        dns:
+        - matchPattern: "*"
   - toFQDNs:
     - matchName: api.infomaniak.com
     - matchName: haproxy-api.infomaniak.ch
