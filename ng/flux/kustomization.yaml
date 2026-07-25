@@ -8,4 +8,5 @@ resources:
   - platform/cert-manager/ks.yaml
   - platform/certificates/ks.yaml
   - platform/envoy-gateway/ks.yaml
+  - platform/external-dns/ks.yaml
   - platform/envoy-proxy/ks.yaml

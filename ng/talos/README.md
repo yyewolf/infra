@@ -245,21 +245,27 @@ the kernel rather than shipping them as modules.
 
 ### gVisor
 
-`cp-2` also carries `siderolabs/gvisor`. Where kata gives a pod its own kernel
-in a VM, gVisor gives it a userspace kernel — the sentry — which intercepts
-syscalls in a normal host process. Cheaper than a VM, a narrower syscall surface
-than runc, and no virtualization needed.
+`cp-0`, `cp-1` and `cp-2` also carry `siderolabs/gvisor`. Where kata gives a pod
+its own kernel in a VM, gVisor gives it a userspace kernel — the sentry — which
+intercepts syscalls in a normal host process. Cheaper than a VM, a narrower
+syscall surface than runc, and no virtualization needed.
 
 Unlike kata it is not extension-only. It needs machine config too, which is what
 the per-node `patches:` key in `cluster.yaml` delivers:
 
 ```yaml
-cp-2:
+cp-0:
   extensions:
     - siderolabs/gvisor
   patches:
     - gvisor.yaml
 ```
+
+Adding it to a node costs two reboots, in this order: `apply` first, because the
+machine config carries files and Talos refuses to apply that in immediate mode,
+then `upgrade` to land the image that has the extension. Doing it the other way
+round leaves a node briefly running a `runsc-netraw` handler whose shim binary
+does not exist yet.
 
 `patches/gvisor.yaml` does two things. It raises `user.max_user_namespaces` —
 Talos ships it at 0 per the KSPP recommendation and every runsc container fails
@@ -276,8 +282,9 @@ Both let the sandbox craft arbitrary packets onto the pod network. That is a
 real weakening of gVisor's *network* isolation — the syscall boundary is
 untouched — so the extension's own flagless `runsc` handler is left registered
 and unused rather than overridden. The `gvisor` RuntimeClass
-(`ng/flux/infrastructure/gvisor`) points at `runsc-netraw` and pins scheduling
-to `cp-2` by hostname, since it is the only node with the extension.
+(`ng/flux/infrastructure/gvisor`) points at `runsc-netraw` and, like kata's,
+selects the control-plane role — which on this cluster means the three LAN
+hosts, and keeps pods off `edge-0`, which has no extension.
 
 ```yaml
 spec:

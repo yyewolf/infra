@@ -3,12 +3,11 @@ kind: Kustomization
 namespace: cert-manager
 
 resources:
-  - issuer.yaml
-  - key-sops.yaml
-  - api-token-sops.yaml
-  - webhook/repository.yaml
-  - webhook/release.yaml
-  - webhook/network-policy.yaml
-  - yewolf-fr.yaml
-  - hackcorp-net.yaml
-  - reference-grant.yaml
+- issuer.yaml
+- api-token-sops.yaml
+- webhook/repository.yaml
+- webhook/release.yaml
+- webhook/network-policy.yaml
+- yewolf-fr.yaml
+- hackcorp-net.yaml
+- reference-grant.yaml
