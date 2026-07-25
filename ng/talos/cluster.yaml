@@ -1,0 +1,43 @@
+# Non-secret facts about the cluster. This file is the single source of truth
+# for addressing: talos.sh derives each node's network patch from it, so node
+# addresses are never written down twice.
+
+name: ng
+
+# Talos and Kubernetes versions. talos_version also selects the Image Factory
+# build used for the installer and the ISO, so bumping it here is the whole
+# upgrade knob.
+talos_version: v1.13.7
+kubernetes_version: 1.36.3
+
+network:
+  # Matches lan_subnet / lan_gateway in ng/router.
+  subnet: 10.200.0.0/24
+  gateway: 10.200.0.1
+
+  # Shared control-plane address. The elected leader among the control-plane
+  # nodes holds it, so the Kubernetes and Talos endpoints survive losing any
+  # single node. Deliberately below the router's DHCP pool (.100-.254).
+  vip: 10.200.0.10
+
+# Per node: type and address are required. 'interface' is optional and only
+# needed on a host with more than one physical NIC — without it the config
+# matches "the physical interface", which on a two-NIC box would configure the
+# same address on both. Find the name with 'talosctl get links'.
+#
+#   cp-0:
+#     type: controlplane
+#     address: 10.200.0.11
+#     interface: enp1s0
+#
+# Hardware details (the install disk) live in nodes/<name>.yaml instead.
+nodes:
+  cp-0:
+    type: controlplane
+    address: 10.200.0.11
+  cp-1:
+    type: controlplane
+    address: 10.200.0.12
+  cp-2:
+    type: controlplane
+    address: 10.200.0.13

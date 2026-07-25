@@ -1,0 +1,76 @@
+# Cilium for the ng cluster.
+#
+# Talos runs with cni: none and kube-proxy disabled (see
+# ng/talos/patches/controlplane.yaml), so Cilium provides both the pod network
+# and service load balancing. Nothing here is optional decoration — take a
+# setting out and the cluster stops working in a specific way, noted per block.
+
+ipam:
+  mode: kubernetes
+
+kubeProxyReplacement: true
+
+# Talos exposes KubePrism, a node-local load balancer across every API server,
+# on 127.0.0.1:7445. Pointing Cilium there rather than at the VIP solves a
+# bootstrap ordering problem: the agent needs the API before it has set up the
+# pod network that would let it reach a ClusterIP. It also means Cilium does not
+# care which node currently holds the VIP.
+k8sServiceHost: localhost
+k8sServicePort: 7445
+
+# Talos mounts cgroupv2 itself and runs an immutable root filesystem, so the
+# chart must not try to mount cgroups, and the agent's capabilities have to be
+# spelled out rather than inherited from a privileged container.
+cgroup:
+  autoMount:
+    enabled: false
+  hostRoot: /sys/fs/cgroup
+
+securityContext:
+  capabilities:
+    ciliumAgent:
+      - CHOWN
+      - KILL
+      - NET_ADMIN
+      - NET_RAW
+      - IPC_LOCK
+      - SYS_ADMIN
+      - SYS_RESOURCE
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    cleanCiliumState:
+      - NET_ADMIN
+      - SYS_ADMIN
+      - SYS_RESOURCE
+
+routingMode: tunnel
+tunnelProtocol: vxlan
+
+# The MTU is the WireGuard number, not the LAN number, and it is pinned rather
+# than auto-detected.
+#
+#     1420   WireGuard tunnel MTU. Measured, not assumed: `ping -M do` across
+#            the tunnel to a node tops out at a 1392-byte payload, +28 for the
+#            IPv4 and ICMP headers.
+#   -   50   VXLAN encapsulation: outer IPv4 20 + UDP 8 + VXLAN 8 + inner
+#            Ethernet 14.
+#   ------
+#     1370   pod MTU
+#
+# Cilium auto-detects MTU from the route to the default gateway, which would
+# give the three LAN nodes 1450 and the cloud edge worker — reaching the cluster
+# through the router's WireGuard tunnel — 1370. Pod-to-pod traffic from a LAN
+# node to the edge node would then be emitted at 1450 and silently dropped
+# somewhere in the tunnel. A single cluster-wide value is the only thing that
+# makes both paths work.
+#
+# Cost is ~80 bytes of payload on LAN-only paths, around 5% of throughput.
+# Raising it later is possible but restarts every pod, so it is cheaper to be
+# conservative now than to re-cut it when the edge node arrives.
+MTU: 1370
+
+operator:
+  # Three nodes, so two replicas can actually land on different machines.
+  replicas: 2

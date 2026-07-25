@@ -1,0 +1,7 @@
+# Applied to worker nodes only.
+#
+# Nothing here yet. The three physical hosts are all control-plane with
+# scheduling enabled; this file exists for the cloud edge node, which joins as a
+# plain worker over the router's WireGuard tunnel rather than via KubeSpan.
+
+machine: {}

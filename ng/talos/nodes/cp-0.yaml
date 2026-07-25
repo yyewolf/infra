@@ -1,0 +1,16 @@
+# Hardware facts for cp-0. Addressing is not here — talos.sh derives that from
+# cluster.yaml.
+#
+# The install disk must be named explicitly. A size-based selector is tempting
+# but the USB installer is also a disk, and picking wrong means Talos wipes the
+# wrong device. Find the real one with:
+#
+#     ./talos.sh disks <maintenance-mode-ip>
+#
+# then replace the placeholder below. talos.sh refuses to render while it is
+# still set to REPLACE_ME.
+machine:
+  install:
+    # 256 GB KIOXIA KBG40ZNS256G. Named rather than selected by size because the
+    # 31 GB USB installer also shows up as a disk (sda) while it is plugged in.
+    disk: /dev/nvme0n1

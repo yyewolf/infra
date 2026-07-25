@@ -1,0 +1,40 @@
+# Applied to every node, control-plane and worker alike.
+#
+# Nothing derived from cluster.yaml belongs here — talos.sh generates that into
+# a per-node patch so addresses live in exactly one place. This file is for
+# choices that are the same on every machine.
+
+machine:
+  install:
+    # Leave whatever else is on the disk alone. Talos still takes over its own
+    # partitions; this only stops it from zeroing the rest of the device, which
+    # matters if you ever reinstall onto a host that also holds data.
+    wipe: false
+
+  time:
+    servers:
+      - time.cloudflare.com
+      - pool.ntp.org
+
+  features:
+    rbac: true
+    apidCheckExtKeyUsage: true
+
+    # No stableHostname here on purpose: it derives a hostname from the node
+    # identity, and Talos rejects a config that sets both it and an explicit
+    # machine.network.hostname. We set hostnames from cluster.yaml.
+
+    # Runs a host-level DNS cache and points the kubelet at it. Without this
+    # every pod DNS lookup that misses CoreDNS goes straight out to the router,
+    # which is one more thing to be down at 3am.
+    hostDNS:
+      enabled: true
+      forwardKubeDNSToHost: true
+
+  sysctls:
+    # Cilium and most ingress paths want a larger conntrack table and inotify
+    # budget than the defaults give on a node running a few hundred pods.
+    fs.inotify.max_user_instances: "8192"
+    fs.inotify.max_user_watches: "1048576"
+    net.core.rmem_max: "7500000"
+    net.core.wmem_max: "7500000"

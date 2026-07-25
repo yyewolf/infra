@@ -1,0 +1,22 @@
+# Applied to control-plane nodes only.
+
+cluster:
+  network:
+    # Cilium replaces both of these, so Talos must not install its own. The
+    # cluster comes up with every node NotReady until Cilium is applied — that
+    # is expected, not a failure.
+    cni:
+      name: none
+
+  proxy:
+    disabled: true
+
+  # Three physical hosts means the control plane is also the worker pool.
+  allowSchedulingOnControlPlanes: true
+
+  etcd:
+    advertisedSubnets:
+      # Pin etcd peering to the LAN. Once the WireGuard edge worker joins, the
+      # node has more than one address and etcd would otherwise be free to pick
+      # the tunnel address for peering.
+      - 10.200.0.0/24

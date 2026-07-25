@@ -1,0 +1,3 @@
+# Everything in here is regenerated from cluster.yaml + secrets-sops-all.yaml,
+# and the rendered machine configs contain the decrypted cluster PKI.
+out/

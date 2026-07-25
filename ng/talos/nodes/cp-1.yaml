@@ -1,0 +1,4 @@
+# Hardware facts for cp-1. See nodes/cp-0.yaml for why the disk is explicit.
+machine:
+  install:
+    disk: /dev/nvme0n1

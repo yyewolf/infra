@@ -1,0 +1,26 @@
+# Image Factory schematic. Uploading this to factory.talos.dev returns a
+# content-addressed schematic ID, which names both the ISO we boot from and the
+# installer image the machine config writes to disk. Same file in, same ID out,
+# so the image is reproducible from git.
+#
+# The machine config's installer image has to name the same schematic, or a node
+# would boot the customised image and then install a stock one. talos.sh handles
+# that: it resolves this file to an ID and writes machine.install.image into the
+# generated per-node patch.
+customization:
+  systemExtensions:
+    officialExtensions:
+    # Microcode updates. Both are safe to ship on one image: each extension
+    # only loads on matching silicon, so a single ISO covers Intel and AMD
+    # hosts. Drop the one you do not have if you want a smaller image.
+    - siderolabs/amd-ucode
+
+    # Needed by most CSI drivers that attach block devices (Longhorn,
+    # democratic-csi, openebs). Cheap to include, painful to add later
+    # because it means re-imaging.
+    - siderolabs/iscsi-tools
+    - siderolabs/util-linux-tools
+
+# Extra kernel arguments, if the hardware needs them. Left empty on purpose.
+#  extraKernelArgs:
+#    - console=ttyS0
