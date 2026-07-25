@@ -3,6 +3,13 @@ kind: EnvoyProxy
 metadata:
   name: edge-proxy
 spec:
+  # Without this the generated Service defaults to SingleStack/IPv4, so its
+  # endpoints are the proxy's v4 pod IP only. Cilium still publishes the v6
+  # address from the LB-IPAM pool, but the resulting frontend has no backends
+  # it can reach — there is no NAT46 — and v6 clients get a refused connection
+  # while v4 works fine. edge-0 registers a v4-only node address, which does
+  # not matter here: the backends are pod IPs, and it has a v6 podCIDR.
+  ipFamily: DualStack
   provider:
     type: Kubernetes
     kubernetes:

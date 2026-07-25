@@ -10,4 +10,6 @@ resources:
   - platform/envoy-gateway/ks.yaml
   - platform/external-dns/ks.yaml
   - platform/keda/ks.yaml
+  - platform/booting-up/ks.yaml
   - platform/envoy-proxy/ks.yaml
+  - apps/cyberchef/ks.yaml

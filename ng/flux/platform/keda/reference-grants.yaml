@@ -1,0 +1,15 @@
+# Gateway API makes the *target* namespace consent to a cross-namespace
+# backendRef, so every app whose HTTPRoute points at the interceptor needs a
+# grant here — not in its own directory. One per app namespace.
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: cyberchef
+spec:
+  from:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    namespace: cyberchef
+  to:
+  - group: ""
+    kind: Service

@@ -1,0 +1,33 @@
+# cyberchef is a static nginx bundle: the interceptor is its only client, and
+# it has no upstream of its own. The old cluster's policy here was an
+# `endpointSelector: {}` that allowed ingress from everywhere; this is the
+# equivalent stated properly.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: cyberchef
+spec:
+  endpointSelector:
+    matchLabels:
+      app: cyberchef
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: keda
+        app.kubernetes.io/part-of: keda-add-ons-http
+        app.kubernetes.io/component: interceptor
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP

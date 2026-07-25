@@ -144,9 +144,12 @@ nodes:
   # tunnel — exactly what this design exists to avoid.
   #
   # No address6 for the same reason: the overlay is v4-only until ng/router
-  # terminates IPv6, so this node registers v4-only and will not back IPv6
-  # Services. Give it an address6 here once the tunnel carries v6 — that, not
-  # the public address below, is what makes edge-0 dual-stack in-cluster.
+  # terminates IPv6, so this node registers a v4-only *node address*. That does
+  # not stop it backing IPv6 Services — kube-controller-manager still hands it
+  # a v6 podCIDR out of pod_subnets, and pods here get both families — so a
+  # LoadBalancer with pod backends works over v6 today. What is still missing
+  # is v6 for anything keyed on the node address: NodePort and host-network
+  # workloads. Give it an address6 here once the tunnel carries v6.
   edge-0:
     type: worker
     address: 10.200.255.2

@@ -1,0 +1,96 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: caddy-config
+data:
+  Caddyfile: |
+    :80 {
+        root * /srv
+        file_server
+        templates
+
+        # Special endpoint
+        respond /is_still_booting_up "yes it is" 200
+
+        # Redirect everything else to /index.html
+        handle {
+            rewrite * /index.html
+            file_server
+        }
+    }
+
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>{{.Host}} is booting up</title>
+        <style>
+            body {
+                font-family: sans-serif;
+                background-color: #121212;
+                color: #e0e0e0;
+                margin: 0;
+                padding: 0;
+                height: 100vh;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                flex-direction: column;
+            }
+
+            h1 {
+                margin-bottom: 1rem;
+                font-size: 1.5rem;
+            }
+
+            .spinner {
+                width: 32px;
+                height: 32px;
+                border: 4px solid #333;
+                border-top: 4px solid #00bcd4;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+            }
+
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        </style>
+        <script>
+            // sleep function 
+            function sleep(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+
+            async function checkIfStillBootingUp() {
+                try {
+                    const res = await fetch('/is_still_booting_up');
+                    const text = await res.text();
+                    return text.trim() === "yes it is";
+                } catch (err) {
+                    return false;
+                }
+            }
+
+            async function checkBootStatus() {
+                while (true) {
+                    const stillBooting = await checkIfStillBootingUp();
+                    if (!stillBooting) {
+                        window.location.reload();
+                        break;
+                    }
+                    
+                    await sleep(250);
+                }
+            }
+            
+            checkBootStatus();
+        </script>
+    </head>
+    <body>
+        <h1>{{.Host}} is booting up...</h1>
+        <div class="spinner" aria-label="Loading"></div>
+    </body>
+    </html>

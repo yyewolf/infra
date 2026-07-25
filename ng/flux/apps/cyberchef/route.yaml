@@ -1,0 +1,26 @@
+# The backend is the KEDA interceptor, not cyberchef's own Service — routing
+# straight to the app would bypass the wake-up and serve nothing at zero
+# replicas. The InterceptorRoute picks the real backend from the Host header.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: cyberchef
+spec:
+  parentRefs:
+  - name: envoy-gateway
+    namespace: envoy-gateway-system
+    sectionName: https
+  hostnames:
+  - "kebab.hackcorp.net"
+  - "kebab.yewolf.fr"
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
+    backendRefs:
+    - group: ""
+      kind: Service
+      name: keda-add-ons-http-interceptor-proxy
+      namespace: keda
+      port: 8080

@@ -1,0 +1,32 @@
+# The placeholder page is only ever fetched by the KEDA interceptor, on behalf
+# of a user whose app is still cold. Nothing else should reach it, and it
+# serves static files out of a ConfigMap so it needs no egress of its own.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: caddy
+spec:
+  endpointSelector:
+    matchLabels:
+      app: caddy
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: keda
+        app.kubernetes.io/part-of: keda-add-ons-http
+        app.kubernetes.io/component: interceptor
+    toPorts:
+    - ports:
+      - port: "80"
+        protocol: TCP
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP

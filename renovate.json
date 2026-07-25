@@ -8,6 +8,24 @@
       "/.*\\.yaml$/"
     ]
   },
+  "flux": {
+    "managerFilePatterns": [
+      "/.*\\.yaml$/"
+    ]
+  },
+  "customManagers": [
+    {
+      "description": "Images pinned inside HelmRelease values, which no built-in manager reads. Annotate the line above the tag with `# renovate: datasource=docker depName=<image>`.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/.*\\.yaml$/"
+      ],
+      "matchStrings": [
+        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)(?:\\s+versioning=(?<versioning>\\S+))?\\s*\\n\\s*(?:tag|version):\\s*[\"']?(?<currentValue>[^\"'\\s]+)[\"']?"
+      ],
+      "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}"
+    }
+  ],
   "packageRules": [
     {
       "matchCategories": [

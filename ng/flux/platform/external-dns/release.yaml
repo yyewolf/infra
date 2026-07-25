@@ -23,9 +23,9 @@ spec:
     # records that no other resource owns. The DNSEndpoint CRD ships with the
     # chart's crds/ directory.
     sources:
-      - crd
-      - gateway-httproute
-      - service
+    - crd
+    - gateway-httproute
+    - service
 
     policy: sync
     interval: 1m
@@ -38,8 +38,8 @@ spec:
     txtPrefix: k8s-
 
     domainFilters:
-      - yewolf.fr
-      - hackcorp.net
+    - yewolf.fr
+    - hackcorp.net
 
     provider:
       name: webhook
@@ -49,20 +49,20 @@ spec:
           # renovate: datasource=docker depName=ghcr.io/m0nsterrr/external-dns-webhook-infomaniak
           tag: v0.1.3
         env:
-          - name: INFOMANIAK_API_TOKEN
-            valueFrom:
-              secretKeyRef:
-                name: infomaniak-credentials
-                key: api-token
-          # external-dns defaults to http://localhost:8888 for the provider.
-          - name: SERVER_PORT
-            value: "8888"
-          - name: METRICS_PORT
-            value: "8080"
-          - name: LOG_LEVEL
-            value: info
-          - name: DRY_RUN
-            value: "false"
+        - name: INFOMANIAK_API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: infomaniak-credentials
+              key: api-token
+        # external-dns defaults to http://localhost:8888 for the provider.
+        - name: SERVER_PORT
+          value: "8888"
+        - name: METRICS_PORT
+          value: "8080"
+        - name: LOG_LEVEL
+          value: info
+        - name: DRY_RUN
+          value: "false"
         resources:
           requests:
             cpu: 10m

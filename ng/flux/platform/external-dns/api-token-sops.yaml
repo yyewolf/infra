@@ -4,11 +4,11 @@ metadata:
     name: infomaniak-credentials
 type: Opaque
 stringData:
-    api-token: ENC[AES256_GCM,data:Or5Q2v++slhVgSHeE6I6A5vXncU7uTv1iPlYZv97iGGr4lv+BY+9YSHYF64ngX+QXvLnFArX6uYBdVCelMH7AB+pYbQ3D7h/WCnvOVNKi0U=,iv:Jgp9/VLyVmLiyzag80c+/K1swax82nN0kPOvCdieQZI=,tag:gH2cnTfCuvX9/2ltvIlbhg==,type:str]
+    api-token: ENC[AES256_GCM,data:0edT527M8fyTbNAw/hW4h8z7fcCRBKYCMjx4kMsI6eMA7ZIP5IQF+v6vjpv1nHvelGQ78IauOzQzsiqjjd8/mNMrb9EPHyPUhNWrEnYXAVY=,iv:5TzlXUrME7pDor4ExX2icj1FrO4IbVu/MkoAtRz5kXU=,tag:xWRFK9XDjwGjZbljWHS+Bw==,type:str]
 sops:
     encrypted_regex: ^(data|stringData|secrets)$
-    lastmodified: "2026-07-25T19:21:16Z"
-    mac: ENC[AES256_GCM,data:swsJtqBaQSiZ7Ip0kdatdyO4S+60/X9tbOuSRlsCaeQapGK+mGQqNfHvhp25c9qS9dtij3m7JQymMCC1XzVYvaAKA1HqT3AxGg51DHaIfXTX/M9SmBQn13sZqXrwQ5FKe4s2tjK/0dSNElYhehz0/NJPru8WqiMAjel88CBbdSI=,iv:EDtF9LUEfOqOHUaHyRwKvTVcPEsB3AYPaRhGPKLISCY=,tag:dczebUrCedOpobPOlRGSgw==,type:str]
+    lastmodified: "2026-07-25T20:37:43Z"
+    mac: ENC[AES256_GCM,data:VcEAGFrAxBb1zL6fVn15XLLDhnquZKF4dYbR9cHT3Usg5HUSGWo64tsnikm8kM458z9myGRPgDKahVH8AQbqq42n/gEHCIKGPFHdcRme/uBt70H75EJRWtOQ6jJvnVaTTwodkNTlGAf1PREtwV9urpoJ+OT5heqbnnB6iH8v9t8=,iv:9+qejp1Rlq13HTj2awAN4P65WVlknCwGQFkNAD8vQi4=,tag:bOBVAgRk9k/Apj4g9JCzSA==,type:str]
     pgp:
         - created_at: "2025-08-18T18:59:58Z"
           enc: |-

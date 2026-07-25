@@ -1,15 +1,13 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: external-dns
+  name: booting-up
   namespace: flux-system
 spec:
+  dependsOn:
+    - name: cilium
   interval: 10m
-  decryption:
-    provider: sops
-    secretRef:
-      name: sops-gpg
-  path: ./ng/flux/platform/external-dns
+  path: ./ng/flux/platform/booting-up
   prune: true
   retryInterval: 1m
   sourceRef:
