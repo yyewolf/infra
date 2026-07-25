@@ -80,3 +80,10 @@ spec:
 
     operator:
       replicas: 2
+
+    hubble:
+      enabled: true
+      relay:
+        enabled: true
+      ui:
+        enabled: true
