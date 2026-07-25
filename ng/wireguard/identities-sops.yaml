@@ -15,7 +15,7 @@ identities:
         public_key: CP0GXWk5wT9Pb3TAijdzGCtXkH7WmnQ4Q0cfuUkNEBk=
         address: 10.200.255.2/32
         listen_port: 51820
-        endpoint: 1.2.3.4:51820
+        endpoint: 83.228.250.128:51820
     home-router-0:
         public_key: Y+1b2aqY/pR7HiENax1a1xwWYBAHCl0jGJpR4qPjxyM=
         address: 10.200.255.1/32
@@ -23,8 +23,8 @@ identities:
         endpoint: ""
 sops:
     encrypted_regex: ^(data|stringData|secrets)$
-    lastmodified: "2026-07-25T09:07:56Z"
-    mac: ENC[AES256_GCM,data:h4302dGmkBqbC6FWbkO3duApNijwk7awSFJiz4U+C8v8tI5eJlCFTV0RputGo6+CMNXmo+DZ82apqiDRDC+Irmxo9E/tKAL25oij7y4AuyzCqMRSzrvwKr2H9jK4gnxfawhXeVK2grrFUkfD85n98JCsDw41qbFWvRI1KuJlWKQ=,iv:VUYYuKF88bWXoiAV4IScoRp/v030oCTblfZL3fPorCU=,tag:a8+207x435/yfr3wJ9F36g==,type:str]
+    lastmodified: "2026-07-25T12:48:10Z"
+    mac: ENC[AES256_GCM,data:E4uv4BBpEw0/dcx0e/v2iuvJbzqsJ3Apad700mBY+iN78dTcarpI68FGhHItSRRcQQ3Nea9i2vuCVC4O0233l13WHVo0oJb++YlQBT1OT5MWxZA7fy8Ws59hOBJzlPx59w10h4s+jtpUnYlVa7ZFknN8TfIqDQ37/TrTYcfOrMY=,iv:yQ9Bgenplr1M8hQX8Y88xI+1auwNaK//jlPYIMSfo2M=,tag:JJGh/WLB700XG/pF5JJ8yw==,type:str]
     pgp:
         - created_at: "2026-07-25T09:07:25Z"
           enc: |-

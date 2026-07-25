@@ -1,0 +1,13 @@
+# Hardware facts for edge-0, the Infomaniak OpenStack worker. Addressing is not
+# here — talos.sh derives that from cluster.yaml.
+#
+# Unlike the physical nodes there is no maintenance-mode step to discover this:
+# the instance boots the Talos image with its machine config already supplied as
+# cloud user data (see ng/openstack), so the disk name has to be right the first
+# time. /dev/vda is the virtio root disk every OpenStack flavour presents.
+#
+# This only matters for `talosctl upgrade`. The initial install is done by the
+# image Glance boots, not by Talos.
+machine:
+  install:
+    disk: /dev/vda

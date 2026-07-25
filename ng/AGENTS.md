@@ -21,7 +21,12 @@ ng/
 │   ├── gen-identity.sh       # Generate keypair for one identity
 │   ├── gen-conf.sh           # Render a client .conf for one identity
 │   └── gen-all.sh            # Regenerate all keys
-└── talos/                # Talos cluster definition (see talos/README.md)
+├── openstack/            # Infomaniak OpenStack: the edge-0 Talos worker
+│   ├── main.tf           # Glance image, port + secgroup, instance, floating IP
+│   ├── provider.tf       # OpenStack + SOPS providers
+│   ├── variables.tf      # flavor, networks, instance name
+│   └── tf.sh             # State encryption wrapper
+├── talos/                # Talos cluster definition (see talos/README.md)
     ├── cluster.yaml      # Addressing, versions, node inventory — source of truth
     ├── schematic.yaml    # Image Factory schematic
     ├── secrets-sops-all.yaml  # Cluster PKI, fully encrypted
@@ -40,7 +45,17 @@ ng/
 - **Firewall rule order** — `modules/ip-firewall` pins every rule with `place_before` pointing at its successor, so table order equals declaration order regardless of when Terraform creates things. Adding a rule means splicing it into that chain.
 - **Talos** — `talos/cluster.yaml` is the only place node addresses are written; `talos.sh render` derives hostnames, static addressing, VIP, cert SANs and the installer image from it. Never hand-edit anything in `talos/out/` — it is regenerated and holds decrypted PKI.
 - **`-sops-all.yaml` suffix** — encrypts *every* value, not just keys named `secrets`. Required for bundles like the Talos PKI where the sensitive material is not under a `secrets:` key.
-- **LAN bridge** — all LAN interfaces (ether2-5, sfp1) + WireGuard are bridged on `bridge1` (subnet `10.200.0.0/24`, bridge IP `10.200.0.1`). WG peers get addresses on the same subnet (e.g., `10.200.0.2/32`) — they appear on the same L2 domain.
+- **OpenStack edge-0** — a Talos worker, not a general-purpose VM. Its `user_data` *is* the machine config rendered by `ng/talos/talos.sh render edge-0`; `ng/openstack` defines no cluster config of its own and only reads `ng/talos/` (for the version, schematic ID and rendered config) and the WG registry (for the listen port). There is no cloud-init and no SSH.
+- **edge-0 joins over WireGuard only** — the tunnel is declared in the Talos machine config, so it is up before the kubelet starts and the node never contacts the control plane over the bare internet. Its cluster address (`10.200.255.2`) is on `wg0`, not on the cloud NIC.
+- **WireGuard addresses are cross-checked** — `talos.sh render` reads `ng/wireguard/identities-sops.yaml` and refuses to render if a node's address there disagrees with `cluster.yaml`. The router derives its routes from the same registry, so a mismatch would produce a tunnel that handshakes and carries nothing.
+- **`gen-identity.sh` regenerates the keypair every run** — re-running it for a deployed node invalidates that node's rendered config. Set the endpoint at the same time as the initial key, not afterwards.
+- **`network.wg_mtu` in `talos/cluster.yaml` and `MTU` in `cluster/cilium/values.yaml` must move together** (both 1420). Pod payload 1370 + VXLAN 50 exactly fills the tunnel.
+- **Infomaniak has no floating IPs at all** — no network in the project is flagged `external`, so there is no pool to allocate from, and floating IPs are an IPv4 NAT construct with no IPv6 equivalent on any OpenStack. Instances attach directly to a shared dual-stack provider network (`ext-net1`: 21 public v4 /24s + `2001:1600:16:10::/64`, `dhcpv6-stateful`) and the port holds the public v4 and v6. `ext-v6only1` is the v6-only alternative. Do not reintroduce floating-IP or `enable_v6_fip`-style resources.
+- **The edge-0 port is directly on the internet** — no NAT, no floating-IP indirection. The security group is the only thing in front of apid (50000) and the kubelet (10250). Neutron denies ingress by default, so the rules in `main.tf` are exhaustive; adding one exposes a port to the world.
+- **edge-0's public IPv6 is ingress only** — never make it the node's Kubernetes address. `kubelet.nodeIP.validSubnets` pins the node to the WireGuard overlay; registering under the public v6 would route inter-node traffic over the open internet.
+- **clouds.yaml entry names are `<project>-<region>`** (e.g. `PCP-SESBZOV-dc4-a`), not `openstack`. There is one entry per datacentre.
+- **OpenStack provider v3 dropped the compute-side networking resources** — use `openstack_networking_port_v2` + `openstack_networking_floatingip_associate_v2`, not `openstack_compute_floatingip_associate_v2`.
+- **State management** — both `ng/router/` and `ng/openstack/` use `tf.sh` wrappers with PGP-encrypted state files (`terraform-state.gpg`). They share the same PGP key.
 
 ## Rules
 
@@ -48,6 +63,7 @@ ng/
 - **NEVER** read SOPS-encrypted files or decrypted secrets. Use `data.sops_file` in Terraform — do not inspect actual credential values.
 - **NEVER** commit secrets, private keys, or unencrypted credentials.
 - When adding a new WireGuard peer, run `./wireguard/gen-identity.sh <name> <address>` from the `ng/` directory, then update `router/main.tf` locals if needed.
+- **Before planning `ng/openstack/`**, run `ng/talos/talos.sh schematic` and `ng/talos/talos.sh render edge-0` — the module reads `talos/out/schematic-id` and `talos/out/edge-0.yaml` and has preconditions that say so. The full bring-up order (floating IP first, because the router needs it as the peer endpoint) is in `ng/talos/README.md` under "The cloud worker".
 
 ## State management
 
@@ -76,4 +92,16 @@ cd ng/router && terraform init
 
 # Add a new WireGuard identity
 ./ng/wireguard/gen-identity.sh my-peer 10.10.0.3/32
+
+# Render edge-0's machine config first — ng/openstack consumes it
+./ng/talos/talos.sh schematic && ./ng/talos/talos.sh render edge-0
+
+# Plan edge-0 OpenStack changes (uses encrypted state)
+./ng/openstack/tf.sh plan
+
+# Apply edge-0
+./ng/openstack/tf.sh apply
+
+# Init (no state file needed)
+cd ng/openstack && terraform init
 ```

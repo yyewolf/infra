@@ -16,6 +16,11 @@ SECRETS="$DIR/secrets-sops-all.yaml"
 OUT="$DIR/out"
 FACTORY="https://factory.talos.dev"
 
+# Shared with ng/router, which builds its WireGuard peers from the same file.
+# Off-LAN nodes take their tunnel key material from here rather than duplicating
+# it, so the two ends cannot drift apart.
+WG_REGISTRY="$DIR/../wireguard/identities-sops.yaml"
+
 die() {
     echo "ERROR: $*" >&2
     exit 1
@@ -39,6 +44,70 @@ node_field() {
 require_node() {
     node_names | grep -qx "$1" ||
         die "unknown node '$1' (have: $(node_names | tr '\n' ' '))"
+}
+
+# ------------------------------------------------------------------- wireguard
+
+# Decrypted copy of the identity registry, written under out/ (mode 700) only
+# when a node being rendered actually needs it, and removed by the render trap.
+WG_PLAIN="$OUT/.wireguard.yaml"
+
+wg_field() {
+    yq -r "$1 // \"\"" "$WG_PLAIN"
+}
+
+# Emits the wg0 interface for an off-LAN node. Everything sensitive goes
+# straight into the patch file — never to stdout, which is a terminal.
+emit_wireguard() {
+    local n="$1" peer="$2" address="$3" wg_subnet="$4" lan_subnet="$5" mtu="$6"
+
+    local priv pub endpoint port registered
+    priv="$(wg_field ".secrets.\"$n\".private_key")"
+    port="$(wg_field ".identities.\"$n\".listen_port")"
+    registered="$(wg_field ".identities.\"$n\".address")"
+    pub="$(wg_field ".identities.\"$peer\".public_key")"
+    endpoint="$(wg_field ".identities.\"$peer\".endpoint")"
+
+    [ -n "$priv" ] || die "no private key for '$n' in $WG_REGISTRY — run ./wireguard/gen-identity.sh $n $address/32"
+    [ -n "$pub" ] || die "no public key for peer '$peer' in $WG_REGISTRY"
+
+    # The router turns each identity's address into a static route and an
+    # allowed-address. If cluster.yaml disagrees with the registry, the node
+    # comes up on an address the router drops — a tunnel that handshakes and
+    # then carries nothing, which is a miserable thing to debug.
+    if [ "${registered%%/*}" != "$address" ]; then
+        die "node $n is $address in cluster.yaml but $registered in $WG_REGISTRY — make them agree"
+    fi
+
+    echo "      - interface: wg0"
+    echo "        mtu: $mtu"
+    # /32: the peer's own address is the only thing reachable on-link. Reaching
+    # anything else is a routing decision, made explicitly below.
+    echo "        addresses:"
+    echo "          - $address/32"
+    # Talos programs the WireGuard peer from allowedIPs but does not derive
+    # routes from it, so both subnets need saying twice — once as crypto
+    # routing (what the tunnel will accept and encrypt) and once as kernel
+    # routing (what gets sent there at all). No gateway: link-scoped out wg0.
+    echo "        routes:"
+    echo "          - network: $lan_subnet"
+    echo "          - network: $wg_subnet"
+    echo "        wireguard:"
+    echo "          privateKey: $priv"
+    [ -n "$port" ] && echo "          listenPort: $port"
+    echo "          peers:"
+    echo "            - publicKey: $pub"
+    echo "              allowedIPs:"
+    echo "                - $lan_subnet"
+    echo "                - $wg_subnet"
+    # Only dial the peer if the registry says where it is. The home router sits
+    # behind the ISP's NAT with no stable endpoint, so it dials us and we learn
+    # its address from the handshake; a keepalive from this side would just be
+    # packets to nowhere until then.
+    if [ -n "$endpoint" ]; then
+        echo "              endpoint: $endpoint"
+        echo "              persistentKeepaliveInterval: 25s"
+    fi
 }
 
 # ------------------------------------------------------------------- schematic
@@ -172,15 +241,20 @@ cmd_render() {
         for n in "${targets[@]}"; do require_node "$n"; done
     fi
 
-    local name vip gateway subnet version k8s image
+    local name vip gateway subnet subnet6 gateway6 wg_subnet wg_mtu version k8s image
     name="$(cfg .name)"
     vip="$(cfg .network.vip)"
     gateway="$(cfg .network.gateway)"
     subnet="$(cfg .network.subnet)"
+    subnet6="$(cfg '.network.subnet6 // ""')"
+    gateway6="$(cfg '.network.gateway6 // ""')"
+    wg_subnet="$(cfg '.network.wg_subnet // ""')"
+    wg_mtu="$(cfg '.network.wg_mtu // 1420')"
     version="$(cfg .talos_version)"
     k8s="$(cfg .kubernetes_version)"
 
     local prefix="${subnet##*/}"
+    local prefix6="${subnet6##*/}"
 
     for n in "${targets[@]}"; do
         [ -f "$DIR/nodes/$n.yaml" ] || die "cluster.yaml lists $n but nodes/$n.yaml is missing"
@@ -195,8 +269,17 @@ cmd_render() {
     chmod 700 "$OUT"
 
     local plain="$OUT/.secrets.yaml"
-    trap 'rm -f "$plain"' RETURN
+    trap 'rm -f "$plain" "$WG_PLAIN"' RETURN
     (umask 077 && sops -d --output "$plain" "$SECRETS")
+
+    # Only decrypt the WireGuard registry if something being rendered needs it.
+    for n in "${targets[@]}"; do
+        if [ -n "$(node_field "$n" wireguard.peer)" ]; then
+            [ -f "$WG_REGISTRY" ] || die "node $n needs WireGuard but $WG_REGISTRY is missing"
+            (umask 077 && sops -d --output "$WG_PLAIN" "$WG_REGISTRY")
+            break
+        fi
+    done
 
     info "generating base configs"
     rm -rf "$OUT/base"
@@ -224,14 +307,32 @@ cmd_render() {
     # These come from cluster.yaml, so a subset render still produces configs
     # that trust every node.
     for n in "${targets[@]}"; do
-        local type address selector patch
+        local type address address6 selector patch wg_peer
         type="$(node_field "$n" type)"
         address="$(node_field "$n" address)"
+        address6="$(node_field "$n" address6)"
         selector="$(node_field "$n" interface)"
+        wg_peer="$(node_field "$n" wireguard.peer)"
         patch="$OUT/patches/$n.yaml"
 
         [ -n "$type" ] || die "node $n has no type"
         [ -n "$address" ] || die "node $n has no address"
+        # A node without address6 in a cluster with an IPv6 pod CIDR would
+        # register v4-only and never serve an IPv6 Service. Catch it here rather
+        # than as missing endpoints three days later. Off-LAN nodes are exempt:
+        # the WireGuard overlay is v4-only for now and cluster.yaml says so.
+        if [ -n "$subnet6" ] && [ -z "$address6" ] && [ -z "$wg_peer" ]; then
+            die "cluster.yaml has network.subnet6 but node $n has no address6"
+        fi
+        if [ -n "$wg_peer" ]; then
+            [ -n "$wg_subnet" ] || die "node $n is a WireGuard node but cluster.yaml has no network.wg_subnet"
+        fi
+
+        # Tightened before it is written, not after: a WireGuard node's patch
+        # carries its private key, and '>' does not reset the mode of a file
+        # that already exists from an earlier render.
+        : >"$patch"
+        chmod 600 "$patch"
 
         {
             echo "# Generated by talos.sh from cluster.yaml. Do not edit."
@@ -240,39 +341,92 @@ cmd_render() {
             echo "    image: $image"
             echo "  certSANs:"
             echo "    - $vip"
-            for m in $(node_names); do echo "    - $(node_field "$m" address)"; done
+            for m in $(node_names); do
+                echo "    - $(node_field "$m" address)"
+                [ -n "$(node_field "$m" address6)" ] && echo "    - $(node_field "$m" address6)"
+            done
             echo "  kubelet:"
             echo "    nodeIP:"
+            # One subnet per family. The kubelet picks its InternalIP from these,
+            # and a dual-stack node needs both listed or it registers v4-only and
+            # every IPv6 Service quietly has no endpoints.
             echo "      validSubnets:"
-            echo "        - $subnet"
+            if [ -n "$wg_peer" ]; then
+                # Not the LAN subnet: this node's cluster identity is its
+                # tunnel address. Pointing the kubelet at the cloud NIC would
+                # register a public address nothing else can route back to.
+                echo "        - $wg_subnet"
+            else
+                echo "        - $subnet"
+                [ -n "$subnet6" ] && echo "        - $subnet6"
+            fi
             echo "  network:"
             echo "    hostname: $n"
             echo "    interfaces:"
-            if [ -n "$selector" ]; then
-                echo "      - interface: $selector"
-            else
-                # No named interface in cluster.yaml, so match the single
-                # physical NIC. A host with more than one needs 'interface:'
-                # set for it, or Talos configures the same address on both.
+            if [ -n "$wg_peer" ]; then
+                # The cloud NIC carries the tunnel and, where the provider
+                # offers it, public ingress. Its addresses are whatever DHCP
+                # hands out — nothing in the cluster depends on them, which is
+                # the point: the node's identity is its tunnel address.
                 echo "      - deviceSelector:"
                 echo "          physical: true"
+                echo "        dhcp: true"
+                # Stateful DHCPv6 has to be asked for. Infomaniak's ext-net1 is
+                # dhcpv6-stateful, so SLAAC alone yields a link-local address
+                # and nothing routable.
+                if [ "$(node_field "$n" dhcp6)" = "true" ]; then
+                    echo "        dhcpOptions:"
+                    echo "          ipv4: true"
+                    echo "          ipv6: true"
+                fi
+                emit_wireguard "$n" "$wg_peer" "$address" "$wg_subnet" "$subnet" "$wg_mtu"
+            else
+                if [ -n "$selector" ]; then
+                    echo "      - interface: $selector"
+                else
+                    # No named interface in cluster.yaml, so match the single
+                    # physical NIC. A host with more than one needs 'interface:'
+                    # set for it, or Talos configures the same address on both.
+                    echo "      - deviceSelector:"
+                    echo "          physical: true"
+                fi
+                echo "        dhcp: false"
+                echo "        addresses:"
+                echo "          - $address/$prefix"
+                [ -n "$address6" ] && echo "          - $address6/$prefix6"
+                echo "        routes:"
+                echo "          - network: 0.0.0.0/0"
+                echo "            gateway: $gateway"
+                # Only emitted once cluster.yaml has a gateway6. A default route
+                # to a gateway that does not answer costs every outbound v6
+                # connection a timeout before it falls back.
+                if [ -n "$gateway6" ]; then
+                    echo "          - network: ::/0"
+                    echo "            gateway: $gateway6"
+                fi
+                # The VIP is an on-LAN concept: Talos hands it to whichever
+                # control-plane node holds etcd leadership, over the LAN link.
+                if [ "$type" = "controlplane" ]; then
+                    echo "        vip:"
+                    echo "          ip: $vip"
+                fi
             fi
-            echo "        dhcp: false"
-            echo "        addresses:"
-            echo "          - $address/$prefix"
-            echo "        routes:"
-            echo "          - network: 0.0.0.0/0"
-            echo "            gateway: $gateway"
+            # Cluster CIDRs go on every node type: a worker's kube-proxy
+            # replacement and CNI both need to know the service range.
+            echo "cluster:"
+            echo "  network:"
+            echo "    podSubnets:"
+            cfg '.pod_subnets[]' | while read -r c; do echo "      - $c"; done
+            echo "    serviceSubnets:"
+            cfg '.service_subnets[]' | while read -r c; do echo "      - $c"; done
             if [ "$type" = "controlplane" ]; then
-                echo "        vip:"
-                echo "          ip: $vip"
-            fi
-            if [ "$type" = "controlplane" ]; then
-                echo "cluster:"
                 echo "  apiServer:"
                 echo "    certSANs:"
                 echo "      - $vip"
-                for m in $(node_names); do echo "      - $(node_field "$m" address)"; done
+                for m in $(node_names); do
+                    echo "      - $(node_field "$m" address)"
+                    [ -n "$(node_field "$m" address6)" ] && echo "      - $(node_field "$m" address6)"
+                done
             fi
         } >"$patch"
 

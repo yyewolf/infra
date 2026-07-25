@@ -8,6 +8,14 @@
 ipam:
   mode: kubernetes
 
+# Dual-stack. The CIDRs themselves come from Talos (ng/talos/cluster.yaml) via
+# ipam.mode: kubernetes, which reads each node's podCIDRs — so there is nothing
+# to keep in sync here beyond the on/off switch.
+ipv4:
+  enabled: true
+ipv6:
+  enabled: true
+
 kubeProxyReplacement: true
 
 # Talos exposes KubePrism, a node-local load balancer across every API server,
@@ -48,28 +56,33 @@ securityContext:
 routingMode: tunnel
 tunnelProtocol: vxlan
 
-# The MTU is the WireGuard number, not the LAN number, and it is pinned rather
-# than auto-detected.
+# This is the UNDERLAY MTU, not the pod MTU. Cilium subtracts the encapsulation
+# overhead itself, so 1420 here produces pod interfaces at 1370. Setting the pod
+# MTU you want directly is wrong in a way that happens to look right: Cilium
+# would take 1370 as the underlay and the maths no longer describes the network.
 #
-#     1420   WireGuard tunnel MTU. Measured, not assumed: `ping -M do` across
-#            the tunnel to a node tops out at a 1392-byte payload, +28 for the
-#            IPv4 and ICMP headers.
-#   -   50   VXLAN encapsulation: outer IPv4 20 + UDP 8 + VXLAN 8 + inner
-#            Ethernet 14.
+# Verified end to end: cross-node iperf3 runs at line rate on both families
+# (902 Mbit/s IPv4, 888 IPv6) with zero retransmits, which is the real proof the
+# pod MTU matches the path. Do not use large ICMP echo to check this — Cilium
+# drops it well below the true MTU and the numbers are misleading.
+#
+#     1420   WireGuard tunnel MTU, the narrowest underlay any node will use.
+#            Measured, not assumed: `ping -M do` across the tunnel tops out at
+#            a 1392-byte payload, +28 for the IPv4 and ICMP headers.
+#   -   50   VXLAN: outer IPv4 20 + UDP 8 + VXLAN 8 + inner Ethernet 14.
 #   ------
-#     1370   pod MTU
+#     1370   resulting pod MTU
 #
-# Cilium auto-detects MTU from the route to the default gateway, which would
-# give the three LAN nodes 1450 and the cloud edge worker — reaching the cluster
-# through the router's WireGuard tunnel — 1370. Pod-to-pod traffic from a LAN
-# node to the edge node would then be emitted at 1450 and silently dropped
-# somewhere in the tunnel. A single cluster-wide value is the only thing that
-# makes both paths work.
+# Pinning it matters because Cilium otherwise auto-detects per node from the
+# route to the default gateway: the three LAN nodes would see 1500 and the cloud
+# edge worker, reaching the cluster through the router's WireGuard tunnel, would
+# see 1420. Pod-to-pod traffic from a LAN node to the edge node would then be
+# built for a 1500 underlay and silently dropped inside the tunnel.
 #
-# Cost is ~80 bytes of payload on LAN-only paths, around 5% of throughput.
-# Raising it later is possible but restarts every pod, so it is cheaper to be
-# conservative now than to re-cut it when the edge node arrives.
-MTU: 1370
+# Cost is ~80 bytes of payload on LAN-only paths, roughly 5% of throughput.
+# Changing this later restarts every pod, so it is set for the worst path now
+# rather than re-cut when the edge node arrives.
+MTU: 1420
 
 operator:
   # Three nodes, so two replicas can actually land on different machines.

@@ -33,6 +33,7 @@ from it, so there is no second place to keep in sync.
 | LAN | `10.200.0.0/24`, gateway `10.200.0.1` (see `ng/router`) |
 | Control-plane VIP | `10.200.0.10` |
 | Nodes | `cp-0` `.11`, `cp-1` `.12`, `cp-2` `.13` |
+| WireGuard overlay | `10.200.255.0/24` — `edge-0` is `.2` |
 
 Node addresses sit below the router's DHCP pool (`.100-.254`), so static
 addressing and DHCP cannot collide.
@@ -110,6 +111,84 @@ export KUBECONFIG=$(pwd)/out/kubeconfig
 Every node stays `NotReady` until a CNI is installed — that is expected.
 `patches/controlplane.yaml` sets `cni: none` and disables kube-proxy because
 Cilium replaces both.
+
+## The cloud worker (edge-0)
+
+`edge-0` runs on Infomaniak's OpenStack (`ng/openstack`) and is the one node not
+on the LAN. Its physical NIC takes a DHCP lease from the cloud and exists only
+to carry a WireGuard tunnel; its cluster address, `10.200.255.2`, lives on `wg0`.
+
+The tunnel is part of the machine config, not something configured after boot.
+Talos brings the network up from that config before starting the kubelet, so the
+node reaches the API server through the tunnel on its very first attempt and
+never talks to the control plane over the bare internet — not even during join.
+
+`talos.sh render` builds the `wg0` interface from
+`ng/wireguard/identities-sops.yaml`, the same registry `ng/router` builds its
+peers from, and refuses to render if the address there disagrees with
+`cluster.yaml`. The two ends cannot drift.
+
+### Ordering
+
+The home router is behind the ISP's NAT, so it dials `edge-0` rather than the
+other way round — which means the router needs `edge-0`'s public address before
+`edge-0` can be built with it. Create the port on its own first:
+
+```sh
+./ng/openstack/tf.sh apply -target=openstack_networking_port_v2.edge
+./ng/openstack/tf.sh output wireguard_endpoint      # e.g. 83.228.230.x:51820
+```
+
+Then record it against the identity, regenerating the keypair in place:
+
+```sh
+./ng/wireguard/gen-identity.sh edge-0 10.200.255.2/32 51820 195.15.x.y:51820
+```
+
+Do this *before* rendering — `gen-identity.sh` mints a new keypair every run, so
+a config rendered earlier would carry a private key the router no longer knows.
+
+Now render, teach the router about the peer, and build the box:
+
+```sh
+cd ng/talos && ./talos.sh schematic && ./talos.sh render edge-0
+./ng/router/tf.sh apply          # picks up the new peer + route automatically
+./ng/openstack/tf.sh apply
+```
+
+The router's WireGuard module derives peers from every identity in the registry
+except its own, so there is nothing to edit there.
+
+`edge-0` should appear in `kubectl get nodes` a couple of minutes after the
+instance boots. If it does not, the tunnel is the thing to check first — from
+the router, `/interface wireguard peers print` shows the last handshake.
+
+### Limitations
+
+- **Dual-stack on the outside, IPv4 only on the inside.** Infomaniak's
+  `ext-net1` is dual-stack, so the cloud NIC gets a public IPv6 as well as a
+  public IPv4 (`dhcp6: true` in `cluster.yaml` — the subnet is
+  `dhcpv6-stateful`, so it has to be asked for). That v6 is for **ingress
+  only**. It is deliberately not `edge-0`'s Kubernetes address: the kubelet is
+  pinned to the WireGuard overlay, and a node registered under its public v6
+  would have the other three reaching it across the open internet instead of
+  the tunnel.
+
+  In-cluster, `edge-0` is therefore still v4-only and will not back IPv6
+  Services. Fixing that means giving the *overlay* a v6 ULA and setting
+  `address6` here — not reusing the public address.
+
+  Pods on `edge-0` can still serve IPv6 traffic from other nodes: VXLAN carries
+  v6 pod traffic inside v4 outer packets, so the v4-only tunnel is not a
+  barrier to that.
+- **MTU is coupled to Cilium.** `network.wg_mtu` (1420) is the number
+  `ng/cluster/cilium/values.yaml` sets as its underlay MTU. Pod traffic to this
+  node is built for it: pod payload 1370 + VXLAN 50 = 1420, exactly filling the
+  tunnel. Change one without the other and cross-node traffic to the edge drops
+  silently at full size while ping keeps working.
+- **Replacing the instance replaces the node.** `user_data` is the machine
+  config, so editing it in Terraform destroys and recreates the VM. To change a
+  running `edge-0`, re-render and `talosctl apply-config` over the tunnel.
 
 ## Upgrades
 

@@ -18,16 +18,60 @@ network:
   # Shared control-plane address. The elected leader among the control-plane
   # nodes holds it, so the Kubernetes and Talos endpoints survive losing any
   # single node. Deliberately below the router's DHCP pool (.100-.254).
+  #
+  # IPv4 only: Talos binds one VIP per interface, and the control-plane endpoint
+  # gains nothing from being dual-stack.
   vip: 10.200.0.10
 
-# Per node: type and address are required. 'interface' is optional and only
-# needed on a host with more than one physical NIC — without it the config
+  # IPv6 is a ULA prefix (RFC 4193, randomly generated) rather than the
+  # ISP-delegated one, deliberately. Delegated prefixes rotate, and a rotation
+  # would silently invalidate every address pinned in this file plus the cert
+  # SANs baked into the cluster PKI. Global reachability, where we want it,
+  # comes from the router mapping the delegated prefix in front of these.
+  subnet6: fdde:c64:7096::/64
+
+  # No IPv6 default route yet: the router does not route v6, and pointing at a
+  # gateway that does not answer only buys connection timeouts. Set gateway6
+  # here once ng/router has IPv6 working and render will start emitting it.
+  gateway6: ""
+
+  # WireGuard overlay. Nodes that are not on the LAN — the cloud edge worker —
+  # take their cluster address from here instead of network.subnet, and reach
+  # everything else through the tunnel the router terminates.
+  #
+  # Must match the addresses in ng/wireguard/identities-sops.yaml: the router
+  # derives its peer allowed-address and static routes from that registry, so an
+  # address written only here would be one the router never routes. talos.sh
+  # cross-checks the two and refuses to render on a mismatch.
+  wg_subnet: 10.200.255.0/24
+
+  # MTU of the WireGuard interface on off-LAN nodes. This is the number Cilium's
+  # MTU value in ng/cluster/cilium/values.yaml is set to — it is the narrowest
+  # underlay in the cluster, and pod traffic to this node is built for it. The
+  # two have to move together or cross-node traffic to the edge silently drops.
+  wg_mtu: 1420
+
+# Cluster CIDRs are fixed at bootstrap — Kubernetes has no supported way to add
+# an address family to a running cluster — so both are listed from the start.
+pod_subnets:
+  - 10.244.0.0/16
+  - fdde:c64:7096:4400::/56
+
+service_subnets:
+  - 10.96.0.0/12
+  # IPv6 service CIDRs must be /108 or smaller; Kubernetes rejects anything
+  # larger.
+  - fdde:c64:7096:9600::/112
+
+# Per node: type, address and address6 are required. 'interface' is optional and
+# only needed on a host with more than one physical NIC — without it the config
 # matches "the physical interface", which on a two-NIC box would configure the
-# same address on both. Find the name with 'talosctl get links'.
+# same addresses on both. Find the name with 'talosctl get links'.
 #
 #   cp-0:
 #     type: controlplane
 #     address: 10.200.0.11
+#     address6: fdde:c64:7096::11
 #     interface: enp1s0
 #
 # Hardware details (the install disk) live in nodes/<name>.yaml instead.
@@ -35,9 +79,40 @@ nodes:
   cp-0:
     type: controlplane
     address: 10.200.0.11
+    address6: fdde:c64:7096::11
   cp-1:
     type: controlplane
     address: 10.200.0.12
+    address6: fdde:c64:7096::12
   cp-2:
     type: controlplane
     address: 10.200.0.13
+    address6: fdde:c64:7096::13
+
+  # Cloud worker on Infomaniak OpenStack (see ng/openstack). It is not on the
+  # LAN: its physical NIC takes a DHCP lease from the cloud and exists only to
+  # carry a WireGuard tunnel, and the address below lives on wg0.
+  #
+  # 'wireguard.peer' names the identity in ng/wireguard/identities-sops.yaml
+  # this node dials or is dialled by. The tunnel is part of the machine config,
+  # so it is up before the kubelet starts — the node never talks to the cluster
+  # over the bare internet, not even once during join.
+  #
+  # 'dhcp6' asks the cloud NIC for a public IPv6 as well. Infomaniak's ext-net1
+  # is dhcpv6-stateful, so this has to be requested — SLAAC alone gets nothing
+  # routable. That address is for ingress only. It is deliberately NOT this
+  # node's Kubernetes address: kubelet.nodeIP.validSubnets pins that to the
+  # WireGuard overlay, because a node registered under its public v6 would have
+  # the other three nodes reaching it over the open internet instead of the
+  # tunnel — exactly what this design exists to avoid.
+  #
+  # No address6 for the same reason: the overlay is v4-only until ng/router
+  # terminates IPv6, so this node registers v4-only and will not back IPv6
+  # Services. Give it an address6 here once the tunnel carries v6 — that, not
+  # the public address below, is what makes edge-0 dual-stack in-cluster.
+  edge-0:
+    type: worker
+    address: 10.200.255.2
+    dhcp6: true
+    wireguard:
+      peer: home-router-0
