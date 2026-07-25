@@ -87,3 +87,6 @@ spec:
         enabled: true
       ui:
         enabled: true
+
+    socketLB:
+      hostNamespaceOnly: true

@@ -1,0 +1,28 @@
+# gVisor runtime class.
+#
+# The containerd runtime handler comes from the siderolabs/gvisor system
+# extension plus ng/talos/patches/gvisor.yaml, which registers 'runsc-netraw'
+# — stock runsc with --net-raw and --allow-packet-socket-write. The extension's
+# own flagless 'runsc' handler is also present on the node but deliberately has
+# no RuntimeClass here: nothing should reach it by accident.
+#
+# Only cp-2 carries the extension for now, so the nodeSelector pins to that
+# host by name rather than to the control-plane role the way kata does. A pod
+# asking for this class on cp-0 or cp-1 would be admitted and then fail at the
+# kubelet with an unknown runtime handler. Widen both together: the extension
+# list in ng/talos/cluster.yaml first, then this selector.
+---
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: gvisor
+handler: runsc-netraw
+overhead:
+  # The sentry and gofer are ordinary host processes sitting beside the
+  # container. Cheaper than kata's VM, but not free.
+  podFixed:
+    cpu: 100m
+    memory: 64Mi
+scheduling:
+  nodeSelector:
+    kubernetes.io/hostname: cp-2
