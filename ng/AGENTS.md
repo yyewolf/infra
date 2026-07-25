@@ -124,9 +124,9 @@ cd ng/openstack && terraform init
 flux bootstrap git --url=https://github.com/yyewolf/infra.git --branch=main --path=./ng/flux
 
 # Force Flux to reconcile (without waiting for the interval)
-flux reconcile kustomization infrastructure
-flux reconcile kustomization platform
-flux reconcile kustomization apps
+flux reconcile kustomization cilium
+flux reconcile kustomization cert-manager
+flux reconcile kustomization certificates
 
 # Watch Flux status
 flux get kustomizations --watch

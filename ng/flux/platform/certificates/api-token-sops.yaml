@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: Secret
+metadata:
+    name: infomaniak-api-credentials
+type: Opaque
+stringData:
+    api-token: ENC[AES256_GCM,data:Or5Q2v++slhVgSHeE6I6A5vXncU7uTv1iPlYZv97iGGr4lv+BY+9YSHYF64ngX+QXvLnFArX6uYBdVCelMH7AB+pYbQ3D7h/WCnvOVNKi0U=,iv:Jgp9/VLyVmLiyzag80c+/K1swax82nN0kPOvCdieQZI=,tag:gH2cnTfCuvX9/2ltvIlbhg==,type:str]
+sops:
+    kms: []
+    gcp_kms: []
+    azure_kv: []
+    hc_vault: []
+    age: []
+    lastmodified: "2025-08-18T18:59:59Z"
+    mac: ENC[AES256_GCM,data:ukBUw0YWzTONTFdOmm6MpkGW0xJw99iV12biTPjfzCwtiJ9zDBVh0/5BFxlnKdyLctcHHY4qLyOfvM/VeHAImeX2n45XI0efUrGuXzJjajo9rnUy2cQHV+CKaRfsFHzMhsA+2WxxJZ6ZKrnM/r306NvlbC8xiA+WhGFV6XaLx+s=,iv:GCOpe2VLws7nQAk47n3m2J+rllBRioI70CM3O+57H5o=,tag:6335p1sgxVkCr9z37V1RyQ==,type:str]
+    pgp:
+        - created_at: "2025-08-18T18:59:58Z"
+          enc: |-
+            -----BEGIN PGP MESSAGE-----
+
+            hF4D6rJQTzBUCVESAQdArV6G8LpI24vGKM3Qxwh8DY+ckR4IOsVmUS+sL19eaHQw
+            bVyd6M7VVRGlY+KJZN8RRdvVLTFIiGqS1o2DkEp9mAkl0VEjbK/CYvwoRXFCk2AY
+            0l4BXKEg33x+d9mNj6poYq9oZH6IPOr2jTKtFo30CCLL75CZavhDL3OqCDV/qype
+            KmKS2z56AWu2YdGPHKXISHGrDJZfhYBjMKUILedvCtqUIx16Shgitk8EiTB8FIYE
+            =tnaq
+            -----END PGP MESSAGE-----
+          fp: 459895EB0A5F446D3831E99F95F6A162E4A71B06
+        - created_at: "2025-08-18T18:59:58Z"
+          enc: |-
+            -----BEGIN PGP MESSAGE-----
+
+            hF4D8q6e3Tem1ZoSAQdAKmhinRoifFT5hPGZPBoTVoI6OeRdKWU7WfTUkRVdY3cw
+            RhEP/rsTy0emLVpsqSGsrlNriRqLgm9PC+NLCdxR92Nw/44+RxUujkSgdqfVAu7z
+            0l4BocvLRrQeRzMBau49+34w+qG5a9cBWF7zmbP9ZqhRiT/cZci8mWeDhpBHV9BY
+            NM/ZJWEjXPpEUIcwvda19UObQQpxkbBspg1HGbp8Iv4Jx+EMkhilbaS1wu4n/aCp
+            =v5LW
+            -----END PGP MESSAGE-----
+          fp: DF7F5D62376A57228F35FE4C665F8C5B8E0732E5
+    encrypted_regex: ^(data|stringData|secrets)$
+    version: 3.9.2

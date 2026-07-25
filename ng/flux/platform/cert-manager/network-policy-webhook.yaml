@@ -1,0 +1,44 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: webhook
+spec:
+  endpointSelector:
+    matchLabels:
+      app: webhook
+  ingress:
+  - fromEntities:
+    - remote-node
+    - kube-apiserver
+    toPorts:
+    - ports:
+      - port: "10250"
+        protocol: TCP
+      - port: "6443"
+        protocol: TCP
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: cert-manager
+    toPorts:
+    - ports:
+      - port: "10250"
+        protocol: TCP
+      - port: "6443"
+        protocol: TCP
+  egress:
+  - toEntities:
+    - kube-apiserver
+    toPorts:
+    - ports:
+      - port: "6443"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: coredns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP

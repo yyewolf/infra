@@ -1,0 +1,13 @@
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: infomaniak-webhook
+spec:
+  interval: 5m
+  url: https://github.com/Infomaniak/cert-manager-webhook-infomaniak
+  ref:
+    branch: master
+  ignore: |
+    /*
+    !/deploy/
