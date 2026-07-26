@@ -100,3 +100,12 @@ spec:
     - ports:
       - port: "9090"
         protocol: TCP
+  # The CNPG operator reconciling Database resources calls the mutating webhook
+  # in cnpg-system from the instance manager running inside each postgres pod.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: cnpg-system
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP

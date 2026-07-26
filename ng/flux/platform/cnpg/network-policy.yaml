@@ -11,8 +11,11 @@ spec:
       app.kubernetes.io/name: cloudnative-pg
   ingress:
   # Mutating + validating webhooks for Cluster/Backup/ScheduledBackup.
+  # The API server calls them for admission, and instance managers (which run
+  # inside each postgres pod) call them when reconciling Database resources.
   - fromEntities:
     - kube-apiserver
+    - cluster
     toPorts:
     - ports:
       - port: "9443"

@@ -1,0 +1,12 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: vaultwarden
+  namespace: postgres
+spec:
+  cluster:
+    name: postgres
+  name: vaultwarden
+  login: true
+  passwordSecret:
+    name: vaultwarden-db-credentials

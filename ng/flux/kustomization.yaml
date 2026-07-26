@@ -21,5 +21,8 @@ resources:
 - platform/mysql/ks.yaml
 - platform/booting-up/ks.yaml
 - platform/envoy-proxy/ks.yaml
+- platform/postgres/applications/vaultwarden/ks.yaml
 - apps/cyberchef/ks.yaml
 - apps/radar/ks.yaml
+
+# - apps/vaultwarden/ks.yaml
