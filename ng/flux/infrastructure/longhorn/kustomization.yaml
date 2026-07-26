@@ -8,3 +8,4 @@ resources:
   - release.yaml
   - storageclasses.yaml
   - network-policy.yaml
+  - ingress.yaml
