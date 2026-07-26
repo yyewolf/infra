@@ -1,0 +1,126 @@
+# The cluster's one MySQL, alongside the one Postgres in platform/postgres.
+# Same shape deliberately: apps get a database on this via a `Database` CR in
+# their own namespace, not an instance of their own. CNMSQL runs with
+# `rbac.namespaced: false` (see platform/cnmsql), which is what makes that
+# cross-namespace reference work.
+apiVersion: mysql.cnmsql.co/v1alpha1
+kind: Cluster
+metadata:
+  name: mysql
+spec:
+  # One primary, one replica. Failover is operator-driven — this is not a
+  # voting group, see `replication.mode` below.
+  instances: 2
+
+  # Immutable after creation. Percona Server for MySQL, not MariaDB; stated
+  # explicitly rather than left to default because changing it later means
+  # rebuilding the cluster.
+  flavor: mysql
+
+  # CNMSQL's own instance image, not stock `percona/percona-server`. Same
+  # arrangement as CNPG: the operator drives an instance manager that has to be
+  # in the image, so a stock Percona image is not a substitute. The tag tracks
+  # the MySQL series (8.4) with a build revision; `8.4-4` is what the floating
+  # `8.4` tag currently resolves to, pinned so Renovate has something to bump.
+  #
+  # amd64 only. Fine for cp-0/1/2, which is where this is pinned to run.
+  # renovate: datasource=docker
+  imageName: ghcr.io/cnmsql/cnmsql-instance:8.4-4
+
+  # Roll updates without being asked, moving the primary by switchover rather
+  # than restarting it in place.
+  primaryUpdateStrategy: unsupervised
+  primaryUpdateMethod: switchover
+
+  replication:
+    # Immutable after creation. Async, not groupReplication, because a Group
+    # Replication group needs an odd number of members to hold a quorum — a
+    # two-member group cannot form one after losing a member, which is the
+    # exact failure it would exist to survive. Quorum here would mean three
+    # instances; see the semi-sync settings below for what replaces it.
+    mode: async
+
+  mysql:
+    # ROW is the only format that is safe for both replication and
+    # point-in-time recovery. STATEMENT silently diverges the replica on any
+    # non-deterministic statement.
+    binlogFormat: ROW
+
+    semiSync:
+      # The primary waits for the replica to acknowledge a write before
+      # returning, so a committed transaction exists in two places rather than
+      # one. This is what buys back most of the durability that `mode: async`
+      # alone gives up.
+      enabled: true
+
+      # 'preferred', not 'required', and this is the important half. Under
+      # 'required' the acknowledgement count is fixed, so a replica that is
+      # down blocks every write on the primary until it returns — one node
+      # going away would become a total outage. 'preferred' self-heals the
+      # count down to the number of healthy replicas, so the pair degrades to
+      # async and stays writable instead.
+      dataDurability: preferred
+
+      # How long the primary waits for that acknowledgement before giving up
+      # and proceeding asynchronously. Long enough to ride out a brief network
+      # blip, short enough that a dead replica does not visibly stall writes.
+      timeoutMillis: 1000
+
+  # One replica, and it is the one being waited on. maxSyncReplicas must stay
+  # below `instances`, so at two instances this pair can only ever be 1/1.
+  minSyncReplicas: 1
+  maxSyncReplicas: 1
+
+  bootstrap:
+    initdb:
+      database: app
+      owner: app
+      # utf8mb4 throughout. MySQL's historical `utf8` is a three-byte subset
+      # that cannot store emoji or much of CJK, and getting this wrong is only
+      # discovered later by data that will not insert.
+      characterSet: utf8mb4
+      collation: utf8mb4_0900_ai_ci
+
+  storage:
+    size: 20Gi
+    # Same reasoning as Postgres: CNMSQL already keeps a second copy on the
+    # other instance, so a 3-replica Longhorn class would store six copies of
+    # every write to guard against a failure the operator already handles, and
+    # strict-local keeps the datadir on the node's own NVMe.
+    storageClass: longhorn-yolo
+
+  affinity:
+    # 'required'. Two instances on one node is two copies on one disk and a
+    # pair that dies together.
+    enablePodAntiAffinity: true
+    podAntiAffinityType: required
+    topologyKey: kubernetes.io/hostname
+    # edge-0 has no Longhorn partition; its taint already keeps MySQL off it,
+    # but a strict-local PVC landing on a node with no Longhorn disk fails as a
+    # Pending pod with no obvious cause, so say it outright.
+    nodeSelector:
+      node-role.kubernetes.io/control-plane: ""
+
+  resources:
+    # Memory request == limit for Guaranteed QoS, so the kubelet evicts other
+    # things first under node pressure. No CPU limit: a throttled database
+    # stalls in ways that look like disk or network faults.
+    requests:
+      cpu: 500m
+      memory: 2Gi
+    limits:
+      memory: 2Gi
+
+  monitoring:
+    # No prometheus-operator in this cluster yet; the PodMonitor CRD would not
+    # resolve.
+    enablePodMonitor: false
+
+  # No `backup:` stanza, for the same reason as Postgres: ng has no S3 target,
+  # so there is no binlog archiving and no point-in-time recovery. Two
+  # instances cover losing a node. They do not cover DROP TABLE, corruption
+  # replicating to the replica, or losing the cluster.
+  #
+  # Closing it is a `backup` block, a credentials Secret, a ScheduledBackup and
+  # a `toFQDNs` egress rule in network-policy.yaml. `upgrade.backupBeforeUpgrade`
+  # is also worth turning on at that point — it is useless without a target.

@@ -1,0 +1,68 @@
+# Cilium's default-deny is per-direction and per-endpoint, so both directions
+# are spelled out. Mirrors platform/postgres/network-policy.yaml — same shape,
+# same reasoning, different port.
+#
+# Selects the whole namespace: CNMSQL names instance pods after the cluster and
+# labels them with its own scheme, and the namespace holds nothing but this
+# cluster, so a narrower selector buys nothing and risks guessing the
+# operator's labels wrong.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: mysql
+spec:
+  endpointSelector: {}
+  ingress:
+  # Replication between the primary and the replica, and the instance managers
+  # talking to each other during a switchover.
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: mysql
+  # The operator drives the instances it created.
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: cnmsql
+        app.kubernetes.io/name: cnmsql
+  # Every app that has a database here. Loose for the unavoidable reason a
+  # shared database is: its clients live in namespaces this file cannot
+  # enumerate. Bounded to `cluster` (never `world`) and to 3306, so no app can
+  # reach the instance manager's own API.
+  #
+  # Credentials are what actually gate access — each app gets its own user and
+  # database — and the egress half lives in that app's own policy. An app with
+  # no egress rule to `mysql` still cannot connect.
+  - fromEntities:
+    - cluster
+    toPorts:
+    - ports:
+      - port: "3306"
+        protocol: TCP
+  # The kubelet runs the liveness, readiness and startup probes.
+  - fromEntities:
+    - host
+    - remote-node
+    - health
+  egress:
+  # The other instance, for replication.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: mysql
+  # The instance manager watches its own Cluster resource and reports status.
+  - toEntities:
+    - kube-apiserver
+    toPorts:
+    - ports:
+      - port: "6443"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+  # No `world`. Binlog archiving to S3 is what would need one, and it belongs
+  # here as a `toFQDNs` rule on the bucket hostname, not a blanket allow.
