@@ -1,0 +1,51 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: tailscale-operator
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: tailscale-operator
+      version: "1.98.9"
+      sourceRef:
+        kind: HelmRepository
+        name: tailscale
+      interval: 12h
+  values:
+    # The chart renders the tailscale.com CRDs as ordinary templates (not from
+    # crds/), so Helm owns them and upgrades apply cleanly. Nothing to set on
+    # install.crds here.
+    installCRDs: true
+
+    operatorConfig:
+      # This tailnet already has an operator — the root cluster's, which takes
+      # the default `tailscale-operator` hostname. Two nodes asking for the same
+      # name get a silent `-1` suffix, so name this one after the cluster.
+      hostname: ng-tailscale-operator
+      logging: info
+      defaultTags:
+        - tag:k8s-operator
+      resources:
+        requests:
+          cpu: 20m
+          memory: 64Mi
+        limits:
+          memory: 256Mi
+
+    proxyConfig:
+      # Proxies the operator spins up for egress/ingress Services. Same tag the
+      # root cluster's proxies use, so one ACL grant covers both clusters.
+      defaultTags: tag:k8s
+
+    # No Kubernetes API server proxy. Cluster admin comes over WireGuard from
+    # the LAN, and exposing the apiserver on the tailnet would be a second,
+    # separately-authorized path into it.
+    apiServerProxyConfig:
+      mode: "false"
+      allowImpersonation: "false"
+
+  # oauth.clientId is deliberately left empty: setting it would make the chart
+  # template the credentials into a Secret, which means they would have to live
+  # in these plaintext values. The operator falls back to mounting a
+  # precreated `operator-oauth` Secret, which is what oauth-sops.yaml is.

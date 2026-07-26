@@ -1,0 +1,116 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: tailscale-operator
+spec:
+  endpointSelector:
+    matchLabels:
+      app: operator
+  egress:
+  # Reconciles Services/Ingresses and creates the proxy StatefulSets.
+  - toEntities:
+    - kube-apiserver
+    toPorts:
+    - ports:
+      - port: "6443"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+      rules:
+        dns:
+        - matchPattern: "*"
+  # The operator itself is a tailnet node (hostname ng-tailscale-operator) and
+  # it drives the tailnet API to mint auth keys for the proxies. It never needs
+  # DERP or peer-to-peer — it exchanges no data with other nodes.
+  - toFQDNs:
+    - matchName: controlplane.tailscale.com
+    - matchName: login.tailscale.com
+    - matchName: api.tailscale.com
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: tailscale-proxies
+spec:
+  # Every proxy the operator creates carries this label; the rest of a proxy's
+  # labels (tailscale.com/parent-resource and friends) name the Service it was
+  # created for, so they cannot be enumerated ahead of time.
+  endpointSelector:
+    matchLabels:
+      tailscale.com/managed: "true"
+  ingress:
+  # Egress proxies are reached by ClusterIP from the app that wants a tailnet
+  # host; ingress proxies hand traffic to Services. Both are in-cluster peers
+  # whose namespace depends on which Services exist, hence the entity match.
+  - fromEntities:
+    - cluster
+  # A hole-punched peer sends UDP straight to the proxy's endpoint. Most of
+  # that is reply-direction and conntrack would allow it anyway, but without
+  # this the failure mode is a silent fall back to relaying every byte through
+  # DERP — slow, and hard to attribute to a network policy.
+  - fromEntities:
+    - world
+    toPorts:
+    - ports:
+      - port: "1"
+        endPort: 65535
+        protocol: UDP
+  egress:
+  # tailscaled stores its node state in a Secret rather than on disk, so a
+  # proxy talks to the apiserver for its own state, not just at startup.
+  - toEntities:
+    - kube-apiserver
+    toPorts:
+    - ports:
+      - port: "6443"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+      rules:
+        dns:
+        - matchPattern: "*"
+  # Coordination plus DERP. DERP relays are derpN.tailscale.com and the set
+  # rotates, so this is a suffix match rather than the named-host list the
+  # operator's policy uses.
+  - toFQDNs:
+    - matchPattern: "*.tailscale.com"
+    - matchName: tailscale.com
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP
+  # NAT traversal: STUN to the DERP servers, then WireGuard direct to whatever
+  # ip:port the peer turns out to be behind. Neither the address nor the port
+  # is knowable in advance, so this is the one genuinely open rule here — it is
+  # UDP-only, which is what keeps it from being a general internet egress.
+  - toEntities:
+    - world
+    toPorts:
+    - ports:
+      - port: "1"
+        endPort: 65535
+        protocol: UDP
+  # An ingress proxy forwards to the Service it was created for, in that
+  # Service's own namespace. Same reason KEDA's interceptor rule is loose.
+  - toEntities:
+    - cluster
