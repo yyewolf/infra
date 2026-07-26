@@ -30,12 +30,31 @@ spec:
   # an HTTPS server that cert-manager calls to solve DNS01 challenges; it needs
   # no privileges.
   #
-  # Same restraint as the external-dns provider sidecar: no runAsNonRoot or
-  # readOnlyRootFilesystem until someone has confirmed the image tolerates
-  # them.
+  # Unlike the two images beside it, this one really is built to run as root:
+  # alpine base, no USER, and it binds 443. So running it unprivileged takes
+  # more than an assertion — the listener has to move to an unprivileged port
+  # first. `--secure-port` comes from cert-manager's own webhook framework
+  # (RecommendedOptions), which this solver embeds, and 443 is only its
+  # default.
+  #
+  # NET_BIND_SERVICE would not have worked instead: Kubernetes never populates
+  # the ambient capability set, so a non-root process does not receive an added
+  # capability at execve. Same reasoning as platform/booting-up.
+  #
+  # The Service targets the port by *name* (`targetPort: https`), so renumbering
+  # the container port is invisible to it and to the APIService in front. The
+  # CiliumNetworkPolicy is not — it matches the endpoint's real port, and is
+  # updated to 8443 in network-policy.yaml.
+  #
+  # readOnlyRootFilesystem is deliberately still absent: the apiserver
+  # machinery underneath this has a cert-directory default it does not use here
+  # but does still resolve, and that is worth a test rather than an assumption.
   postRenderers:
     - kustomize:
         patches:
+          # args is a plain list with no merge key, so this replaces it
+          # wholesale rather than appending — it has to carry the chart's own
+          # three flags. That coupling is why repository.yaml pins a tag.
           - target:
               kind: Deployment
               name: infomaniak-webhook
@@ -49,9 +68,28 @@ spec:
                   spec:
                     containers:
                       - name: infomaniak-webhook
+                        args:
+                          - --v=2
+                          - --tls-cert-file=/tls/tls.crt
+                          - --tls-private-key-file=/tls/tls.key
+                          - --secure-port=8443
                         securityContext:
                           allowPrivilegeEscalation: false
                           capabilities:
                             drop: ["ALL"]
+                          runAsNonRoot: true
+                          runAsUser: 65532
+                          runAsGroup: 65532
                           seccompProfile:
                             type: RuntimeDefault
+          # containerPort has to be a JSON patch: it is the merge key of the
+          # ports list, so a strategic merge would add a second port named
+          # `https` beside 443 instead of renumbering it, and a Deployment with
+          # two identically-named ports is rejected.
+          - target:
+              kind: Deployment
+              name: infomaniak-webhook
+            patch: |
+              - op: replace
+                path: /spec/template/spec/containers/0/ports/0/containerPort
+                value: 8443

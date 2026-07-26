@@ -13,7 +13,10 @@ spec:
         app: cert-manager
     toPorts:
     - ports:
-      - port: "443"
+      # The pod's listener, moved off 443 so the webhook can run unprivileged
+      # (release.yaml). The Service still publishes 443 and resolves this by
+      # name, so cert-manager's side of the connection is unchanged.
+      - port: "8443"
         protocol: TCP
   egress:
   - toEntities:

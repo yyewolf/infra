@@ -4,7 +4,9 @@ metadata:
   name: caddy-config
 data:
   Caddyfile: |
-    :80 {
+    # 8080, not 80: the pod runs unprivileged and cannot bind a low port. See
+    # deployment.yaml for why the NET_BIND_SERVICE capability is not an option.
+    :8080 {
         root * /srv
         file_server
         templates

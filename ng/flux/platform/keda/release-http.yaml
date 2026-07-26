@@ -19,6 +19,18 @@ spec:
   upgrade:
     crds: CreateReplace
   values:
+    # KEDA proper sets runAsNonRoot on every pod; this sub-chart does not — its
+    # podSecurityContext default is only fsGroup/supplementalGroups. All three
+    # images (interceptor, operator, scaler) already declare USER 65532, so
+    # this asserts what they already do rather than changing it, and makes the
+    # kubelet refuse the pod if a future image ships as root.
+    #
+    # No runAsUser on purpose: the images carry a numeric non-root USER, which
+    # is what runAsNonRoot validates against, so there is no uid to duplicate
+    # here and nothing to fix if upstream renumbers it.
+    podSecurityContext:
+      runAsNonRoot: true
+
     # The interceptor sits in the request path: it holds a request open while
     # the target scales from zero, then forwards it. Every scale-to-zero route
     # goes through keda-add-ons-http-interceptor-proxy:8080 in this namespace.

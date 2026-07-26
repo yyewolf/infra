@@ -17,7 +17,10 @@ spec:
         app.kubernetes.io/component: interceptor
     toPorts:
     - ports:
-      - port: "80"
+      # The pod's own listener, not the Service port — policy is enforced at
+      # the endpoint, after kube-proxy/Cilium has already rewritten 80 to the
+      # container port.
+      - port: "8080"
         protocol: TCP
   egress:
   - toEndpoints:

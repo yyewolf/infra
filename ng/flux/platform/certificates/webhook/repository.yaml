@@ -5,8 +5,16 @@ metadata:
 spec:
   interval: 5m
   url: https://github.com/Infomaniak/cert-manager-webhook-infomaniak
+  # A tag, not master. The release patches this chart's rendered Deployment
+  # (see release.yaml) — the container's args and port, not just an added
+  # field — so an upstream commit that renames a flag or restructures the pod
+  # would land here within 5 minutes and silently produce a broken webhook.
+  # Pinning makes the chart and the patches move together, deliberately.
+  #
+  # v0.3.1 is byte-identical to master's deploy/ at the time of pinning, so
+  # this changed nothing when it was applied.
   ref:
-    branch: master
+    tag: v0.3.1
   ignore: |
     /*
     !/deploy/

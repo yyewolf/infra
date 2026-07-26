@@ -13,6 +13,28 @@ spec:
         app: caddy
     spec:
       automountServiceAccountToken: false
+      # The caddy image runs as root and has no non-root variant. Nothing here
+      # needs it: the uid is arbitrary because every file it reads comes from a
+      # ConfigMap and every file it writes goes to an emptyDir below.
+      #
+      # The listener moved to :8080 so binding does not actually need
+      # NET_BIND_SERVICE. But the binary ships with cap_net_bind_service=ep
+      # file capabilities, and execing a file-capable binary as non-root
+      # without that capability in the permitted set is refused by the kernel
+      # (EPERM). The add below is here for the exec gate, not for the port
+      # binding — it keeps the file capability happy so execution succeeds,
+      # while :8080 works unprivileged regardless.
+      #
+      # A capability added through the securityContext lands in the container's
+      # permitted set but not its *ambient* set (Kubernetes does not populate
+      # that), so even with NET_BIND_SERVICE the caddy process running as
+      # uid 1000 still could not bind :80. Unprivileged port + no-ambient is
+      # the way out. The Service still listens on 80, so nothing upstream
+      # changes.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
       containers:
         - name: caddy
           image: mirror.gcr.io/caddy:2.11.4@sha256:844f60b64e4724a5aa8245e019dace0d3f199f7433ce6c57676cb30a920dbad9
@@ -23,10 +45,11 @@ spec:
                 - ALL
               add:
                 - NET_BIND_SERVICE
+            readOnlyRootFilesystem: true
             seccompProfile:
               type: RuntimeDefault
           ports:
-            - containerPort: 80
+            - containerPort: 8080
           volumeMounts:
             - name: config
               mountPath: /etc/caddy/Caddyfile
@@ -34,6 +57,16 @@ spec:
             - name: html
               mountPath: /srv/index.html
               subPath: index.html
+            # Caddy initialises its storage on every start (an instance UUID
+            # under XDG_DATA_HOME) and autosaves the adapted config under
+            # XDG_CONFIG_HOME — the image points both at /data and /config. As
+            # root on a writable rootfs that was invisible; as uid 1000 with a
+            # read-only rootfs it is a startup failure unless both are real
+            # writable mounts. Nothing in either survives a restart by design.
+            - name: data
+              mountPath: /data
+            - name: caddy-home
+              mountPath: /config
           resources:
             requests:
               cpu: "0"
@@ -48,3 +81,7 @@ spec:
         - name: html
           configMap:
             name: caddy-config
+        - name: data
+          emptyDir: {}
+        - name: caddy-home
+          emptyDir: {}

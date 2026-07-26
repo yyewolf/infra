@@ -75,14 +75,19 @@ spec:
         # be half-locked-down. The sidecar is an HTTP server talking to the
         # Infomaniak API on localhost — it needs nothing.
         #
-        # Deliberately stops short of the main container's runAsNonRoot /
-        # runAsUser / readOnlyRootFilesystem: those depend on how this
-        # third-party image is built, and getting them wrong turns a warning
-        # into a CrashLoop. Worth revisiting with a test.
+        # The uid is not a guess: the image declares USER 65532 and
+        # WORKDIR /home/nonroot, i.e. it is built on distroless nonroot and
+        # already runs unprivileged. Naming it here is what makes the kubelet
+        # *enforce* that instead of trusting the image, and matches the
+        # external-dns container beside it (also 65532, also read-only root).
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
             drop: ["ALL"]
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 65532
+          runAsGroup: 65532
           seccompProfile:
             type: RuntimeDefault
 

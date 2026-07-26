@@ -9,5 +9,7 @@ spec:
   ports:
     - name: http
       protocol: TCP
+      # The Service keeps port 80 so the KEDA interceptor's fallback target is
+      # unchanged; only the container's listener moved (see deployment.yaml).
       port: 80
-      targetPort: 80
+      targetPort: 8080

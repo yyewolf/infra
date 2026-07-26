@@ -39,12 +39,42 @@ spec:
       # privileges a *proxy* needs apply to it. That distinction is the whole
       # point: see proxyConfig below for the pods that genuinely are
       # privileged.
+      #
+      # The image has no USER, so it defaults to root and the uid has to be
+      # named here. 65532 is arbitrary — nothing in the pod is owned by a
+      # specific uid; the only writable path is the emptyDir below, and
+      # Kubernetes creates that world-writable.
+      #
+      # readOnlyRootFilesystem is deliberately left off: with the state dir
+      # relocated the operator should not touch the rootfs, but "should not" is
+      # an assumption about a library, and this pod is how the tailnet reaches
+      # the cluster.
       securityContext:
         allowPrivilegeEscalation: false
         capabilities:
           drop: ["ALL"]
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
         seccompProfile:
           type: RuntimeDefault
+
+      # The operator joins the tailnet through tsnet, which insists on a
+      # writable directory even though the *node state* lives in the `operator`
+      # Secret (it still puts its log config and log buffer on disk). With no
+      # Dir set, tsnet falls back to os.UserConfigDir() — $XDG_CONFIG_HOME, or
+      # $HOME/.config — and creates a `tsnet-operator` directory there. As root
+      # that lands in /root/.config and nobody notices; as uid 65532 the
+      # fallback is /.config, which is not writable, and the operator exits at
+      # startup.
+      #
+      # So the state dir is pointed at a mount instead. The volume itself has
+      # to come from the post-renderer below — the chart templates no
+      # extraVolumes — and this env var is the half of the pair the chart can
+      # express. They only work together.
+      extraEnv:
+        - name: XDG_CONFIG_HOME
+          value: /tsnet
 
     proxyConfig:
       # Proxies the operator spins up for egress/ingress Services. Same tag the
@@ -79,3 +109,33 @@ spec:
   # template the credentials into a Secret, which means they would have to live
   # in these plaintext values. The operator falls back to mounting a
   # precreated `operator-oauth` Secret, which is what oauth-sops.yaml is.
+
+  # The writable state dir that operatorConfig.extraEnv points XDG_CONFIG_HOME
+  # at. The chart has no extraVolumes, so it is patched in. Both lists merge by
+  # name, so the chart's own `oauth` volume and mount are left alone.
+  #
+  # emptyDir, not a PVC: everything durable about this node — its key and its
+  # tailnet identity — is in the `operator` Secret via tsnet's kube store. What
+  # lands here is a log buffer the operator is free to lose on restart.
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              kind: Deployment
+              name: operator
+            patch: |
+              apiVersion: apps/v1
+              kind: Deployment
+              metadata:
+                name: operator
+              spec:
+                template:
+                  spec:
+                    volumes:
+                      - name: tsnet-state
+                        emptyDir: {}
+                    containers:
+                      - name: operator
+                        volumeMounts:
+                          - name: tsnet-state
+                            mountPath: /tsnet
