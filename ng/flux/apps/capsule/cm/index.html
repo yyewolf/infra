@@ -1,0 +1,45 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    p {
+      text-align: center;
+      font-size: 60px;
+      margin-top: 0px;
+    }
+  </style>
+</head>
+
+<!-- The background is served from this pod (bg.jpg is in the same ConfigMap),
+     not fetched from raw.githubusercontent.com at a pinned commit like the root
+     cluster's copy did. That URL made every visitor's browser hit GitHub and
+     tied the page to a public repo. -->
+
+<body background="/bg.jpg">
+  <p id="demo"
+    style="color: #ffffff; left: 0; line-height: 200px; margin: auto; margin-top: -100px; position: absolute; top: 50%; width: 100%;">
+  </p>
+  <script>
+    var countDownDate = new Date("Jul 22, 2050 16:00:00 UTC+1").getTime();
+    var x = setInterval(function () {
+      var now = new Date().getTime();
+      var distance = countDownDate - now;
+
+      var years = Math.floor(distance / (1000 * 60 * 60 * 24 * 365));
+      var days = Math.floor((distance % (1000 * 60 * 60 * 24 * 365)) / (1000 * 60 * 60 * 24));
+      var hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+      var seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+      document.getElementById("demo").innerHTML = `${years}y ${days}d ${hours}h ${minutes}m ${seconds}s`;
+      if (distance < 0) {
+        clearInterval(x);
+        document.getElementById("demo").innerHTML = "GO OPEN IT !";
+      }
+    }, 1000);
+  </script>
+</body>
+
+</html>

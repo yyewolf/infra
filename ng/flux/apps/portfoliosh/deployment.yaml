@@ -1,0 +1,71 @@
+# The one app here that does not scale to zero: KEDA's HTTP add-on wakes a
+# workload off an HTTP request, and this is raw SSH. There is no TCP
+# equivalent, so a cold connection would have nothing to hold it open — the
+# handshake would simply fail. One small pod, always on.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portfoliosh
+  labels:
+    app: portfoliosh
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: portfoliosh
+  template:
+    metadata:
+      labels:
+        app: portfoliosh
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: portfoliosh
+        image: ghcr.io/yyewolf/portfoliosh:latest@sha256:bbaaa4bec645fcd6dfaff052c2b7bccb81924d8e46dc6d2125e4e1417a7d7197
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        ports:
+        - name: ssh
+          containerPort: 2222
+        readinessProbe:
+          tcpSocket:
+            port: ssh
+          initialDelaySeconds: 2
+          periodSeconds: 10
+        volumeMounts:
+        - name: host-keys
+          mountPath: /hostkey.pem
+          subPath: hostkey.pem
+          readOnly: true
+        resources:
+          requests:
+            cpu: 0m
+            memory: 0Mi
+          limits:
+            cpu: 200m
+            memory: 200Mi
+      volumes:
+      # The same host key the root cluster serves, carried over verbatim so
+      # clients that have already trusted this host do not get a key-mismatch
+      # warning when traffic moves.
+      - name: host-keys
+        secret:
+          secretName: ssh-host-keys
+          defaultMode: 0400
+          items:
+          - key: ssh_host_ed25519_key
+            path: hostkey.pem

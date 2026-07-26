@@ -4,21 +4,21 @@
 apiVersion: http.keda.sh/v1beta1
 kind: InterceptorRoute
 metadata:
-  name: portfolio
+  name: capsule
 spec:
   target:
-    service: portfolio
+    service: caddy
     port: 80
   rules:
     - hosts:
-        - yewolf.fr
+        - capsule.yewolf.fr
       paths:
         - value: /
   scalingMetric:
     concurrency:
       targetValue: 100
   coldStart:
-    # While portfolio is still starting, serve the placeholder page instead of
+    # While caddy is still starting, serve the placeholder page instead of
     # holding the connection open. Its JS polls /is_still_booting_up — which
     # also lands here until the pod is ready — and reloads once the real app
     # answers.
@@ -28,6 +28,6 @@ spec:
         port: 80
   timeouts:
     # Short on purpose: this is how long a request waits before it gives up and
-    # gets the placeholder. Long enough to absorb a warm pod, short enough that
-    # a genuine cold start shows the spinner instead of appearing to hang.
+    # gets the placeholder. The root cluster left this at the default, which is
+    # why a cold capsule used to hang rather than show the spinner.
     readiness: 2s

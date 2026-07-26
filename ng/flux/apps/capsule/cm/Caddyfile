@@ -1,0 +1,8 @@
+# 8080, not 80: the pod runs unprivileged and a capability added through the
+# securityContext never reaches the ambient set, so binding a low port would
+# fail even with NET_BIND_SERVICE. Same reasoning as platform/booting-up.
+:8080 {
+	root * /srv
+	file_server
+	templates
+}

@@ -1,0 +1,35 @@
+# The Envoy proxy is the only thing that should reach this pod, on 2222. The
+# old cluster's policy here was an `endpointSelector: {}` that allowed ingress
+# from everywhere; this is the equivalent stated properly.
+#
+# Egress is DNS only. This app is a TUI over SSH with no backend — if it ever
+# grows one, that is a rule to add here, not a reason to loosen this.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: portfoliosh
+spec:
+  endpointSelector:
+    matchLabels:
+      app: portfoliosh
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: envoy-gateway-system
+        app.kubernetes.io/name: envoy
+        app.kubernetes.io/component: proxy
+    toPorts:
+    - ports:
+      - port: "2222"
+        protocol: TCP
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP

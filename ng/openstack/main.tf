@@ -232,6 +232,33 @@ resource "openstack_networking_secgroup_rule_v2" "quic_v6" {
   description       = "Envoy Gateway QUIC/HTTP3 over IPv6"
 }
 
+# Port 22 reaches the `portfoliosh` TUI through a TCP listener on the same
+# Gateway, never a host sshd — Talos runs none, so nothing else on edge-0 is
+# listening here. The listener exists only while that app's ListenerSet does;
+# these rules are the other half, and without them the port is closed at
+# Neutron no matter what the Gateway says.
+resource "openstack_networking_secgroup_rule_v2" "ssh_v4" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 22
+  port_range_max    = 22
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = openstack_networking_secgroup_v2.edge.id
+  description       = "Envoy Gateway TCP for portfoliosh"
+}
+
+resource "openstack_networking_secgroup_rule_v2" "ssh_v6" {
+  direction         = "ingress"
+  ethertype         = "IPv6"
+  protocol          = "tcp"
+  port_range_min    = 22
+  port_range_max    = 22
+  remote_ip_prefix  = "::/0"
+  security_group_id = openstack_networking_secgroup_v2.edge.id
+  description       = "Envoy Gateway TCP for portfoliosh over IPv6"
+}
+
 # An explicit port rather than letting Nova create one, so the addresses are a
 # first-class output and the security group is attached before the instance
 # ever boots.

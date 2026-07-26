@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: caddy
+  labels:
+    app: caddy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: caddy
+  template:
+    metadata:
+      labels:
+        app: caddy
+    spec:
+      automountServiceAccountToken: false
+      # Same shape as platform/booting-up, for the same reasons: the caddy
+      # image runs as root and has no non-root variant, but nothing here needs
+      # root — every file it reads comes from a ConfigMap and every file it
+      # writes goes to an emptyDir. The root cluster's copy of this app ran as
+      # root on a writable filesystem.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+        - name: caddy
+          image: mirror.gcr.io/caddy:2.11.4@sha256:844f60b64e4724a5aa8245e019dace0d3f199f7433ce6c57676cb30a920dbad9
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+              # Not for binding: the listener is on :8080. The caddy binary
+              # ships with cap_net_bind_service=ep file capabilities, and the
+              # kernel refuses to exec a file-capable binary as non-root unless
+              # that capability is in the permitted set. This keeps the exec
+              # gate happy; see platform/booting-up for the long version.
+              add:
+                - NET_BIND_SERVICE
+            readOnlyRootFilesystem: true
+            seccompProfile:
+              type: RuntimeDefault
+          ports:
+            - name: http
+              containerPort: 8080
+          # Tight probe timings: this is the pod the interceptor is waiting on
+          # during a cold start, so every second here is a second of
+          # placeholder.
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 1
+            periodSeconds: 1
+          volumeMounts:
+            - name: config
+              mountPath: /etc/caddy/Caddyfile
+              subPath: Caddyfile
+            - name: config
+              mountPath: /srv/index.html
+              subPath: index.html
+            - name: bg
+              mountPath: /srv/bg.jpg
+              subPath: bg.jpg
+            # Caddy initialises its storage on every start (an instance UUID
+            # under XDG_DATA_HOME) and autosaves the adapted config under
+            # XDG_CONFIG_HOME — the image points both at /data and /config. As
+            # root on a writable rootfs that was invisible; as uid 1000 with a
+            # read-only rootfs it is a startup failure unless both are real
+            # writable mounts.
+            - name: data
+              mountPath: /data
+            - name: caddy-home
+              mountPath: /config
+          resources:
+            requests:
+              cpu: "0"
+              memory: "0Mi"
+            limits:
+              memory: "300Mi"
+              cpu: "300m"
+      volumes:
+        - name: config
+          configMap:
+            name: caddy-config
+        - name: bg
+          configMap:
+            name: caddy-bg
+        - name: data
+          emptyDir: {}
+        - name: caddy-home
+          emptyDir: {}

@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: capsule
+
+resources:
+- namespace.yaml
+- configmap-bg.yaml
+- deployment.yaml
+- service.yaml
+- fallback-service.yaml
+- route.yaml
+- interceptorroute.yaml
+- scaledobject.yaml
+- network-policy.yaml
+
+# Generated rather than hand-written, so the name hash changes with the content
+# and the Deployment actually rolls when the page is edited. The background
+# image is not here — see configmap-bg.yaml for why it cannot be.
+configMapGenerator:
+- name: caddy-config
+  files:
+  - cm/Caddyfile
+  - cm/index.html

@@ -25,5 +25,7 @@ resources:
 - apps/cyberchef/ks.yaml
 - apps/radar/ks.yaml
 - apps/portfolio/ks.yaml
+- apps/portfoliosh/ks.yaml
+- apps/capsule/ks.yaml
 
 - apps/vaultwarden/ks.yaml

@@ -33,6 +33,12 @@ spec:
     matchLabels:
       app.kubernetes.io/name: envoy
   ingress:
+  # Container ports, not the Service's: policy is enforced at the endpoint,
+  # after Cilium has rewritten 80/443/22 to the proxy's own listeners. A
+  # Gateway listener whose port is missing here is accepted, programmed, and
+  # then silently black-holed — the client just hangs on SYN. Every listener
+  # added to the Gateway (or to a ListenerSet attached to it) needs its
+  # translated port added here too.
   - fromEntities:
     - world
     toPorts:
@@ -43,6 +49,9 @@ spec:
         protocol: TCP
       - port: "10443"
         protocol: UDP
+      # apps/portfoliosh's ListenerSet, public SSH on 22.
+      - port: "10022"
+        protocol: TCP
   egress:
   - toEntities:
     - kube-apiserver

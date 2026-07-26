@@ -1,0 +1,30 @@
+# The one listener this cluster's Gateway does not declare itself. A TCP
+# listener is only useful to this app, so it lives here rather than in
+# platform/envoy-proxy — but the Gateway still has to consent: its
+# `allowedListeners` selects this namespace by name, and the default is to
+# allow no ListenerSets at all.
+#
+# `gateway.networking.k8s.io/v1`, not the `x-k8s.io/v1alpha1` XListenerSet the
+# root cluster uses: the API graduated in Gateway API 1.4, and Envoy Gateway
+# 1.8 dropped support for the experimental kind in the same release it picked
+# up the graduated one.
+apiVersion: gateway.networking.k8s.io/v1
+kind: ListenerSet
+metadata:
+  name: ssh
+spec:
+  parentRef:
+    group: gateway.networking.k8s.io
+    kind: Gateway
+    namespace: envoy-gateway-system
+    name: envoy-gateway
+  listeners:
+  - name: ssh
+    protocol: TCP
+    port: 22
+    # Default is Same, stated anyway: this listener forwards raw TCP with no
+    # Host header to disambiguate on, so whichever route attaches gets *all* of
+    # port 22. That is a decision worth reading in the file.
+    allowedRoutes:
+      namespaces:
+        from: Same
