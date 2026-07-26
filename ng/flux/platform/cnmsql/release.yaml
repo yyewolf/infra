@@ -1,0 +1,51 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: cnmsql
+spec:
+  interval: 30m
+  chartRef:
+    kind: OCIRepository
+    name: cnmsql
+  install:
+    crds: CreateReplace
+  upgrade:
+    crds: CreateReplace
+  values:
+    manager:
+      replicas: 1
+      resources:
+        requests:
+          cpu: 50m
+          memory: 128Mi
+        limits:
+          memory: 512Mi
+
+    # Cluster-scoped RBAC: the operator reconciles Clusters in every namespace,
+    # so an app keeps its database next to itself instead of here. Same shape
+    # as cnpg's config.clusterWide.
+    rbac:
+      namespaced: false
+
+    crd:
+      enable: true
+      keep: true
+
+    # The webhook and metrics certificates come from cert-manager (a self-signed
+    # Issuer the chart creates), which is why this Kustomization dependsOn it.
+    certManager:
+      enable: true
+
+    webhook:
+      enable: true
+      port: 9443
+
+    metrics:
+      enable: true
+      port: 8443
+      secure: true
+
+    # No prometheus-operator in this cluster yet; the ServiceMonitor CRD would
+    # not resolve.
+    prometheus:
+      enable: false

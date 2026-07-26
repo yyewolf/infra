@@ -1,0 +1,13 @@
+# The chart is published to GHCR only — there is no HTTP Helm repository.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: cnmsql
+spec:
+  interval: 1h
+  url: oci://ghcr.io/cnmsql/charts/cnmsql
+  layerSelector:
+    mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+    operation: copy
+  ref:
+    tag: 0.7.1
