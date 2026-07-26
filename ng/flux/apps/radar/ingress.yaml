@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: radar
+spec:
+  # IngressClass created by the tailscale operator. The operator reads the
+  # hostname off tls.hosts, not off a rule host — the tailnet name is
+  # radar-ng.<tailnet>.ts.net.
+  ingressClassName: tailscale
+  tls:
+    - hosts:
+        - radar-ng
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: radar
+                port:
+                  number: 9280

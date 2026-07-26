@@ -1,0 +1,61 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: radar
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: radar
+      version: "1.8.6"
+      sourceRef:
+        kind: HelmRepository
+        name: skyhook
+      interval: 12h
+  values:
+    # Radar holds its informer cache, SSE streams and exec sessions in-process,
+    # so a second replica is a different view of the cluster, not a spare.
+    replicaCount: 1
+
+    # Reachable only over the tailnet, so the dashboard itself is
+    # unauthenticated — same posture as the root cluster's instance.
+    auth:
+      mode: none
+
+    rbac:
+      helm: true
+      podExec: true
+      portForward: true
+      # The chart enumerates CRD groups one by one and its list predates most
+      # of what runs here — longhorn.io, barmancloud.cnpg.io, mysql.cnmsql.co
+      # and tailscale.com are all absent. Listing them under
+      # additionalCrdGroups would mean editing this file every time an
+      # operator is added, and the audience is a private tailnet.
+      crdGroups:
+        all: true
+
+    # Exposed through the standalone tailscale Ingress in ingress.yaml, not
+    # the chart's own ingress — the hostname has to be set on the TLS block
+    # rather than as a rule host, which the chart's template cannot express.
+    ingress:
+      enabled: false
+
+    service:
+      type: ClusterIP
+      port: 9280
+
+    # Default is in-memory: the timeline resets whenever the pod cycles. Left
+    # there deliberately — sqlite would want a Longhorn PVC, and during the
+    # migration this cluster is going to be restarted a lot.
+    timeline:
+      storage: memory
+
+    cloud:
+      enabled: false
+
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        memory: 512Mi

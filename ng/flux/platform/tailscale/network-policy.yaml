@@ -27,17 +27,23 @@ spec:
       rules:
         dns:
         - matchPattern: "*"
-  # The operator itself is a tailnet node (hostname ng-tailscale-operator) and
-  # it drives the tailnet API to mint auth keys for the proxies. It never needs
-  # DERP or peer-to-peer — it exchanges no data with other nodes.
-  - toFQDNs:
-    - matchName: controlplane.tailscale.com
-    - matchName: login.tailscale.com
-    - matchName: api.tailscale.com
+  # The operator is a tailnet node in its own right (ng-tailscale-operator),
+  # not just an API client, so it probes and holds open a DERP home relay like
+  # any other node. See the note on the proxy policy below for why this cannot
+  # be a toFQDNs rule.
+  - toEntities:
+    - world
     toPorts:
     - ports:
       - port: "443"
         protocol: TCP
+  - toEntities:
+    - world
+    toPorts:
+    - ports:
+      - port: "1"
+        endPort: 65535
+        protocol: UDP
 ---
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
@@ -89,20 +95,21 @@ spec:
       rules:
         dns:
         - matchPattern: "*"
-  # Coordination plus DERP. DERP relays are derpN.tailscale.com and the set
-  # rotates, so this is a suffix match rather than the named-host list the
-  # operator's policy uses.
-  - toFQDNs:
-    - matchPattern: "*.tailscale.com"
-    - matchName: tailscale.com
+  # Coordination plus DERP, and this cannot be narrowed to FQDNs. Cilium
+  # populates a toFQDNs entry by inspecting DNS answers, but tailscaled gets
+  # the relay list as a derpmap over the control plane connection and dials
+  # those nodes by literal IP — no lookup ever happens for Cilium to see, so a
+  # `*.tailscale.com` rule matches nothing and every relay is dropped. The
+  # relay set also rotates, which rules out pinning a toCIDRSet.
+  - toEntities:
+    - world
     toPorts:
     - ports:
       - port: "443"
         protocol: TCP
   # NAT traversal: STUN to the DERP servers, then WireGuard direct to whatever
   # ip:port the peer turns out to be behind. Neither the address nor the port
-  # is knowable in advance, so this is the one genuinely open rule here — it is
-  # UDP-only, which is what keeps it from being a general internet egress.
+  # is knowable in advance.
   - toEntities:
     - world
     toPorts:

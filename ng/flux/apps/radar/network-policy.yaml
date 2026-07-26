@@ -1,0 +1,55 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: radar
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: radar
+  ingress:
+  # Only the tailscale ingress proxy may reach the dashboard. Radar runs with
+  # auth.mode: none and RBAC that can exec into pods and drive Helm, so the
+  # tailnet is the whole of its access control — nothing else in the cluster
+  # has a reason to dial it.
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: tailscale
+    toPorts:
+    - ports:
+      - port: "9280"
+        protocol: TCP
+  egress:
+  # Everything Radar shows comes from here, including exec and port-forward,
+  # which it proxies through the apiserver rather than dialing kubelets.
+  - toEntities:
+    - kube-apiserver
+    toPorts:
+    - ports:
+      - port: "6443"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+      rules:
+        dns:
+        - matchPattern: "*"
+  # Traffic visibility. rbac.traffic is on by default and grants Radar the one
+  # secret it needs (hubble-relay-client-certs) for the mTLS handshake; this
+  # is the connection that uses it. Hubble relay is enabled in ng's Cilium.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: hubble-relay
+    toPorts:
+    - ports:
+      - port: "4245"
+        protocol: TCP
+  # No `world` egress: cloud.enabled and rbac.selfUpgrade are both off, so
+  # nothing here should be dialling radarhq.io or a registry at runtime.

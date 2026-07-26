@@ -20,3 +20,4 @@ resources:
   - platform/booting-up/ks.yaml
   - platform/envoy-proxy/ks.yaml
   - apps/cyberchef/ks.yaml
+  - apps/radar/ks.yaml
