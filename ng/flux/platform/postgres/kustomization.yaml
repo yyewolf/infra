@@ -4,5 +4,8 @@ namespace: postgres
 
 resources:
   - namespace.yaml
+  - backup-credentials-sops.yaml
+  - objectstore.yaml
   - cluster.yaml
+  - scheduledbackup.yaml
   - network-policy.yaml

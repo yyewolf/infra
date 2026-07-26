@@ -1,0 +1,40 @@
+# Base backups. Continuous WAL archiving (the plugin, via isWALArchiver in
+# cluster.yaml) is what makes point-in-time recovery possible, but WAL can only
+# be replayed *onto* a base backup — with archiving on and no base backup there
+# is nothing to recover to.
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: postgres-nightly
+spec:
+  cluster:
+    name: postgres
+
+  # SIX fields. CNPG's schedule, like CNMSQL's, carries a leading seconds field
+  # that a normal crontab line does not — `30 3 * * *` is misparsed rather than
+  # rejected. This is 03:30:00 daily, an hour after MySQL's so the two are not
+  # competing for the same disks and uplink.
+  schedule: "0 30 3 * * *"
+
+  # Route the backup through the plugin rather than the deprecated in-tree
+  # barmanObjectStore path. `barmanObjectName` has to name the same ObjectStore
+  # the Cluster references, or the backup runs against a destination the WAL is
+  # not being archived to.
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io
+    parameters:
+      barmanObjectName: postgres-backup
+
+  # From the standby, so the base backup's I/O does not compete with live
+  # queries on the primary.
+  target: prefer-standby
+
+  # Take one immediately rather than waiting for 03:30 — until the first base
+  # backup exists, the archived WAL has nothing to replay onto.
+  immediate: true
+
+  # Tie each Backup object's lifetime to this schedule, so deleting the
+  # schedule cleans up its Kubernetes records. The data in the bucket is
+  # governed by the ObjectStore's retentionPolicy and is not touched by this.
+  backupOwnerReference: self

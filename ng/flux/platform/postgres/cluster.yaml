@@ -114,12 +114,21 @@ spec:
     # No prometheus-operator in this cluster yet; the PodMonitor CRD would not
     # resolve.
     enablePodMonitor: false
-  # No `backup:` stanza — there is no S3 target in ng yet, so there is no
-  # continuous WAL archiving and no point-in-time recovery. Two instances
-  # protect against losing a node. They do not protect against DROP TABLE,
-  # against corruption replicating to the standby, or against losing the
-  # cluster, and every app's data is on this one Postgres.
+  # Backups go through the Barman Cloud plugin, not the in-tree
+  # `spec.backup.barmanObjectStore` block. The in-tree integration has been
+  # deprecated since CNPG 1.26 and was slated for removal in 1.30 — the version
+  # this cluster runs — so building on it would mean a forced migration on some
+  # future operator bump, discovered at the worst possible moment.
   #
-  # Closing that gap is a `backup.barmanObjectStore` block, a credentials
-  # Secret, a ScheduledBackup, and a `toFQDNs` egress rule in
-  # network-policy.yaml.
+  # The destination is an ObjectStore CR (objectstore.yaml) in this namespace;
+  # the plugin itself lives in cnpg-system (platform/barman-plugin) and injects
+  # a sidecar into each instance pod to do the uploading.
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      enabled: true
+      # This plugin owns WAL archiving for the cluster. At most one plugin may
+      # claim this, and it cannot be combined with an in-tree
+      # `spec.backup.barmanObjectStore` — which is why there is none above.
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: postgres-backup

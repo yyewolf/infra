@@ -1,0 +1,67 @@
+# Where this cluster's backups and WAL go. Under the in-tree API this was a
+# `backup.barmanObjectStore` block inside the Cluster; the Barman Cloud plugin
+# moves it into its own resource, which the Cluster then references by name via
+# `spec.plugins`.
+#
+# The CRD comes from the plugin (platform/barman-plugin), so this object cannot
+# reconcile before that Kustomization has run — hence the dependsOn in ks.yaml.
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: postgres-backup
+spec:
+  # How long base backups and the WAL needed to replay onto them are kept.
+  # Matches MySQL's window so the two databases have the same recovery story.
+  retentionPolicy: 30d
+
+  configuration:
+    # s3://<bucket>/<prefix>. `default` is the bucket Swiss Backup provisions
+    # with the account; the `postgres` prefix is for tidiness rather than
+    # isolation — this is a separate tenant from MySQL's, so the separation is
+    # already at the credential level.
+    destinationPath: s3://default/postgres
+
+    # Verified reachable with these credentials before this was written:
+    # ListBuckets returns 200 signed for us-east-1, and `default` exists and is
+    # empty.
+    endpointURL: https://s3.swiss-backup02.infomaniak.com
+
+    s3Credentials:
+      accessKeyId:
+        name: postgres-backup-s3
+        key: ACCESS_KEY_ID
+      secretAccessKey:
+        name: postgres-backup-s3
+        key: ACCESS_SECRET_KEY
+      # Swiss Backup signs with us-east-1, as the account page states. Wrong
+      # region produces a SignatureDoesNotMatch that reads like bad credentials
+      # rather than like a misconfiguration.
+      region:
+        name: postgres-backup-s3
+        key: REGION
+
+    wal:
+      # WAL is the higher-volume, latency-sensitive stream — every commit ends
+      # up here. zstd gives noticeably better ratios than gzip at lower CPU
+      # cost, which matters because archiving has to keep up with writes or the
+      # primary starts retaining WAL on local disk.
+      compression: zstd
+      # Archive up to two segments concurrently. Enough to catch up after a
+      # burst without making the upload itself a source of I/O contention.
+      maxParallel: 2
+
+    data:
+      # gzip, not zstd — the two compression fields do not accept the same
+      # codecs. `wal.compression` allows bzip2/gzip/lz4/snappy/xz/zstd, but
+      # `data.compression` allows only bzip2/gzip/lz4/snappy, and zstd here is
+      # rejected by the CRD.
+      #
+      # Of what is available, gzip is the right trade for a nightly base backup
+      # leaving a home uplink: the bottleneck is bytes uploaded, not CPU on the
+      # standby, and gzip compresses meaningfully harder than lz4 or snappy
+      # without bzip2's cost.
+      compression: gzip
+      # Checkpoint immediately instead of spreading it out. Makes the backup
+      # start straight away at the cost of a brief I/O spike — the right side
+      # of that trade on a nightly job taken from the standby.
+      immediateCheckpoint: true

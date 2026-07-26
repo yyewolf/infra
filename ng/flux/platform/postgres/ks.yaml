@@ -4,6 +4,13 @@ metadata:
   name: postgres
   namespace: flux-system
 spec:
+  # backup-credentials-sops.yaml is reconciled from git, so Flux needs the PGP
+  # key to decrypt it. `sops-gpg` lives in flux-system and is applied out of
+  # band — it is the one secret that cannot come from the repo it unlocks.
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-gpg
   dependsOn:
     # The operator has to exist before the Cluster CR resolves, and the
     # StorageClass before the first PVC binds. Neither is a soft ordering
@@ -11,6 +18,9 @@ spec:
     # longhorn the PVC sits Pending forever.
     - name: cnpg
     - name: longhorn
+    # The ObjectStore CRD ships with the plugin, so objectstore.yaml is an
+    # unknown kind until that Kustomization has reconciled.
+    - name: barman-plugin
   interval: 10m
   path: ./ng/flux/platform/postgres
   prune: true

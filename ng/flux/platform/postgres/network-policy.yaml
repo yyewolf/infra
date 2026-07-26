@@ -56,6 +56,12 @@ spec:
     - ports:
       - port: "6443"
         protocol: TCP
+  # DNS. The `rules.dns` matcher is what makes the toFQDNs rule below work:
+  # Cilium learns a name's addresses by inspecting DNS answers as they pass, so
+  # without L7 visibility here the FQDN entry never populates and every upload
+  # is dropped while the name still resolves fine from inside the pod. This
+  # must stay the only DNS egress rule — a second, plain allow to kube-dns
+  # alongside it lets lookups bypass inspection and reintroduces that bug.
   - toEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: kube-system
@@ -66,7 +72,31 @@ spec:
         protocol: UDP
       - port: "53"
         protocol: TCP
-  # No `world`. Nothing here reaches off-cluster today, because there is no
-  # backup target configured. WAL archiving to S3 is what would need one, and
-  # it belongs here as a `toFQDNs` rule on the bucket's hostname rather than as
-  # a blanket `world` allow.
+      rules:
+        dns:
+        - matchPattern: "*"
+  # Base backups and WAL archiving to Infomaniak Swiss Backup.
+  #
+  # This rule is in the *postgres* namespace rather than with the plugin in
+  # cnpg-system because the plugin does not upload anything itself: the
+  # operator injects a barman sidecar into each instance pod, and that sidecar
+  # — here, next to Postgres — is what talks to S3.
+  #
+  # Scoped to the one hostname rather than opening `world`. Path-style
+  # addressing means every request goes to this exact host with the bucket in
+  # the path, so a single name covers it.
+  - toFQDNs:
+    - matchName: "s3.swiss-backup02.infomaniak.com"
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP
+  # The instance sidecar talks to the plugin in cnpg-system over CNPG-I gRPC.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: cnpg-system
+        app.kubernetes.io/name: plugin-barman-cloud
+    toPorts:
+    - ports:
+      - port: "9090"
+        protocol: TCP

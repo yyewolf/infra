@@ -1,0 +1,22 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: plugin-barman-cloud
+spec:
+  interval: 30m
+  chartRef:
+    kind: OCIRepository
+    name: plugin-barman-cloud
+  install:
+    crds: CreateReplace
+  upgrade:
+    crds: CreateReplace
+  values:
+    # Chart defaults are what this needs: one replica of the plugin, a
+    # self-signed cert-manager Issuer, and the sidecar image that the operator
+    # injects into every instance pod that uses the plugin.
+    #
+    # The sidecar image tag is deliberately left empty so it tracks the chart's
+    # appVersion. Pinning it here would let the sidecar and the plugin drift
+    # apart, and they speak a private protocol to each other.
+    replicaCount: 1

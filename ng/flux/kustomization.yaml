@@ -13,6 +13,7 @@ resources:
   - platform/keda/ks.yaml
   - platform/cnpg/ks.yaml
   - platform/cnmsql/ks.yaml
+  - platform/barman-plugin/ks.yaml
   - platform/postgres/ks.yaml
   - platform/mysql/ks.yaml
   - platform/booting-up/ks.yaml

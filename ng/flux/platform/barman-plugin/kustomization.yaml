@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# Must be the operator's own namespace. The plugin is discovered by CNPG over a
+# Service in the same namespace, so installing it anywhere else leaves the
+# operator unable to find it and every plugin-backed Cluster stuck.
+#
+# No namespace.yaml here: cnpg-system is created by platform/cnpg, and two
+# Kustomizations owning the same object fight over it.
+namespace: cnpg-system
+
+resources:
+  - ocirepository.yaml
+  - release.yaml
+  - network-policy.yaml

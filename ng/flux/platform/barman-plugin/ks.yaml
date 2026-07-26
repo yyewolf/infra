@@ -1,0 +1,21 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: barman-plugin
+  namespace: flux-system
+spec:
+  dependsOn:
+    # It installs into cnpg-system, which platform/cnpg creates.
+    - name: cnpg
+    # The chart ships a self-signed Issuer plus a server and a client
+    # Certificate — the plugin and the operator authenticate to each other with
+    # mTLS. Reconcile before cert-manager is ready and the Certificates never
+    # issue, so the Deployment sits waiting on a Secret that never appears.
+    - name: cert-manager
+  interval: 10m
+  path: ./ng/flux/platform/barman-plugin
+  prune: true
+  retryInterval: 1m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

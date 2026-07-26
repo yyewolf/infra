@@ -1,0 +1,17 @@
+# GHCR only — there is no HTTP Helm repository for this chart.
+#
+# The chart version and the plugin version are numbered separately: chart 0.7.0
+# packages plugin appVersion v0.13.0. Renovate reads the tag below, so it
+# tracks the chart line, not the plugin's.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: plugin-barman-cloud
+spec:
+  interval: 1h
+  url: oci://ghcr.io/cloudnative-pg/charts/plugin-barman-cloud
+  layerSelector:
+    mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+    operation: copy
+  ref:
+    tag: 0.7.0
