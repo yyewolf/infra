@@ -1,0 +1,125 @@
+# The cluster's one Postgres. Apps do not each get their own instance — they
+# get a database on this, declared with a `Database` CR in their own namespace
+# pointing at `cluster: postgres`. CNPG runs cluster-wide RBAC (see
+# platform/cnpg), which is what makes that cross-namespace reference work.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: postgres
+spec:
+  # One primary, one hot standby, async streaming replication between them.
+  #
+  # Async, not synchronous, and that is the right call at two instances: a
+  # synchronous standby that goes away blocks every write on the primary until
+  # it comes back, so making this pair synchronous would convert "one node is
+  # down" from a survivable event into a total outage. The cost is a bounded
+  # window of transactions that exist only on the primary if it dies abruptly.
+  instances: 2
+
+  # Postgres 18.4 with VectorChord 1.1.1, built FROM the official CNPG image —
+  # so barman-cloud, the instance manager entrypoint and the uid-26 postgres
+  # user are all the stock ones the operator expects. A plain
+  # `tensorchord/vchord-postgres` image is *not* interchangeable here; it is
+  # built on the upstream postgres image and CNPG cannot drive it.
+  #
+  # The tag is <postgres>-<vectorchord>. Under docker versioning Renovate
+  # treats the trailing `-1.1.1` as a compatibility suffix, so it will offer
+  # Postgres patch bumps within VectorChord 1.1.1 and will not silently move
+  # the extension major — a VectorChord upgrade is a deliberate edit here.
+  # renovate: datasource=docker versioning=docker
+  imageName: ghcr.io/tensorchord/cloudnative-vectorchord:18.4-1.1.1
+
+  # Roll minor upgrades without being asked, and move the primary by switchover
+  # rather than by failover, so a version bump costs a few seconds of connection
+  # churn instead of a promotion and a rewind.
+  primaryUpdateStrategy: unsupervised
+  primaryUpdateMethod: switchover
+
+  postgresql:
+    # VectorChord's background workers have to be loaded at startup; CREATE
+    # EXTENSION alone is not enough and the extension fails at query time
+    # without this. Changing this list restarts the cluster.
+    shared_preload_libraries:
+    - vchord.so
+
+    parameters:
+      # Shared cluster, so the connection budget is shared too. Every app
+      # holding an idle pool counts against this. If it starts to bind, a
+      # PgBouncer `Pooler` in front is the answer rather than a bigger number —
+      # each backend is a process with its own memory.
+      max_connections: "200"
+
+  bootstrap:
+    initdb:
+      # Runs against template1, which every database created afterwards is
+      # cloned from — including the ones app `Database` CRs create later. That
+      # is the whole reason it goes here rather than in postInitApplicationSQL:
+      # it makes vchord present in every future app database automatically,
+      # instead of being something each app has to remember to enable.
+      #
+      # CASCADE pulls in pgvector, which vchord builds on for the `vector` type
+      # and which the image also ships.
+      #
+      # Bootstrap SQL runs exactly once, at cluster creation. Editing it later
+      # does nothing to a running cluster — existing databases would need the
+      # CREATE EXTENSION applied by hand, or via the `extensions` field on
+      # their own `Database` CR.
+      postInitTemplateSQL:
+      - CREATE EXTENSION IF NOT EXISTS vchord CASCADE;
+
+  storage:
+    size: 20Gi
+    # One Longhorn replica per instance, pinned to the node the instance runs
+    # on. Deliberate: CNPG already keeps a second copy of this data on the
+    # other instance, so a 3-replica class would store six copies of every
+    # write to protect against a failure CNPG already handles. strict-local
+    # also means Postgres reads and writes never cross the network to reach
+    # its own disk, which is most of the point of running it on local NVMe.
+    #
+    # The trade: losing a node's disk destroys that instance's data outright.
+    # CNPG's answer is to re-clone the instance from the surviving one, which
+    # is exactly what the second instance is for.
+    storageClass: longhorn-yolo
+
+  affinity:
+    # 'required', not the default 'preferred'. Two instances that land on the
+    # same node are two copies of the data on one disk and a replica pair that
+    # dies together — which is the single failure this cluster exists to
+    # survive. Three nodes and two instances, so there is always somewhere for
+    # the second to go.
+    enablePodAntiAffinity: true
+    podAntiAffinityType: required
+    topologyKey: kubernetes.io/hostname
+    # edge-0 has no Longhorn partition and its taint already keeps Postgres
+    # away, but state this too — a strict-local PVC scheduled onto a node with
+    # no Longhorn disk fails as a Pending pod with no obvious cause.
+    nodeSelector:
+      node-role.kubernetes.io/control-plane: ""
+
+  resources:
+    # Memory request == limit puts the pod in Guaranteed QoS, so the kubelet
+    # evicts other things before Postgres under node pressure. CNPG sizes
+    # shared_buffers from the limit.
+    #
+    # No CPU limit on purpose: a throttled Postgres under load stalls in ways
+    # that look like disk or network problems. The request is what reserves it
+    # a share.
+    requests:
+      cpu: 500m
+      memory: 2Gi
+    limits:
+      memory: 2Gi
+
+  monitoring:
+    # No prometheus-operator in this cluster yet; the PodMonitor CRD would not
+    # resolve.
+    enablePodMonitor: false
+  # No `backup:` stanza — there is no S3 target in ng yet, so there is no
+  # continuous WAL archiving and no point-in-time recovery. Two instances
+  # protect against losing a node. They do not protect against DROP TABLE,
+  # against corruption replicating to the standby, or against losing the
+  # cluster, and every app's data is on this one Postgres.
+  #
+  # Closing that gap is a `backup.barmanObjectStore` block, a credentials
+  # Secret, a ScheduledBackup, and a `toFQDNs` egress rule in
+  # network-policy.yaml.

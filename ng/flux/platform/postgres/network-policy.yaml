@@ -1,0 +1,72 @@
+# Cilium's default-deny is per-direction and per-endpoint, so both directions
+# are spelled out.
+#
+# Selects the whole namespace rather than a workload: CNPG names instance pods
+# after the cluster and labels them with its own scheme, and the namespace
+# holds nothing but this cluster, so there is no benefit to being narrower and
+# a real cost to guessing the operator's labels wrong.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: postgres
+spec:
+  endpointSelector: {}
+  ingress:
+  # Streaming replication between the primary and the standby, and the
+  # instance managers talking to each other during a switchover.
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: postgres
+  # The operator drives the instances: the instance manager's REST API on 8000
+  # and Postgres itself on 5432.
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: cnpg-system
+        app.kubernetes.io/name: cloudnative-pg
+  # Every app that has a database here. This is the loose rule, and it is loose
+  # for the same unavoidable reason the operator's own policy is: a shared
+  # database is by definition reachable from wherever its clients are, and they
+  # are in namespaces this file cannot enumerate. It is bounded to `cluster`
+  # (never `world`) and to 5432 — no app can reach the instance manager API.
+  #
+  # What actually gates access is credentials: every app gets its own role and
+  # its own database via a `Database` CR, and the egress half lives in that
+  # app's own network policy. An app with no egress rule to `postgres` still
+  # cannot connect.
+  - fromEntities:
+    - cluster
+    toPorts:
+    - ports:
+      - port: "5432"
+        protocol: TCP
+  # The kubelet runs the liveness, readiness and startup probes.
+  - fromEntities:
+    - host
+    - remote-node
+    - health
+  egress:
+  # The other instance, for replication.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: postgres
+  # The instance manager watches its own Cluster resource and reports status.
+  - toEntities:
+    - kube-apiserver
+    toPorts:
+    - ports:
+      - port: "6443"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+  # No `world`. Nothing here reaches off-cluster today, because there is no
+  # backup target configured. WAL archiving to S3 is what would need one, and
+  # it belongs here as a `toFQDNs` rule on the bucket's hostname rather than as
+  # a blanket `world` allow.
