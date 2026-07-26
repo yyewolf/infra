@@ -54,6 +54,13 @@ spec:
     - ports:
       - port: "6443"
         protocol: TCP
+  # DNS. The `rules.dns` matcher is what makes the toFQDNs rule below work at
+  # all: Cilium learns which addresses a name resolves to by inspecting the DNS
+  # answers as they pass, so without L7 visibility here the FQDN entry never
+  # populates and every upload is dropped while the name still resolves
+  # perfectly from inside the pod. This must stay the *only* DNS egress rule —
+  # adding a second, plain allow to kube-dns alongside it lets the lookups
+  # bypass inspection and reintroduces exactly that failure.
   - toEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: kube-system
@@ -64,5 +71,19 @@ spec:
         protocol: UDP
       - port: "53"
         protocol: TCP
-  # No `world`. Binlog archiving to S3 is what would need one, and it belongs
-  # here as a `toFQDNs` rule on the bucket hostname, not a blanket allow.
+      rules:
+        dns:
+        - matchPattern: "*"
+  # Backups and binlog archiving to Infomaniak Swiss Backup. Scoped to the one
+  # hostname rather than opening `world`: this is the only reason anything in
+  # this namespace talks to the internet at all.
+  #
+  # Path-style addressing means every request goes to this exact host with the
+  # bucket in the path, so a single name covers it. A provider using
+  # virtual-hosted style would need `*.s3.…` here instead.
+  - toFQDNs:
+    - matchName: "s3.swiss-backup02.infomaniak.com"
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP

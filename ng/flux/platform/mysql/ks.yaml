@@ -4,6 +4,13 @@ metadata:
   name: mysql
   namespace: flux-system
 spec:
+  # backup-credentials-sops.yaml is reconciled from git, so Flux needs the PGP
+  # key to decrypt it. `sops-gpg` lives in flux-system and is applied out of
+  # band — it is the one secret that cannot come from the repo it unlocks.
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-gpg
   dependsOn:
     # cnmsql itself dependsOn cert-manager — its webhook is certless until
     # cainjector has run, and a certless webhook rejects every Cluster apply.

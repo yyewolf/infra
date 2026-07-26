@@ -4,5 +4,7 @@ namespace: mysql
 
 resources:
   - namespace.yaml
+  - backup-credentials-sops.yaml
   - cluster.yaml
+  - scheduledbackup.yaml
   - network-policy.yaml

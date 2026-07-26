@@ -1,0 +1,48 @@
+# The base backups that continuous binlog archiving is anchored to. Without a
+# base backup the archived binlogs have nothing to replay onto, so this is not
+# optional once `continuousArchiving` is on.
+apiVersion: mysql.cnmsql.co/v1alpha1
+kind: ScheduledBackup
+metadata:
+  name: mysql-nightly
+spec:
+  cluster:
+    name: mysql
+
+  # SIX fields, not the usual five — this cron includes seconds. `30 2 * * *`
+  # would be parsed as 02:00:30 every day in January-to-May-ish nonsense rather
+  # than 02:30 daily. This is 02:30:00 every day.
+  schedule: "0 30 2 * * *"
+
+  # Hot backup: xtrabackup copies the datadir while MySQL keeps serving, then
+  # reconciles with the redo log. The alternative blocks writes for the
+  # duration of the copy.
+  online: true
+  method: xtrabackup
+
+  # From the replica, so the copy does not compete with live queries on the
+  # primary. Matches the cluster-level default; stated because it is the whole
+  # reason running a second instance pays for itself here.
+  target: prefer-standby
+
+  # Same window as the cluster's retentionPolicy. Backups older than this are
+  # pruned, and the binlogs that predate the oldest surviving base backup
+  # become unreplayable, so these two numbers should move together.
+  retentionPolicy: 30d
+
+  # Keep the Backup objects themselves bounded. These are just the Kubernetes
+  # records of each run — the archive in the bucket is governed by
+  # retentionPolicy above, not by these limits.
+  successfulBackupsHistoryLimit: 7
+  failedBackupsHistoryLimit: 7
+
+  # Retain, matching the cluster's archive reclaim policy: deleting a Backup
+  # object leaves its data in the bucket rather than reaching out and deleting
+  # it. Consistent with everything else here — nothing removes data as a side
+  # effect of removing a Kubernetes object.
+  reclaimPolicy: Retain
+
+  # Take one as soon as this is created rather than waiting for 02:30. The
+  # first base backup is what makes PITR possible at all, so there is no reason
+  # to leave a window with archiving on and nothing to replay onto.
+  immediate: true

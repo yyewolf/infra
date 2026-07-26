@@ -116,11 +116,64 @@ spec:
     # resolve.
     enablePodMonitor: false
 
-  # No `backup:` stanza, for the same reason as Postgres: ng has no S3 target,
-  # so there is no binlog archiving and no point-in-time recovery. Two
-  # instances cover losing a node. They do not cover DROP TABLE, corruption
-  # replicating to the replica, or losing the cluster.
-  #
-  # Closing it is a `backup` block, a credentials Secret, a ScheduledBackup and
-  # a `toFQDNs` egress rule in network-policy.yaml. `upgrade.backupBeforeUpgrade`
-  # is also worth turning on at that point — it is useless without a target.
+  backup:
+    # How long a base backup is kept before the operator prunes it. Binlogs
+    # older than the oldest surviving base backup are useless, so this is
+    # effectively the length of the PITR window too.
+    retentionPolicy: 30d
+
+    # Take the backup from the replica, so xtrabackup's I/O and the upload do
+    # not compete with live queries on the primary. Falls back to the primary
+    # if the replica is unavailable, which is the point of 'prefer-' rather
+    # than pinning it.
+    target: prefer-standby
+
+    # Infomaniak Swiss Backup. Verified reachable with these credentials before
+    # this was written: ListBuckets returns 200 signed for us-east-1, and the
+    # `default` bucket exists and is empty.
+    objectStore:
+      endpoint: https://s3.swiss-backup02.infomaniak.com
+      # `default` is the bucket Swiss Backup provisions with the account. The
+      # `path` prefix is what separates this cluster's archive from anything
+      # else that lands here later — Postgres would take `/postgres` in the
+      # same bucket rather than needing one of its own.
+      bucket: default
+      path: /mysql
+      # Swiss Backup signs with us-east-1, as the account page states. Getting
+      # this wrong produces a SignatureDoesNotMatch that reads like bad
+      # credentials.
+      region: us-east-1
+      # Path-style addressing (endpoint/bucket/key). Already the default, but
+      # it is the setting that breaks against non-AWS providers when wrong, so
+      # it is written down rather than assumed.
+      forcePathStyle: true
+      credentials:
+        accessKeyId:
+          name: mysql-backup-s3
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: mysql-backup-s3
+          key: ACCESS_SECRET_KEY
+
+    continuousArchiving:
+      # Binary logs are shipped to the object store as they rotate. This is
+      # what turns a nightly snapshot into point-in-time recovery: without it,
+      # the most that can be restored is the last base backup.
+      enabled: true
+
+      # The primary forces a rotation at least this often even if the log has
+      # not filled, which bounds how much committed data exists only on local
+      # disk. Five minutes of exposure, at the cost of an upload every five
+      # minutes on an idle cluster.
+      targetRPOSeconds: 300
+
+    # reclaimPolicy is left at its default, Retain: deleting the Cluster leaves
+    # the entire archive — every base backup, every archived binlog, the index
+    # — sitting in the bucket. 'Delete' would attach a finalizer that wipes it
+    # on teardown, which is exactly the unpleasant surprise the Retain
+    # reclaim policy on the StorageClasses exists to avoid.
+
+  upgrade:
+    # Take a fresh backup immediately before a major-version upgrade. Only
+    # meaningful now that there is somewhere to put it.
+    backupBeforeUpgrade: true
