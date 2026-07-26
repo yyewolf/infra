@@ -33,10 +33,40 @@ spec:
         limits:
           memory: 256Mi
 
+      # The chart ships this empty. The operator is a plain controller — it
+      # talks to the API server and to the tailnet as a userspace node, with no
+      # tun device and no netfilter rules of its own — so none of the
+      # privileges a *proxy* needs apply to it. That distinction is the whole
+      # point: see proxyConfig below for the pods that genuinely are
+      # privileged.
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+        seccompProfile:
+          type: RuntimeDefault
+
     proxyConfig:
       # Proxies the operator spins up for egress/ingress Services. Same tag the
       # root cluster's proxies use, so one ACL grant covers both clusters.
       defaultTags: tag:k8s
+
+      # NOT hardened, and cannot be from here. The operator creates the
+      # tailscale container and its init container `privileged: true` for every
+      # ingress/egress proxy — they create /dev/net/tun and program netfilter,
+      # which is what makes the proxy a proxy. `ts-radar` (the StatefulSet
+      # behind apps/radar's tailscale Ingress) is one of these, so it will
+      # always show up in a privilege-escalation scan. The kubelet forces
+      # allowPrivilegeEscalation true on a privileged container anyway, so
+      # setting it false via a ProxyClass would break the pod without even
+      # clearing the finding.
+      #
+      # Getting down to cap NET_ADMIN means installing a tun device plugin so
+      # the device is handed to the proxy instead of created by it
+      # (tailscale/tailscale#10814), then a ProxyClass with
+      # statefulSet.pod.tailscaleContainer.securityContext, wired in here as
+      # defaultProxyClass. Not worth the machinery for one proxy that only
+      # fronts radar and is fenced by apps/radar/network-policy.yaml.
 
     # No Kubernetes API server proxy. Cluster admin comes over WireGuard from
     # the LAN, and exposing the apiserver on the tailnet would be a second,

@@ -14,3 +14,44 @@ spec:
     groupName: acme.infomaniak.com
     secretsNames:
       - infomaniak-api-credentials
+
+    image:
+      # The chart's default is `latest`, which combined with the GitRepository
+      # tracking master means the deployed webhook could change under us on any
+      # upstream push, with nothing in this repo recording what is running.
+      # v0.3.1 is the digest `latest` points at today, so pinning it changed
+      # nothing at the time it was written.
+      # renovate: datasource=docker depName=ghcr.io/infomaniak/cert-manager-webhook-infomaniak
+      tag: v0.3.1
+
+  # The upstream chart has no securityContext plumbing at all — not on the pod,
+  # not on the container, nothing in values.yaml — so there is no value to set
+  # and this has to be patched into the rendered output instead. The webhook is
+  # an HTTPS server that cert-manager calls to solve DNS01 challenges; it needs
+  # no privileges.
+  #
+  # Same restraint as the external-dns provider sidecar: no runAsNonRoot or
+  # readOnlyRootFilesystem until someone has confirmed the image tolerates
+  # them.
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              kind: Deployment
+              name: infomaniak-webhook
+            patch: |
+              apiVersion: apps/v1
+              kind: Deployment
+              metadata:
+                name: infomaniak-webhook
+              spec:
+                template:
+                  spec:
+                    containers:
+                      - name: infomaniak-webhook
+                        securityContext:
+                          allowPrivilegeEscalation: false
+                          capabilities:
+                            drop: ["ALL"]
+                          seccompProfile:
+                            type: RuntimeDefault
