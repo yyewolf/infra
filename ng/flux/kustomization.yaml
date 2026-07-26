@@ -11,6 +11,7 @@ resources:
   - platform/envoy-gateway/ks.yaml
   - platform/external-dns/ks.yaml
   - platform/keda/ks.yaml
+  - platform/metrics-server/ks.yaml
   - platform/tailscale/ks.yaml
   - platform/cnpg/ks.yaml
   - platform/cnmsql/ks.yaml
