@@ -35,9 +35,18 @@ spec:
         protocol: UDP
       - port: "53"
         protocol: TCP
+      rules:
+        dns:
+        - matchPattern: "*"
   # The operator drives the instances it created — MySQL (3306) and the
   # instance manager's API — in whatever namespace declared the Cluster, so
   # this can only be bounded to the cluster. Physical backups to S3 are the
   # instance pods' egress, not the operator's; nothing here reaches `world`.
   - toEntities:
     - cluster
+  - toFQDNs:
+    - matchName: "s3.swiss-backup02.infomaniak.com"
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP
