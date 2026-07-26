@@ -25,4 +25,4 @@ resources:
 - apps/cyberchef/ks.yaml
 - apps/radar/ks.yaml
 
-# - apps/vaultwarden/ks.yaml
+- apps/vaultwarden/ks.yaml
