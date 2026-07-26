@@ -306,6 +306,112 @@ node up on `apid` but `NotReady` with `/etc/kubernetes` read-only:
 Recovery, if it happens anyway: the node still answers `talosctl`, so fix the
 config and `./talos.sh apply <node>` — no console needed.
 
+## Longhorn storage
+
+`cp-0`, `cp-1` and `cp-2` each give Longhorn a dedicated 100 GiB partition of
+their 256 GB NVMe. `patches/longhorn.yaml` is the whole story:
+
+| document | what it does |
+|---|---|
+| `machine.kubelet.extraMounts` | binds `/var/mnt/longhorn` into the kubelet, `rshared` |
+| `VolumeConfig` `EPHEMERAL` | caps `/var` at 128 GiB instead of the whole disk |
+| `UserVolumeConfig` `longhorn` | a fixed 100 GiB partition, mounted at `/var/mnt/longhorn` |
+
+The point of the partition is isolation. Longhorn's default data path is a
+directory on `EPHEMERAL`, which puts replica data, container images and logs on
+one filesystem — either one filling it takes the kubelet down with it. A
+separate partition means neither can starve the other.
+
+`iscsi-tools` and `util-linux-tools` are already in `schematic.yaml`, so this
+costs no re-image. `edge-0` is deliberately excluded: it has no partition carved
+for it, and replicating over the WireGuard tunnel to Infomaniak would be slow.
+The Flux side pins every Longhorn component to the control-plane role to match
+(`ng/flux/infrastructure/longhorn`), where `defaultDataPath` is set to
+`/var/mnt/longhorn` — that value and the `UserVolumeConfig` name have to agree,
+or Longhorn falls back to `/var/lib/longhorn` on `EPHEMERAL` and the partition
+sits unused.
+
+### Storage classes
+
+100 GiB per node, three nodes, so 300 GiB raw — how much usable depends on the
+class a claim picks:
+
+| class | replicas | dataLocality | usable per GiB claimed | survives losing a node |
+|---|---|---|---|---|
+| `longhorn` (default) | 3 | `disabled` | 3 GiB | yes |
+| `longhorn-ha` | 2 | `best-effort` | 2 GiB | yes |
+| `longhorn-yolo` | 1 | `strict-local` | 1 GiB | no |
+
+All three are `reclaimPolicy: Retain`, so deleting a PVC never destroys data —
+it leaves a `Released` PV and the Longhorn volume behind. That is the point,
+and it has a running cost: nothing reclaims those, they keep occupying the
+100 GiB budget, and a full partition will look like a provisioning failure
+rather than a pile of orphans. `kubectl get pv | grep Released` is a chore
+someone has to do. Note also that a `Released` PV will *not* rebind to a
+recreated PVC — its `claimRef` still points at the old one, so the app comes
+back with an empty volume until `.spec.claimRef` is cleared by hand.
+
+All three are also `WaitForFirstConsumer`, which is the half of "run the workload
+where its data is" that Kubernetes enforces: nothing is provisioned until a pod
+using the claim is scheduled, so replicas are placed around the node the
+scheduler picked rather than the pod being dragged toward a volume that landed
+somewhere arbitrary at apply time.
+
+`dataLocality` is the other half, and it is set per class for a reason.
+`longhorn` uses `disabled` because with three replicas across exactly three
+storage nodes every node already holds one — locality is satisfied by
+construction. `longhorn-ha` is where `best-effort` matters: two replicas over
+three nodes leaves one node without, so Longhorn keeps one on whichever node
+the workload is attached to and rebuilds a local replica if the pod moves.
+`longhorn-yolo` is `strict-local`, the only one that genuinely pins scheduling —
+the single replica sits on the pod's node, Longhorn puts `nodeAffinity` on the
+PV, and I/O never leaves the box. It requires exactly one replica and does not
+support RWX.
+
+`longhorn-yolo` is the right choice under something that already replicates at
+the application layer — a CNPG or CNMSQL cluster, where three instances on
+1-replica volumes beat three instances on 3-replica volumes writing nine copies
+of the same data.
+
+### Adding it to a node means wiping EPHEMERAL
+
+This is the one part that is not a normal `apply`. Talos applies volume sizing
+**only at provisioning time** — "applying changes after the initial provisioning
+will not have any effect". `EPHEMERAL` grows to fill the disk on first boot, so
+on a node that is already running there is no unallocated space for the user
+volume, and the 128 GiB cap is ignored rather than enforced. The partition only
+appears if `EPHEMERAL` is destroyed and re-provisioned under the new config.
+
+`EPHEMERAL` is `/var`, which holds etcd's data directory. Wiping it on a
+control-plane node destroys that node's etcd member; a graceful reset makes it
+leave the quorum first and rejoin as a new member on boot. **One node at a
+time** — three members tolerate exactly one being away.
+
+```sh
+./talos.sh render
+./talos.sh apply cp-0                       # config first: the cap must be in
+                                            # place before the volume is rebuilt
+
+talosctl -n 10.200.0.11 reset \
+    --system-labels-to-wipe EPHEMERAL \
+    --graceful --reboot
+```
+
+Wait for the node to come back `Ready` and for etcd to report three healthy
+members before touching the next one:
+
+```sh
+kubectl get nodes -w
+talosctl -n 10.200.0.11 etcd members
+talosctl -n 10.200.0.11 get volumestatus     # u-longhorn should be 'ready'
+```
+
+Then repeat for `cp-1` and `cp-2`. What is lost per node is container images,
+logs and that node's etcd copy — all of which come back on their own. What is
+*not* automatically safe is Longhorn replica data, so once volumes exist this
+sequence needs the usual replica-rebuild wait between nodes, not just an etcd
+check.
+
 ## Upgrades
 
 Bump `talos_version` in `cluster.yaml`, then `./talos.sh render`. The installer

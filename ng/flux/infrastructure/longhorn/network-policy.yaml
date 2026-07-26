@@ -1,0 +1,63 @@
+# Cilium's default-deny is per-direction and per-endpoint, so both directions
+# are spelled out.
+#
+# This selects the whole namespace rather than a workload, which is unusual for
+# this repo and deliberate: only three of Longhorn's pods come from the Helm
+# chart. The instance managers, the CSI plugin and its five sidecars, the
+# share managers and the backing-image managers are all created at runtime by
+# longhorn-manager and the driver deployer, with names and labels that depend
+# on which volumes exist. A per-workload policy would cover the three static
+# pods and silently default-deny everything that actually moves replica data.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: longhorn
+spec:
+  endpointSelector: {}
+  ingress:
+  # The bulk of Longhorn's traffic is its own components talking to each other:
+  # engine to replica across nodes (dynamic ports in the 10000-30000 range, so
+  # there is nothing useful to pin), CSI sidecars to the manager API on 9500,
+  # instance manager gRPC on 8500-8501.
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: longhorn-system
+  # The admission and conversion webhooks (9502) and the recovery backend
+  # (9503) are called by the apiserver; 9500 serves the manager API.
+  - fromEntities:
+    - kube-apiserver
+  # The node's own iscsid connects to the engine's iSCSI target on the pod IP,
+  # and the kubelet runs the liveness and readiness probes. `remote-node`
+  # covers the same traffic when a component runs host-networked, which the
+  # runtime-created instance managers may.
+  - fromEntities:
+    - host
+    - remote-node
+    - health
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: longhorn-system
+  - toEntities:
+    - kube-apiserver
+    toPorts:
+    - ports:
+      - port: "6443"
+        protocol: TCP
+  - toEntities:
+    - host
+    - remote-node
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+  # No `world`: nothing here reaches off-cluster. `upgradeChecker` is off in
+  # release.yaml for that reason. Configuring a backup target later — S3, NFS
+  # off-cluster — is what would need an egress rule added here, and it is the
+  # manager and the backing-image manager that would need it, not the engines.

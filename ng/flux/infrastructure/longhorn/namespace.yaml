@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: longhorn-system
+  labels:
+    # Talos enforces the 'baseline' Pod Security profile on every namespace
+    # except kube-system. Longhorn cannot run under it: the manager and the CSI
+    # plugin need host paths, host PID and privileged containers to drive iSCSI
+    # and to bind-mount volumes into other pods' mount namespaces. Without this
+    # the DaemonSets are admitted-and-rejected and the namespace sits empty with
+    # only PodSecurity events to show for it.
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/warn: privileged

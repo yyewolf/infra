@@ -1,0 +1,133 @@
+# The three classes are declared here rather than through the chart's
+# `persistence.*` values (which is set to createStorageClass: false), so that
+# all three read side by side and a diff between them is the whole story. They
+# reproduce the chart's own parameter set — only replica count and locality
+# differ.
+#
+# Every class is WaitForFirstConsumer. That is the half of "schedule the
+# workload where its data is" that Kubernetes can actually enforce: binding and
+# provisioning are held until a pod using the claim is scheduled, so the
+# replicas get placed around the node the scheduler picked instead of the pod
+# being pulled toward a volume that was provisioned somewhere arbitrary at
+# `kubectl apply` time. With Immediate it is a coin flip.
+#
+# The other half is dataLocality, and what it can promise differs per class —
+# see each one. Note that a Longhorn v1 volume is reachable over the network
+# from any node, so apart from strict-local no PV here carries nodeAffinity: a
+# rescheduled pod is never *prevented* from moving, Longhorn just moves a
+# replica to follow it.
+#
+# Every class is reclaimPolicy: Retain, including yolo. Deleting a PVC — by
+# hand, or by Flux pruning a Kustomization, or by a chart being uninstalled —
+# then leaves the PV and the Longhorn volume behind instead of taking the data
+# with it. The chart's default is Delete, which makes `kubectl delete pvc` an
+# unrecoverable operation with no confirmation step.
+#
+# Two consequences that are not obvious, and are the price of this:
+#
+#   - Retained volumes are not garbage. A deleted PVC leaves its PV in
+#     `Released` and the Longhorn volume still occupying the 100 GiB budget
+#     forever. Nothing reclaims it, so `kubectl get pv | grep Released` is
+#     housekeeping someone has to actually do, and running out of space will
+#     look like a provisioning failure rather than a pile of orphans.
+#   - Retain does not mean "reattaches next time". A `Released` PV keeps a
+#     claimRef pointing at the PVC that is gone, and Kubernetes will not bind
+#     it to a new one; recreating the app gets a *fresh empty volume* and the
+#     old data sits there unreferenced. Getting it back means clearing
+#     `.spec.claimRef` on the PV by hand. Retain buys recoverability, not
+#     continuity.
+#
+# reclaimPolicy is stamped onto each PV when it is provisioned, so changing it
+# here never affects volumes that already exist — only newly created ones.
+---
+# Default. Three replicas across three nodes, so the cluster survives losing
+# any one node with the volume still attached.
+#
+# dataLocality is deliberately 'disabled' and not 'best-effort': with three
+# replicas, `replicaSoftAntiAffinity: false` (release.yaml) and exactly three
+# storage nodes, every node already holds a replica. Locality is satisfied by
+# construction and best-effort would have nothing left to do — setting it would
+# only imply a guarantee that isn't coming from this knob.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: longhorn
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: driver.longhorn.io
+allowVolumeExpansion: true
+reclaimPolicy: Retain
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  numberOfReplicas: "3"
+  dataLocality: "disabled"
+  staleReplicaTimeout: "30"
+  fromBackup: ""
+  fsType: "ext4"
+  unmapMarkSnapChainRemoved: "ignored"
+  disableRevisionCounter: "true"
+  dataEngine: "v1"
+  backupTargetName: "default"
+---
+# Two replicas: still survives one node failure, at two thirds the disk cost
+# and one less replica to keep in sync on every write.
+#
+# This is where best-effort locality earns its keep. Two replicas over three
+# nodes means one node has none, so which nodes hold them is a real choice —
+# Longhorn keeps one on the node the workload is attached to, giving local-disk
+# reads, and rebuilds a local replica if the pod is later rescheduled
+# elsewhere. Best-effort, not strict: if the local node is out of space or
+# unschedulable, the volume stays up with both replicas remote rather than
+# failing.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: longhorn-ha
+provisioner: driver.longhorn.io
+allowVolumeExpansion: true
+reclaimPolicy: Retain
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  numberOfReplicas: "2"
+  dataLocality: "best-effort"
+  staleReplicaTimeout: "30"
+  fromBackup: ""
+  fsType: "ext4"
+  unmapMarkSnapChainRemoved: "ignored"
+  disableRevisionCounter: "true"
+  dataEngine: "v1"
+  backupTargetName: "default"
+---
+# One replica, no redundancy — losing the node that holds it means the volume
+# is unavailable until that node returns, and losing its disk means the data is
+# gone. Hence the name. For scratch space, caches, and anything that replicates
+# at the application layer instead (a CNPG or CNMSQL cluster, where three
+# Postgres instances each on a 1-replica volume beats three instances on
+# 3-replica volumes writing nine copies).
+#
+# strict-local is the only setting here that genuinely pins scheduling: the
+# single replica lives on the node the pod runs on, Longhorn sets nodeAffinity
+# on the PV accordingly, and reads and writes never leave the box. It requires
+# exactly one replica — Longhorn rejects volume creation otherwise — and does
+# not support ReadWriteMany.
+#
+# Do not add allowedTopologies to this class: the PV nodeAffinity it produces
+# is immutable and collides with strict-local's own pinning.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: longhorn-yolo
+provisioner: driver.longhorn.io
+allowVolumeExpansion: true
+reclaimPolicy: Retain
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  numberOfReplicas: "1"
+  dataLocality: "strict-local"
+  staleReplicaTimeout: "30"
+  fromBackup: ""
+  fsType: "ext4"
+  unmapMarkSnapChainRemoved: "ignored"
+  disableRevisionCounter: "true"
+  dataEngine: "v1"
+  backupTargetName: "default"

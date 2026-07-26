@@ -107,6 +107,7 @@ nodes:
       - siderolabs/gvisor
     patches:
       - gvisor.yaml
+      - longhorn.yaml
   cp-1:
     type: controlplane
     address: 10.200.0.12
@@ -116,6 +117,7 @@ nodes:
       - siderolabs/gvisor
     patches:
       - gvisor.yaml
+      - longhorn.yaml
   cp-2:
     type: controlplane
     address: 10.200.0.13
@@ -125,6 +127,7 @@ nodes:
       - siderolabs/gvisor
     patches:
       - gvisor.yaml
+      - longhorn.yaml
 
   # Cloud worker on Infomaniak OpenStack (see ng/openstack). It is not on the
   # LAN: its physical NIC takes a DHCP lease from the cloud and exists only to

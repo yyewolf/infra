@@ -1,0 +1,74 @@
+# Longhorn's slice of the system disk, for nodes that are storage nodes.
+#
+# Longhorn's default data path is a directory on EPHEMERAL, which means replica
+# data, container images and logs all compete for the same filesystem — either
+# one filling it takes the kubelet down with it. Instead this carves a real
+# partition out of the system disk and points Longhorn at that, so the two can
+# never starve each other.
+#
+# Talos applies volume sizing *only at provisioning time*: "applying changes
+# after the initial provisioning will not have any effect". EPHEMERAL grows to
+# fill the disk on first boot, so on a node that is already running there is no
+# unallocated space left for the user volume and the cap below is ignored.
+# Adding this to a live node therefore means wiping EPHEMERAL — see
+# README.md, "Longhorn storage".
+
+machine:
+  kubelet:
+    # The user volume is mounted at /var/mnt/longhorn on the host. The kubelet
+    # runs in its own mount namespace, so without this bind it sees an empty
+    # directory and Longhorn reports the *EPHEMERAL* filesystem's free space
+    # for the disk instead of the partition's.
+    #
+    # 'rshared' is what makes the mounts Longhorn creates underneath this path
+    # (one per attached volume) propagate back to the host and into the pods
+    # that asked for them. A plain bind would keep them invisible to everything
+    # but the kubelet.
+    extraMounts:
+      - destination: /var/mnt/longhorn
+        type: bind
+        source: /var/mnt/longhorn
+        options:
+          - bind
+          - rshared
+          - rw
+---
+# Cap EPHEMERAL so it stops short of the end of the disk and leaves room for
+# the user volume below. 'grow: true' is the stock behaviour and stays: the
+# volume still expands on its own, it just stops at maxSize now.
+#
+# 128GiB + 100GiB = 228GiB, against ~236GiB of usable space on the 256 GB
+# KIOXIA once EFI/META/STATE are taken out. The slack is deliberate — a
+# partition table that does not quite fit fails at boot, not at apply time.
+apiVersion: v1alpha1
+kind: VolumeConfig
+name: EPHEMERAL
+provisioning:
+  diskSelector:
+    match: system_disk
+  minSize: 2GiB
+  maxSize: 128GiB
+  grow: true
+---
+# The Longhorn partition. Fixed size, not grow: this is a budget, and a volume
+# that quietly expands into whatever is free is not one.
+#
+# Named 'longhorn', so Talos mounts it at /var/mnt/longhorn and labels the
+# partition 'u-longhorn'. That path is what defaultSettings.defaultDataPath in
+# ng/flux/infrastructure/longhorn/release.yaml is set to; the two have to
+# agree or Longhorn silently falls back to /var/lib/longhorn on EPHEMERAL,
+# which is the exact arrangement this file exists to avoid.
+#
+# On the system disk on purpose — these hosts have one NVMe each. A dedicated
+# spindle would only change the diskSelector.
+apiVersion: v1alpha1
+kind: UserVolumeConfig
+name: longhorn
+provisioning:
+  diskSelector:
+    match: system_disk
+  minSize: 100GiB
+  maxSize: 100GiB
+  grow: false
+filesystem:
+  type: xfs
