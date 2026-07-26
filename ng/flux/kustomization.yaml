@@ -1,24 +1,25 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - flux-system/
-  - infrastructure/cilium/ks.yaml
-  - infrastructure/gvisor/ks.yaml
-  - infrastructure/kata/ks.yaml
-  - infrastructure/longhorn/ks.yaml
-  - platform/cert-manager/ks.yaml
-  - platform/certificates/ks.yaml
-  - platform/envoy-gateway/ks.yaml
-  - platform/external-dns/ks.yaml
-  - platform/keda/ks.yaml
-  - platform/metrics-server/ks.yaml
-  - platform/tailscale/ks.yaml
-  - platform/cnpg/ks.yaml
-  - platform/cnmsql/ks.yaml
-  - platform/barman-plugin/ks.yaml
-  - platform/postgres/ks.yaml
-  - platform/mysql/ks.yaml
-  - platform/booting-up/ks.yaml
-  - platform/envoy-proxy/ks.yaml
-  - apps/cyberchef/ks.yaml
-  - apps/radar/ks.yaml
+- flux-system/
+- infrastructure/cilium/ks.yaml
+- infrastructure/gvisor/ks.yaml
+- infrastructure/kata/ks.yaml
+- infrastructure/longhorn/ks.yaml
+- platform/cert-manager/ks.yaml
+- platform/certificates/ks.yaml
+- platform/envoy-gateway/ks.yaml
+- platform/external-dns/ks.yaml
+- platform/external-secrets/ks.yaml
+- platform/keda/ks.yaml
+- platform/metrics-server/ks.yaml
+- platform/tailscale/ks.yaml
+- platform/cnpg/ks.yaml
+- platform/cnmsql/ks.yaml
+- platform/barman-plugin/ks.yaml
+- platform/postgres/ks.yaml
+- platform/mysql/ks.yaml
+- platform/booting-up/ks.yaml
+- platform/envoy-proxy/ks.yaml
+- apps/cyberchef/ks.yaml
+- apps/radar/ks.yaml
