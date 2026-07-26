@@ -30,7 +30,7 @@ spec:
   # and the kubelet runs the liveness and readiness probes. `remote-node`
   # covers the same traffic when a component runs host-networked, which the
   # runtime-created instance managers may.
-    - fromEntities:
+  - fromEntities:
     - host
     - remote-node
     - health
@@ -40,7 +40,7 @@ spec:
         io.kubernetes.pod.namespace: tailscale
     toPorts:
     - ports:
-      - port: "80"
+      - port: "8000"
         protocol: TCP
   egress:
   - toEndpoints:
