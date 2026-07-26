@@ -1,0 +1,81 @@
+# A copy of the image's own /etc/nginx/nginx.conf with three changes, all of
+# them so the pod can run with no capabilities at all:
+#
+#   - `listen 8080` instead of 80, so nothing needs NET_BIND_SERVICE. The root
+#     cluster's copy of this app granted that capability and paid for it with an
+#     init container; neither is needed here.
+#   - pid and every *_temp_path moved under /tmp, which is the pod's only
+#     writable mount. The image's nginx is built with prefix /var/lib/nginx, so
+#     the defaults all land on the read-only root filesystem.
+#   - the temp paths are one level under /tmp: nginx creates the leaf directory
+#     itself but not its parents, so /tmp/nginx/client_body fails at startup
+#     while /tmp/client_body works.
+#
+# The rest is verbatim from the image. That is the maintenance cost of this
+# file: a portfolio release that changes its nginx config changes it in the
+# image only, and this mount silently keeps serving the old one. It is a static
+# site behind `try_files`, so that is a small surface, but a version bump that
+# touches routing or headers needs this file re-diffed against the image.
+#
+# Editing this ConfigMap does not restart the Deployment on its own — nginx
+# reads the file once at startup. Roll the pods after a change (or just let the
+# scale-to-zero cycle do it).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: portfolio-nginx
+data:
+  nginx.conf: |
+    pcre_jit on;
+    worker_processes auto;
+    error_log /dev/stderr warn;
+    pid /tmp/nginx.pid;
+
+    events {
+        worker_connections 1024;
+        multi_accept on;
+        use epoll;
+    }
+
+    http {
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+        server_tokens off;
+        client_max_body_size 1m;
+        tcp_nopush on;
+        tcp_nodelay on;
+        gzip on;
+        gzip_vary on;
+        gzip_comp_level 6;
+        gzip_types text/plain text/css text/xml application/json application/javascript image/svg+xml;
+        access_log off;
+        open_file_cache max=1000 inactive=20s;
+        open_file_cache_valid 30s;
+        open_file_cache_min_uses 2;
+        open_file_cache_errors off;
+
+        client_body_temp_path /tmp/client_body;
+        proxy_temp_path /tmp/proxy;
+        fastcgi_temp_path /tmp/fastcgi;
+        uwsgi_temp_path /tmp/uwsgi;
+        scgi_temp_path /tmp/scgi;
+
+        server {
+            listen 8080;
+            root /usr/share/nginx/html;
+            index index.html;
+
+            location / {
+                try_files $uri $uri/ /index.html =404;
+                expires 1d;
+                add_header Cache-Control "public, max-age=86400";
+            }
+
+            location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
+                expires 30d;
+                add_header Cache-Control "public, max-age=2592000";
+            }
+
+            error_page 404 /404.html;
+        }
+    }

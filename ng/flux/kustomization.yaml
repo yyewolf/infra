@@ -24,5 +24,6 @@ resources:
 - platform/postgres/applications/vaultwarden/ks.yaml
 - apps/cyberchef/ks.yaml
 - apps/radar/ks.yaml
+- apps/portfolio/ks.yaml
 
 - apps/vaultwarden/ks.yaml

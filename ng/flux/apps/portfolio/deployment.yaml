@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portfolio
+  labels:
+    app: portfolio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: portfolio
+  template:
+    metadata:
+      labels:
+        app: portfolio
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: portfolio
+        image: ghcr.io/yyewolf/portfolio:2.1.6@sha256:f30293cfdc7338966ffef2be651fe5f97752a3363431db6fdc7bee1f972cf08c
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 8080
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          # Nothing is added back: the config in configmap.yaml puts nginx on
+          # 8080, so NET_BIND_SERVICE (which the root cluster's copy needed) is
+          # gone along with the init container that used to pre-create
+          # /var/lib/nginx for it.
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        # Tight probe timings: this is the pod the interceptor is waiting on
+        # during a cold start, so every second here is a second of placeholder.
+        readinessProbe:
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 1
+          periodSeconds: 1
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+          readOnly: true
+        # The only writable path in the container: pid file and every nginx
+        # temp path live here.
+        - name: tmp
+          mountPath: /tmp
+        resources:
+          requests:
+            cpu: 0m
+            memory: 0Mi
+          limits:
+            cpu: 200m
+            memory: 100Mi
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: portfolio-nginx
+      - name: tmp
+        emptyDir: {}
+      # Startup logs one alert — nginx cannot open its compiled-in default
+      # error log at /var/lib/nginx/logs/error.log, because that is on the
+      # read-only root. It happens before the config is parsed, is not fatal,
+      # and logging goes to /dev/stderr as configured immediately after.

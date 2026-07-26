@@ -1,0 +1,20 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: portfolio
+  namespace: flux-system
+spec:
+  dependsOn:
+    # keda for the InterceptorRoute/ScaledObject CRDs and the ReferenceGrant
+    # this route needs; envoy-proxy for the Gateway it attaches to; booting-up
+    # for the placeholder the cold-start fallback points at.
+    - name: keda
+    - name: envoy-proxy
+    - name: booting-up
+  interval: 10m
+  path: ./ng/flux/apps/portfolio
+  prune: true
+  retryInterval: 1m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
