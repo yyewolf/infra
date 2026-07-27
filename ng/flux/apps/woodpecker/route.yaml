@@ -4,8 +4,8 @@ metadata:
   name: woodpecker
 spec:
   parentRefs:
-  - name: kgateway
-    namespace: kgateway
+  - name: envoy-gateway
+    namespace: envoy-gateway-system
     sectionName: https
   hostnames:
   - "woodpecker.yewolf.fr"

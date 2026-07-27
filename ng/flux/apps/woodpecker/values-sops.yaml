@@ -1,3 +1,12 @@
+# Moved from the root cluster untouched, not regenerated: WOODPECKER_GITHUB_*
+# is one OAuth app registered on GitHub against woodpecker.yewolf.fr, and that
+# hostname follows the deployment here. Rotating it would mean editing the app
+# on GitHub in the same breath as the move.
+#
+# The OAuth pair is all that is left here. The root cluster's file also carried
+# WOODPECKER_DATABASE_DATASOURCE; that key is gone, because the server takes its
+# DSN from the `woodpecker-db` Secret that ESO pushes instead (see helm.yaml's
+# valuesFrom and platform/postgres/applications/woodpecker).
 apiVersion: v1
 kind: Secret
 metadata:
@@ -6,10 +15,10 @@ type: Opaque
 stringData:
     WOODPECKER_GITHUB_CLIENT: ENC[AES256_GCM,data:ldmUGZ8TUtyNU+KCVXhtuGIHSx4=,iv:t7XPF3hTViSH0qq+QEa4zDachR+udDitt0IVMCMW6pU=,tag:R73wAnM4gbgvW4V4T7n2gA==,type:str]
     WOODPECKER_GITHUB_SECRET: ENC[AES256_GCM,data:UqAWlpcxU9HuCZAfp/cU4/Qd3VCvPU5QyTB7GPgg+0hQ2CZT1ipFcg==,iv:YCdtiQiiPgyP2c3HD8fUg2b/rXN5E7POd31pH+y6h9w=,tag:LHqhitiqolaIoTy/42Ybww==,type:str]
-    WOODPECKER_DATABASE_DATASOURCE: ENC[AES256_GCM,data:TFvofg82oHpTOK7EcfKWJlmhiC5VICrOQDLdCYjFDHpzvsVUvmYUycdwObL9MaSyizDPQ8g+InHo5DkXeG06vVAs0xLoRFme9e2dYHes5f7ORvTohFtAsBpc08rtbylOCLOFqouVGUefyE7xuaM=,iv:PU/7KlTfjfPmPC6bkqWFfzC50xXduzmHvn8QG+30pMs=,tag:IThAXPrTICpZztGVIksSNw==,type:str]
 sops:
-    lastmodified: "2025-10-18T21:38:48Z"
-    mac: ENC[AES256_GCM,data:GfTeaQZihfCgsT7ghjmnuc14/tj5/YhBHEp0rawB7O6flms6El3kzZr6eEMXffmxbRA9qInlXyHFlhrqNGNLIuUW6OYeHJa7MhdsT9hfcJpENoCxc6t31mGnXCpW2EQi06/wJNG/ec3UH0Tl5+ybYMOwb6XtnJ9iQnMOodvq5wk=,iv:Lzwfljdb5u87a11k190TtPO5JU856e7Gyf0zDNnQ9FA=,tag:pG1SQVc6NaQtrPZVFfKmwA==,type:str]
+    encrypted_regex: ^(data|stringData|secrets)$
+    lastmodified: "2026-07-27T18:58:59Z"
+    mac: ENC[AES256_GCM,data:NYWPYQv3FSeTpVfadE8qt4f7UbC0gUkPMSO2NPuqqIWOvemw5Q9f8cYNHCbGlKoZtxasl/DkHcrGhQvzx9R7lCrtXu/vGy1ksqDysdCIQoI7dmzQroSKAa//9dzr1jOVvgMxEylxIDU0GYeSWYJQs4K2f4FAw6ZX422JVdaKZ8w=,iv:O/9Ww75QziFemOd4ydbq7e2ec3sLPy2icpcq+8JNTOY=,tag:dA1QfShU3wgH24269hq1sg==,type:str]
     pgp:
         - created_at: "2025-10-18T21:38:48Z"
           enc: |-
@@ -33,5 +42,4 @@ sops:
             =jzDy
             -----END PGP MESSAGE-----
           fp: DF7F5D62376A57228F35FE4C665F8C5B8E0732E5
-    encrypted_regex: ^(data|stringData|secrets)$
-    version: 3.10.2
+    version: 3.13.1

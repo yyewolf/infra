@@ -1,0 +1,22 @@
+apiVersion: external-secrets.io/v1
+kind: SecretStore
+metadata:
+  name: woodpecker
+  namespace: postgres
+spec:
+  provider:
+    kubernetes:
+      remoteNamespace: woodpecker
+      server:
+        caProvider:
+          type: ConfigMap
+          name: kube-root-ca.crt
+          key: ca.crt
+      auth:
+        # Must match the ServiceAccount in eso-writer.yaml, which is the one the
+        # RoleBinding in the woodpecker namespace grants. Naming another app's
+        # writer here authenticates as an identity with no rights in that
+        # namespace, and the store fails validation with the unhelpful "client
+        # is not allowed to get secrets".
+        serviceAccount:
+          name: eso-push-writer-woodpecker

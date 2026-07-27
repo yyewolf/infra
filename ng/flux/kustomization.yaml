@@ -13,6 +13,7 @@ resources:
 - platform/external-secrets/ks.yaml
 - platform/keda/ks.yaml
 - platform/kyverno/ks.yaml
+- platform/kyverno/policies/ks.yaml
 - platform/metrics-server/ks.yaml
 - platform/tailscale/ks.yaml
 - platform/cnpg/ks.yaml
@@ -24,11 +25,12 @@ resources:
 - platform/envoy-proxy/ks.yaml
 - platform/postgres/applications/vaultwarden/ks.yaml
 - platform/postgres/applications/umami/ks.yaml
+- platform/postgres/applications/woodpecker/ks.yaml
 - apps/cyberchef/ks.yaml
 - apps/radar/ks.yaml
 - apps/portfolio/ks.yaml
 - apps/portfoliosh/ks.yaml
 - apps/capsule/ks.yaml
-
 - apps/vaultwarden/ks.yaml
 - apps/umami/ks.yaml
+- apps/woodpecker/ks.yaml

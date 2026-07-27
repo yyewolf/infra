@@ -5,6 +5,7 @@ namespace: woodpecker
 resources:
 - network-policy.yaml
 - namespace.yaml
+- limitrange.yaml
 - helm.yaml
 - route.yaml
 - values-sops.yaml

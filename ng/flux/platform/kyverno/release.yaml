@@ -1,12 +1,13 @@
-# Kyverno, the operator only — no policies. An install with no ClusterPolicy is
-# inert by design: Kyverno registers its resource webhooks dynamically from the
-# policies that exist, so with none there is nothing intercepting pod creation
-# and nothing that can wedge the API server if these pods go away. Policies are
-# a deliberate second step.
+# Kyverno, the operator only. The policies live in `policies/` under their own
+# Flux Kustomization, because that directory is where this install stops being
+# inert: Kyverno registers its resource webhooks dynamically from the policies
+# that exist, so with none there is nothing intercepting pod creation and
+# nothing that can wedge the API server if these pods go away. Reverting that
+# one directory returns the cluster to that state without uninstalling anything.
 #
-# The root cluster's two policies are not portable here: both pin workloads to
-# `sysbox-runc`, and this cluster runs gvisor and kata instead (see
-# infrastructure/gvisor, infrastructure/kata). They are not being carried over.
+# The root cluster's two policies were not portable and were not carried over:
+# both pin workloads to `sysbox-runc`, which does not exist here. `policies/`
+# rewrites their intent against kata instead (see infrastructure/kata).
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:

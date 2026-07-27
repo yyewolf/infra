@@ -1,0 +1,42 @@
+# Default memory for pipeline steps, and the reason it is a LimitRange rather
+# than part of the Kyverno mutation next door.
+#
+# Every step pod needs a memory *limit*, because that is what kata sizes the
+# guest VM from: with none it gets the runtime default of 2 GiB, and the 4 GiB
+# tmpfs that woodpecker-docker-tmpfs mounts at /var/lib/docker can never be
+# filled. The symptom is ENOSPC or a guest OOM in the middle of a build, which
+# points nowhere near the cause.
+#
+# But the default must not override a step that asked for something specific —
+# a `kind` e2e job that requests 12Gi means it. Kyverno's `+()` add-if-absent
+# anchor looked like the tool for that and is not: inside a container list
+# matched by `(name): "*"`, both `+(resources)` and nested
+# `+(limits)`/`+(requests)` replaced an explicit 12Gi with the default. A
+# LimitRange has the semantics built in — `default` and `defaultRequest` are
+# applied by the LimitRanger admission plugin only to containers that specify
+# nothing — so it is the API guaranteeing this, not a pattern that has to be
+# re-tested on every Kyverno upgrade.
+#
+# Requests deliberately well below limits. The VM is *sized* to the limit, but
+# the host only backs the pages the guest actually touches, so a step that never
+# starts a container engine costs about its request. Reserving 6Gi for every
+# step would let four agents tie up 24 GiB across three LAN nodes to run
+# `go test`. The trade is overcommit: enough steps genuinely filling their tmpfs
+# at once can outrun a node. Raise defaultRequest toward default if that starts
+# happening, or lower `agent.replicaCount`.
+#
+# This applies to the whole namespace, which is why the server and the agents
+# both carry explicit resources in helm.yaml — otherwise four idle agents would
+# each reserve the default and the numbers here would quietly become the
+# platform's, not just CI's.
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: woodpecker-step-defaults
+spec:
+  limits:
+  - type: Container
+    default:
+      memory: 6Gi
+    defaultRequest:
+      memory: 2Gi

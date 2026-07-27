@@ -1,0 +1,127 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: woodpecker
+spec:
+  interval: 24h
+  type: oci
+  url: oci://ghcr.io/woodpecker-ci/helm
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: woodpecker
+  namespace: woodpecker
+spec:
+  interval: 5m
+  chart:
+    spec:
+      chart: woodpecker
+      version: 3.6.5
+      sourceRef:
+        kind: HelmRepository
+        name: woodpecker
+        namespace: woodpecker
+  values:
+    agent:
+      enabled: true
+      replicaCount: 4
+      image:
+        registry: mirror.gcr.io
+      env:
+        WOODPECKER_SERVER: 'woodpecker-server:9000'
+        WOODPECKER_BACKEND: kubernetes
+        WOODPECKER_BACKEND_K8S_NAMESPACE: woodpecker
+        WOODPECKER_BACKEND_K8S_NAMESPACE_PER_ORGANIZATION: false
+        # longhorn-ci, not one of the three general classes: a pipeline creates
+        # a workspace PVC and deletes it when it finishes, and the others are
+        # all reclaimPolicy: Retain — every build would leave a Released PV and
+        # a Longhorn volume behind forever. See
+        # infrastructure/longhorn/storageclasses.yaml.
+        WOODPECKER_BACKEND_K8S_STORAGE_CLASS: 'longhorn-ci'
+        WOODPECKER_BACKEND_K8S_VOLUME_SIZE: 10G
+        WOODPECKER_BACKEND_K8S_STORAGE_RWX: false
+        WOODPECKER_CONNECT_RETRY_COUNT: '1'
+        # No WOODPECKER_BACKEND_K8S_POD_TOLERATIONS. The root cluster's value
+        # steered step pods onto its PrivateNode-tainted host; here the `kata`
+        # RuntimeClass carries a control-plane nodeSelector that is merged into
+        # every pod that uses it, which is what keeps steps off the edge (no
+        # nested virt, no kata handler). Nothing to tolerate — cp-0/1/2 are
+        # untainted, `allowSchedulingOnControlPlanes: true`.
+      persistence:
+        enabled: false
+      # The agent is an ordinary workload: it talks to the server and to the API
+      # server, and it is not where pipeline code runs. The sandbox belongs to
+      # the step pods it creates, and is applied by the `woodpecker-kata`
+      # ClusterPolicy rather than here.
+      #
+      # `securityContext` in this chart is the *container's* — the pod-level one
+      # is `podSecurityContext`, and a `containerSecurityContext` key (which
+      # other charts use) is silently ignored here. The chart already sets
+      # runAsUser/runAsGroup 1000 and fsGroup 1000 of its own accord, so these
+      # two are the whole delta.
+      #
+      # No `readOnlyRootFilesystem`, deliberately: with `persistence.enabled:
+      # false` nothing is mounted at /etc/woodpecker, so the agent writes the ID
+      # it registered with onto its own root filesystem. Making that read-only
+      # makes it register anew on every restart, which shows up as a pile of
+      # dead agents in the server UI rather than as a crash.
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+          - ALL
+      # Stated explicitly because limitrange.yaml sets namespace-wide defaults
+      # for pipeline steps (6Gi limit / 2Gi request), and a LimitRange does not
+      # distinguish workloads. Without these, four idle agents would each
+      # reserve 2Gi and be allowed 6Gi — CI's numbers silently becoming the
+      # platform's. An agent is a small Go process that shells out to the API
+      # server; it is not where pipelines run.
+      resources:
+        limits:
+          memory: 256Mi
+        requests:
+          cpu: 50m
+          memory: 64Mi
+    server:
+      enabled: true
+      image:
+        registry: mirror.gcr.io
+      env:
+        WOODPECKER_FORGE_TIMEOUT: '60s'
+        WOODPECKER_FORGE_RETRY: '15'
+        WOODPECKER_ADMIN: 'yyewolf'
+        WOODPECKER_HOST: 'https://woodpecker.yewolf.fr'
+        WOODPECKER_GITHUB: "true"
+        WOODPECKER_DATABASE_DRIVER: "postgres"
+        WOODPECKER_PLUGINS_PRIVILEGED: "woodpeckerci/plugin-docker-buildx"
+      createAgentSecret: true
+      persistentVolume:
+        enabled: false
+      service:
+        type: ClusterIP
+        port: 80
+      resources:
+        limits:
+          cpu: 500m
+          memory: 500Mi
+        requests:
+          cpu: 100m
+          memory: 128Mi
+  valuesFrom:
+  - kind: Secret
+    name: values
+    valuesKey: WOODPECKER_GITHUB_CLIENT
+    targetPath: server.env.WOODPECKER_GITHUB_CLIENT
+  - kind: Secret
+    name: values
+    valuesKey: WOODPECKER_GITHUB_SECRET
+    targetPath: server.env.WOODPECKER_GITHUB_SECRET
+  # Not out of `values` like the two above: the DSN is written into this
+  # namespace by the PushSecret in platform/postgres/applications/woodpecker and
+  # points at this cluster's shared Postgres, so it is never in git in any form.
+  # The release will not install until that push has landed.
+  - kind: Secret
+    name: woodpecker-db
+    valuesKey: DATABASE_URL
+    targetPath: server.env.WOODPECKER_DATABASE_DATASOURCE

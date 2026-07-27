@@ -1,0 +1,89 @@
+# A privileged container may only run inside a Kata Containers VM.
+#
+# This is the other half of `woodpecker-kata`, and the reason the woodpecker
+# namespace can safely be labelled `pod-security.kubernetes.io/enforce:
+# privileged`. That label turns off the only thing that was stopping a pod in
+# that namespace from asking for privilege on the node; this policy puts the
+# condition back in a form that says what actually matters — not "no privilege"
+# but "no privilege outside a hypervisor boundary". If the mutation above ever
+# stops matching (the agent renames its label, a step is created some other
+# way), the step pod is rejected rather than quietly admitted as a privileged
+# container on runc with a root shell one bug away from the node.
+#
+# It is deliberately cluster-wide rather than scoped to woodpecker. A policy
+# that only guards the namespace it was written for is a policy that the next
+# app to want `privileged: true` will simply not be subject to.
+#
+# The exclusions are the workloads that are privileged *and* cannot be kata,
+# because they exist to drive the node itself:
+#
+#   - kube-system: cilium-agent (CAP_SYS_ADMIN, host networking, loading BPF
+#     into the host kernel — none of which means anything from inside a VM).
+#   - longhorn-system: the manager and CSI plugin need host paths, host PID and
+#     privilege to drive iSCSI and bind-mount volumes into other pods' mount
+#     namespaces (see infrastructure/longhorn/namespace.yaml).
+#
+# Both are also outside kata's reach for a simpler reason: the RuntimeClass pins
+# scheduling to control-plane nodes, and these are DaemonSets that must run
+# everywhere. Adding a namespace here is granting it the right to run privileged
+# on the host, so it is worth the same argument each time.
+#
+# Note the availability trade this makes: Kyverno's webhooks default to
+# `failurePolicy: Fail`, so while the admission controller is unavailable, pod
+# creation fails in every namespace this policy matches. It stays recoverable
+# because the chart's default resourceFilters exclude the `kyverno` and
+# `kube-system` namespaces from the webhook entirely — Kyverno can always
+# restart itself, and so can the CNI. Running the admission controller at more
+# than one replica would shorten that window.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-kata-for-privileged
+spec:
+  # Also evaluated against existing pods, so a violation that predates the
+  # policy shows up in a PolicyReport instead of only being caught the next time
+  # something is recreated.
+  background: true
+  rules:
+  - name: privileged-requires-kata
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+    exclude:
+      any:
+      - resources:
+          namespaces:
+          - kube-system
+          - longhorn-system
+    validate:
+      failureAction: Enforce
+      message: >-
+        Container '{{ request.object.metadata.name }}' asks for privileged: true outside a sandbox. A privileged container is only allowed with runtimeClassName 'kata' or 'kata-qemu', where root is root in a VM rather than on the node. Set the runtime class, or drop the privilege.
+      deny:
+        conditions:
+          all:
+          # The three container lists concatenated and flattened, then filtered
+          # down to the ones that actually ask for privilege. Entries for a list
+          # the pod does not have survive the flatten as null and drop out of
+          # the filter on their own, so no `|| []` guard is needed.
+          #
+          # The pipe before the filter is load-bearing and its absence is
+          # silent. `[]` opens a projection, and a `[?…]` written straight after
+          # it is applied *inside* each flattened element rather than to the
+          # flattened list — the count comes back 0 for every pod, the condition
+          # never fires, and the policy passes everything while looking correct.
+          # `|` closes the projection first. Verified with `kyverno jp query`.
+          - key: >-
+              {{ length(request.object.spec.[containers, initContainers, ephemeralContainers][] | [?securityContext.privileged == `true`]) }}
+            operator: GreaterThan
+            value: 0
+          # Unset is the common case and must not be treated as a match, hence
+          # the `|| ''` — a missing runtimeClassName is runc.
+          - key: "{{ request.object.spec.runtimeClassName || '' }}"
+            operator: AnyNotIn
+            value:
+            - kata
+            - kata-qemu
+            - gvisor

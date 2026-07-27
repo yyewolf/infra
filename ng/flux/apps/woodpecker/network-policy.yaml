@@ -1,0 +1,198 @@
+# Four policies, because the three things running in this namespace want very
+# different reach and the union of their needs is much larger than any one of
+# them.
+#
+#   server — takes traffic from the edge, talks to Postgres and to GitHub.
+#   agent  — talks to the server and to the API server. Nothing else, and in
+#            particular not the internet: it orchestrates pipelines, it does not
+#            run them.
+#   steps  — the pipeline pods. The internet, and nothing inside the cluster.
+#
+# Written as one namespace-wide rule (which is what this was) those collapse
+# into "everything may reach Postgres, the API server and the internet", which
+# hands unreviewed pipeline code a direct path to the database and to the
+# Kubernetes API. Split, a step pod cannot reach either.
+#
+# The first policy is what makes that hold. Cilium's default-deny is per
+# endpoint and only engages once *some* policy selects it, so a pod matching
+# none of the three below would be unrestricted rather than denied — labels
+# drifting on a chart upgrade would silently open everything instead of
+# breaking visibly. Selecting the whole namespace with no rules at all closes
+# that: anything unrecognised gets nothing, and the three policies below add
+# back what each is allowed. Cilium policies are additive, so this costs the
+# named workloads nothing.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: woodpecker-default-deny
+spec:
+  endpointSelector: {}
+  # An empty selector list is the idiom: it matches no peer, so nothing is
+  # allowed, but the rule still exists and that is what switches the endpoint
+  # into default-deny for that direction. The CRD rejects a policy carrying
+  # only `enableDefaultDeny` with no rules at all ("spec.ingress: Required
+  # value"), so this is not the same thing written more verbosely.
+  ingress:
+  - fromEndpoints: []
+  egress:
+  - toEndpoints: []
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: woodpecker-server
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: server
+      app.kubernetes.io/instance: woodpecker
+  ingress:
+  # 8000, not 80: the Service publishes 80 and targets the container's `http`
+  # port, and Cilium enforces at the endpoint, after the translation.
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: envoy-gateway-system
+    toPorts:
+    - ports:
+      - port: "8000"
+        protocol: TCP
+  # The agents' gRPC connection — this is the only thing that speaks 9000.
+  - fromEndpoints:
+    - matchLabels:
+        app.kubernetes.io/name: agent
+        app.kubernetes.io/instance: woodpecker
+    toPorts:
+    - ports:
+      - port: "9000"
+        protocol: TCP
+  # The kubelet runs the readiness and liveness probes.
+  - fromEntities:
+    - host
+    - remote-node
+    - health
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: postgres
+    toPorts:
+    - ports:
+      - port: "5432"
+        protocol: TCP
+  # GitHub: the OAuth exchange, the API, and the status/check writes after a
+  # pipeline finishes. Port-restricted rather than enumerated by name — a
+  # `toFQDNs` rule is the available tightening, at the cost of the L7 DNS
+  # visibility it requires (see platform/mysql's policy for that pattern and
+  # its sharp edge). The forge is reached over 443 and nothing else.
+  - toEntities:
+    - world
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: woodpecker-agent
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: agent
+      app.kubernetes.io/instance: woodpecker
+  ingress:
+  # Nothing dials an agent. It opens the connection to the server itself, and
+  # the only inbound traffic is the kubelet on the container's 3000.
+  - fromEntities:
+    - host
+    - remote-node
+    - health
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        app.kubernetes.io/name: server
+        app.kubernetes.io/instance: woodpecker
+    toPorts:
+    - ports:
+      - port: "9000"
+        protocol: TCP
+  # The Kubernetes backend: creating, watching and deleting step pods and their
+  # workspace PVCs. Without this the agent registers with the server and then
+  # fails every pipeline at the first step with a timeout.
+  - toEntities:
+    - kube-apiserver
+  # Deliberately no egress to the internet. The agent pulls no source and
+  # pushes no images — the step pods below do.
+---
+# The pipeline pods. Selected by the label the agent stamps on each task, which
+# is the same hook the `woodpecker-kata` ClusterPolicy uses to sandbox them.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: woodpecker-steps
+spec:
+  endpointSelector:
+    matchExpressions:
+    - key: woodpecker-ci.org/task-uuid
+      operator: Exists
+  ingress:
+  # Service containers attached to the same pipeline — a database or a broker a
+  # step runs its tests against. Only from other step pods, not the namespace.
+  - fromEndpoints:
+    - matchExpressions:
+      - key: woodpecker-ci.org/task-uuid
+        operator: Exists
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+  - toEndpoints:
+    - matchExpressions:
+      - key: woodpecker-ci.org/task-uuid
+        operator: Exists
+  # Cloning, pulling dependencies, pushing images — on whatever port the
+  # registry or forge in a pipeline happens to use, so this one is not port
+  # restricted. The excepted ranges are the control: a pipeline may reach the
+  # internet and may not turn that reach around on the home LAN, the WireGuard
+  # overlay, or the cluster's own pod and service networks. 10.0.0.0/8 covers
+  # the LAN (10.200.0.0/24), the pods (10.244.0.0/16) and the WireGuard subnet,
+  # 10.96.0.0/12 the services, 192.168.0.0/16 the network in front of the
+  # router; the v6 half excepts the ULA prefix this cluster is addressed out of.
+  #
+  # Note what is *not* here, and is the point of splitting this file: no
+  # Postgres, no API server, no woodpecker server.
+  - toCIDRSet:
+    - cidr: 0.0.0.0/0
+      except:
+      - 10.0.0.0/8
+      - 172.16.0.0/12
+      - 192.168.0.0/16
+    - cidr: ::/0
+      except:
+      - fdde:c64:7096::/48

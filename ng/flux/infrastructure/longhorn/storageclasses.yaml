@@ -131,3 +131,38 @@ parameters:
   disableRevisionCounter: "true"
   dataEngine: "v1"
   backupTargetName: "default"
+---
+# The one class that is reclaimPolicy: Delete, and the reason it exists is that
+# "deleting a PVC must never lose data" is the wrong default for a volume whose
+# entire contents are a git checkout and a build cache.
+#
+# The consumer is woodpecker: its Kubernetes backend provisions a workspace PVC
+# per pipeline and deletes it when the pipeline ends. Under Retain each build
+# would leave behind a Released PV and a Longhorn volume out of a 100 GiB
+# budget, forever, with nothing to reclaim it — a CI system is exactly the
+# workload that turns "housekeeping someone has to do" into "the partition is
+# full by Thursday". Here the delete is the point, and nothing of value is lost
+# by it.
+#
+# Do not point a stateful app at this class because the name sounds fast. It is
+# identical to longhorn-yolo apart from the reclaim policy, and that difference
+# is stamped onto the PV at provisioning time — a database moved onto it is one
+# `kubectl delete pvc` from gone, with no confirmation step.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: longhorn-ci
+provisioner: driver.longhorn.io
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  numberOfReplicas: "1"
+  dataLocality: "strict-local"
+  staleReplicaTimeout: "30"
+  fromBackup: ""
+  fsType: "ext4"
+  unmapMarkSnapChainRemoved: "ignored"
+  disableRevisionCounter: "true"
+  dataEngine: "v1"
+  backupTargetName: "default"

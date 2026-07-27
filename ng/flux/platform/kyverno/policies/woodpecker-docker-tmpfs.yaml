@@ -1,0 +1,86 @@
+# Give every pipeline step a /var/lib/docker that can actually host an overlay.
+#
+# The failure this exists for, from a real pipeline:
+#
+#   failed to mount /tmp/containerd-mount…: fstype: overlay,
+#   upperdir=/var/lib/docker/containerd/daemon/…/snapshots/9/fs,
+#   err: invalid argument
+#
+# EINVAL from mount(2) with fstype overlay means the filesystem holding the
+# upperdir cannot serve as an overlay upper layer. Inside a kata guest the
+# container rootfs is shared in over virtio-fs, which cannot, so the inner
+# dockerd's snapshotter fails the moment it tries to build its first layer.
+# Switching snapshotter does not help — the graphdriver path hits the same wall,
+# because the backing filesystem is the variable, not the code reaching it.
+#
+# This is the one thing sysbox was doing for us that kata does not: sysbox
+# provisions /var/lib/docker on its own backing store precisely to avoid
+# overlay-on-overlay. Moving to kata loses that, and this policy is what
+# replaces it.
+#
+# tmpfs works here only because of the guest kernel. Overlayfs requires its
+# upper filesystem to support `trusted.*` xattrs, which tmpfs did not have until
+# Linux 6.6; the kata guest reports 6.18.35, so it is over that line. On an
+# older guest kernel this mutation applies cleanly and the build fails with the
+# identical `invalid argument`, which is worth remembering before concluding the
+# policy is wrong — check `uname -r` inside a kata pod first.
+#
+# A tmpfs is guest RAM, and kata sizes the guest from the pod's memory limits —
+# without one the VM gets the runtime default of 2 GiB and a 4 GiB tmpfs inside
+# it can never be filled, surfacing as ENOSPC or a guest OOM rather than as
+# anything pointing back here. Those defaults are NOT set here: this policy
+# would overwrite a limit a pipeline set deliberately, and Kyverno's `+()`
+# add-if-absent anchor does not hold inside a wildcard-matched container list —
+# tested both `+(resources)` and nested `+(limits)`/`+(requests)`, and each
+# replaced an explicit 12Gi with the default. The defaults come from the
+# LimitRange in apps/woodpecker instead, where "only if the container did not
+# say" is the API's own guarantee rather than something to verify.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: woodpecker-docker-tmpfs
+spec:
+  rules:
+  - name: docker-graph-on-tmpfs
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+          namespaces:
+          - woodpecker
+          selector:
+            matchExpressions:
+            - key: woodpecker-ci.org/task-uuid
+              operator: Exists
+    # Deliberately not scoped to the kata steps, even though the failure that
+    # motivated it is a kata one. A gVisor step's rootfs is an overlay too, so
+    # anything that nests containers hits the same wall there, and "which steps
+    # nest containers" is precisely the question that has no reliable answer
+    # from a manifest — see the note on image matching below. Mounting on every
+    # step keeps the two sandboxes behaving the same way, which is worth more
+    # than the mount entry it costs a step that never looks at the path.
+    mutate:
+      patchStrategicMerge:
+        spec:
+          volumes:
+          - name: docker-graph
+            emptyDir:
+              medium: Memory
+              sizeLimit: 4Gi
+          containers:
+          # Every step container, not a chosen few. Targeting by image was tried
+          # twice and does not survive contact: the thing that needs this is
+          # whatever runs a container engine, and that is a custom image running
+          # `kind`, a docker-in-docker step, or the buildx plugin, with no
+          # substring in common. Matching `*docker*` to cover them catches
+          # `docker.io/library/golang` too, because the *registry* contains it.
+          #
+          # Mounting unconditionally is cheap in the way that matters: a tmpfs
+          # allocates lazily, so an empty one on a `go test` step costs nothing
+          # but a mount entry. It shadows /var/lib/docker in the image, which is
+          # empty in anything that is not already a docker image.
+          - (name): "*"
+            volumeMounts:
+            - name: docker-graph
+              mountPath: /var/lib/docker

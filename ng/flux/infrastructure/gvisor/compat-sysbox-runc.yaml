@@ -1,0 +1,77 @@
+# A compatibility shim, and a temporary one. Delete it once no pipeline names
+# `sysbox-runc` any more.
+#
+# It aliases gVisor, not kata, and that is the whole point. On the root cluster
+# sysbox was the sandbox for *every* CI step — its Kyverno policy put all task
+# pods on `sysbox-runc` regardless of what they did — so a pipeline naming it is
+# saying "sandbox me", not "I need a container engine". gVisor is this cluster's
+# answer to that sentence. Reading it as a request for kata would hand a VM and
+# full privilege to every step that merely inherited the old default, which is
+# the opposite of what the name meant.
+#
+# Steps that genuinely need docker are identified separately by
+# `woodpecker-sandbox` — either a `plugin-docker-buildx` image or an explicit
+# `runtimeClassName: kata` — and this class is deliberately not one of that
+# rule's signals.
+#
+# Why the alias has to exist at all: pipelines pin the class themselves with
+# `backend_options.kubernetes.runtimeClassName` in their .woodpecker.yml, files
+# that live in the repositories being built, not in this one. On ng that runtime
+# does not exist, and the step pod is rejected outright:
+#
+#   pods "wp-…" is forbidden: pod rejected: RuntimeClass "sysbox-runc" not found
+#
+# That rejection cannot be mutated away. `RuntimeClass` is a built-in admission
+# plugin and it runs during the *mutation* phase — it has to, since its job is
+# to copy `overhead` and `scheduling` onto the pod — and it is ordered ahead of
+# MutatingAdmissionWebhook, the single plugin under which every webhook
+# including Kyverno runs. So the lookup fails and the pod is Forbidden before
+# Kyverno is consulted at all. Verified by dry-running such a pod against the
+# live cluster with the sandbox policy in place and watching it be rejected
+# anyway. The name has to resolve *here*, or not be sent.
+#
+# So it resolves, to gVisor. A moment later `woodpecker-sandbox` rewrites the
+# pod's runtimeClassName to `gvisor` outright — patchStrategicMerge replaces the
+# value rather than merging it — and the pod runs under the name it should have
+# had. This class exists only to get it past that first gate.
+#
+# Every field below is copied from the `gvisor` class in runtimeclass.yaml and
+# must stay identical to it. The overhead and nodeSelector that land on the pod
+# are read from *this* object, before the rename, so a divergence here is a pod
+# scheduled by one class's rules onto another class's runtime — most visibly by
+# letting a step pod onto edge-0, which has no runsc handler at all.
+#
+# Note that `handler` is immutable: changing which runtime this resolves to is a
+# delete-and-recreate (`kubectl delete runtimeclass sysbox-runc`, then let Flux
+# put it back), not an edit Flux can apply on its own.
+#
+# This is not a privilege bypass. A pod keeping the name is judged on it by
+# require-kata-for-privileged, which accepts only `kata` and `kata-qemu`, so a
+# privileged pod calling itself sysbox-runc is denied.
+#
+# Removal: drop `runtimeClassName` from backend_options in the pipelines that
+# only inherited it — the sandbox is not theirs to choose, `woodpecker-sandbox`
+# assigns it — while the few steps that really do need a container engine pin
+# `kata` instead. Then delete this file.
+---
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: sysbox-runc
+  annotations:
+    # So this is recognisable as a shim from `kubectl get runtimeclass` without
+    # reading the file.
+    yewolf.fr/compat: >-
+      Alias for gvisor. Exists so pipelines still pinning sysbox-runc are
+      admitted; woodpecker-sandbox rewrites them to gvisor at admission.
+      Delete once no .woodpecker.yml names it.
+handler: runsc-netraw
+overhead:
+  # The sentry and gofer are ordinary host processes sitting beside the
+  # container. Cheaper than kata's VM, but not free.
+  podFixed:
+    cpu: 100m
+    memory: 64Mi
+scheduling:
+  nodeSelector:
+    node-role.kubernetes.io/control-plane: ""

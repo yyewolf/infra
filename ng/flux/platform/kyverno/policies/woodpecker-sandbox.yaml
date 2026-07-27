@@ -1,0 +1,162 @@
+# Which sandbox a pipeline step runs in, and how much privilege it gets.
+#
+# CI is the one workload here that runs code nobody reviewed — a pipeline is a
+# shell script from whichever repository triggered it — so no step runs on plain
+# runc. But the two kinds of step want very different things, and giving every
+# step what the heaviest one needs is how you end up handing a `go test` a
+# privileged VM.
+#
+#   Steps that build container images need a real kernel to run a dockerd
+#   against, and privilege to drive it. Those go to kata: the container's root
+#   is root in a VM, and the escape it would need is out of a hypervisor rather
+#   than out of a namespace. gVisor is not an option for them — runsc does not
+#   implement enough of the mount and overlay surface for an inner container
+#   engine.
+#
+#   Everything else — compiling, testing, linting, publishing artifacts — needs
+#   none of that. Those go to gVisor, unprivileged: a much cheaper sandbox (a
+#   sentry process beside the container, not a VM) and a much smaller blast
+#   radius, since the step never gets privilege at all.
+#
+# HOW A STEP SAYS IT NEEDS DOCKER: by pinning `runtimeClassName: kata` (or
+# `kata-qemu`, for the rare step that needs nested virt) in its own
+# backend_options, or by running the `plugin-docker-buildx` image, which is
+# always an image build. Rule one takes either; rule two takes everything else.
+#
+# `sysbox-runc` is deliberately NOT one of those signals, which is the easy
+# mistake to make. On the root cluster sysbox was the sandbox for *every* step —
+# its policy put all task pods there regardless of what they did — so a pipeline
+# naming it inherited a default rather than asking for a container engine.
+# Treating it as a kata request would hand a VM and full privilege to every
+# ordinary build that was never updated. It resolves to gVisor instead; see
+# infrastructure/gvisor/compat-sysbox-runc.yaml, which is what keeps the old
+# name admissible at all.
+#
+# The two rules are mutually exclusive by construction: both read
+# `request.object`, which is the *original* admission object, so rule one's
+# mutation cannot make rule two fire as well.
+#
+# This replaces the root cluster's `woodpecker-sysbox-unprivileged`, which took
+# a third approach: sysbox plus `hostUsers: false`, keeping the container
+# unprivileged and mapping its root to an unprivileged uid on the host. That
+# does not carry over — kata has no user-namespace support to hang `hostUsers:
+# false` on, since the pod is a VM and there is no host uid to map to, and the
+# kubelet rejects the combination outright. Privilege is granted rather than
+# emulated, and the isolation moves down a layer instead.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: woodpecker-sandbox
+spec:
+  rules:
+  # --- image builds: kata, privileged ---------------------------------------
+  - name: docker-steps-to-kata
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+          namespaces:
+          - woodpecker
+          # The label the agent stamps on every pod it creates for a task. It
+          # is what separates a pipeline step from woodpecker's own server and
+          # agent Deployments in the same namespace — those stay on runc and
+          # unprivileged.
+          selector:
+            matchExpressions:
+            - key: woodpecker-ci.org/task-uuid
+              operator: Exists
+    # Either signal is enough, and both are needed in practice.
+    #
+    # The pin is the honest one — a step saying what it needs — but it only
+    # covers pipelines that have been told to say it. A `plugin-docker-buildx`
+    # step in an untouched pipeline pins nothing, and sending *that* to gVisor
+    # unprivileged is a broken build with a confusing error. So the image of the
+    # one plugin that is always an image build is a fallback.
+    #
+    # The fallback is deliberately narrow: this exact plugin, matched on the
+    # image *name*. It cannot be widened to `*docker*` without also matching the
+    # registry in `docker.io/library/golang`, and it cannot be generalised to
+    # cover a custom image running `kind` or dind — nothing in the manifest
+    # distinguishes those. Such a step must pin `runtimeClassName: kata`, which
+    # is the whole reason the pin remains the primary signal.
+    preconditions:
+      any:
+      - key: "{{ request.object.spec.runtimeClassName || '' }}"
+        operator: AnyIn
+        value:
+        - kata
+        - kata-qemu
+      - key: "{{ length(request.object.spec.containers[?contains(image, 'plugin-docker-buildx')]) }}"
+        operator: GreaterThan
+        value: 0
+    mutate:
+      patchStrategicMerge:
+        spec:
+          # `kata` and not `kata-qemu`: Cloud Hypervisor boots faster and costs
+          # less memory, and a dockerd in the guest is containers-in-a-VM, not
+          # VMs-in-a-VM. A step needing nested virt pins kata-qemu itself and
+          # the precondition above lets that through; this is what the buildx
+          # image fallback resolves to.
+          runtimeClassName: "kata"
+          # No `hostUsers: false` here, deliberately. See above.
+          containers:
+          - (name): "*"
+            securityContext:
+              privileged: true
+              # Not redundant: the kubelet rejects a container that is
+              # privileged with allowPrivilegeEscalation explicitly false, so
+              # anything woodpecker sets to false has to be raised with it or
+              # the pod fails to start rather than failing to be admitted.
+              allowPrivilegeEscalation: true
+          initContainers:
+          - (name): "*"
+            securityContext:
+              privileged: true
+              allowPrivilegeEscalation: true
+  # --- everything else: gVisor, unprivileged --------------------------------
+  - name: other-steps-to-gvisor
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+          namespaces:
+          - woodpecker
+          selector:
+            matchExpressions:
+            - key: woodpecker-ci.org/task-uuid
+              operator: Exists
+    # The exact negation of rule one — both conditions must fail, or a buildx
+    # step with no pin would match both rules. Keep the two lists in step: a
+    # value added above and not removed from here is a pod mutated twice, and
+    # the second write wins.
+    preconditions:
+      all:
+      - key: "{{ request.object.spec.runtimeClassName || '' }}"
+        operator: AnyNotIn
+        value:
+        - kata
+        - kata-qemu
+      - key: "{{ length(request.object.spec.containers[?contains(image, 'plugin-docker-buildx')]) }}"
+        operator: Equals
+        value: 0
+    mutate:
+      patchStrategicMerge:
+        spec:
+          runtimeClassName: "gvisor"
+          # Privilege is not granted here and must not be: these steps are the
+          # ones with no reason to have it, and `require-kata-for-privileged`
+          # would reject the pod anyway, since gVisor is not a VM boundary.
+          # Dropped explicitly rather than left alone — a pipeline cannot ask
+          # for privilege by writing it into its own backend_options.
+          containers:
+          - (name): "*"
+            securityContext:
+              privileged: false
+              allowPrivilegeEscalation: false
+          initContainers:
+          - (name): "*"
+            securityContext:
+              privileged: false
+              allowPrivilegeEscalation: false

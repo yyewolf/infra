@@ -1,0 +1,43 @@
+# The identity the SecretStore authenticates as when it writes the rendered DSN
+# into the woodpecker namespace.
+#
+# Its own ServiceAccount rather than reusing another app's writer: those are
+# created by different Flux Kustomizations, and sharing one would make this
+# directory silently depend on that one applying first. One SA per app keeps
+# each directory self-contained, and the SA has no permissions beyond the
+# RoleBinding below.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: eso-push-writer-woodpecker
+  namespace: postgres
+---
+# In the woodpecker namespace, not this one: this is what the SA is allowed to
+# do at the far end of the push. Secrets only, and only the verbs a PushSecret
+# needs to create one and keep it up to date.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: eso-push-writer
+  namespace: woodpecker
+rules:
+- apiGroups: [""]
+  resources: [secrets]
+  verbs: [get, list, watch, create, update, patch]
+- apiGroups: [authorization.k8s.io]
+  resources: [selfsubjectrulesreviews]
+  verbs: [create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: eso-push-writer
+  namespace: woodpecker
+subjects:
+- kind: ServiceAccount
+  name: eso-push-writer-woodpecker
+  namespace: postgres
+roleRef:
+  kind: Role
+  name: eso-push-writer
+  apiGroup: rbac.authorization.k8s.io
