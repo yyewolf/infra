@@ -1,0 +1,52 @@
+# Cilium's default-deny is per-direction and per-endpoint, so both are spelled
+# out. Selects the whole namespace rather than each controller: the four
+# Kyverno deployments all want the same two things (the API server and DNS),
+# and the namespace holds nothing else.
+#
+# No egress to the internet. Kyverno reaches out only for image verification —
+# `imageVerify` rules pulling signatures from a registry — and there are no
+# policies here at all. Add a toFQDNs rule for the registry in question if that
+# ever changes; leaving `world` open now would be permission for nothing.
+#
+# No metrics ingress either: every controller serves :8000, but this cluster has
+# no prometheus-operator yet (same note as platform/mysql), so nothing scrapes.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: kyverno
+spec:
+  endpointSelector: {}
+  ingress:
+  # The API server calling the admission and cleanup webhooks. Both Services
+  # publish 443 and target the pods' `https` port, which is 9443 — the Service
+  # port is not what the policy sees.
+  - fromEntities:
+    - kube-apiserver
+    toPorts:
+    - ports:
+      - port: "9443"
+        protocol: TCP
+  # The kubelet runs the liveness and readiness probes.
+  - fromEntities:
+    - host
+    - remote-node
+    - health
+  egress:
+  # Watching policies and the resources they apply to, writing policy reports,
+  # and leader election — all of it goes through the API server.
+  - toEntities:
+    - kube-apiserver
+    toPorts:
+    - ports:
+      - port: "6443"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP

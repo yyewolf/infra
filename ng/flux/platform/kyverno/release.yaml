@@ -1,0 +1,31 @@
+# Kyverno, the operator only — no policies. An install with no ClusterPolicy is
+# inert by design: Kyverno registers its resource webhooks dynamically from the
+# policies that exist, so with none there is nothing intercepting pod creation
+# and nothing that can wedge the API server if these pods go away. Policies are
+# a deliberate second step.
+#
+# The root cluster's two policies are not portable here: both pin workloads to
+# `sysbox-runc`, and this cluster runs gvisor and kata instead (see
+# infrastructure/gvisor, infrastructure/kata). They are not being carried over.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kyverno
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: kyverno
+      # renovate: datasource=helm registryUrl=https://kyverno.github.io/kyverno/
+      version: "3.8.2"
+      sourceRef:
+        kind: HelmRepository
+        name: kyverno
+      interval: 12h
+  # Deliberately close to stock. The chart already ships what this repo would
+  # otherwise spell out by hand: a memory limit and CPU request per controller
+  # with no CPU limit, CRDs installed with the release, and each of the four
+  # controllers at one replica.
+  values:
+    crds:
+      install: true

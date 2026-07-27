@@ -12,6 +12,7 @@ resources:
 - platform/external-dns/ks.yaml
 - platform/external-secrets/ks.yaml
 - platform/keda/ks.yaml
+- platform/kyverno/ks.yaml
 - platform/metrics-server/ks.yaml
 - platform/tailscale/ks.yaml
 - platform/cnpg/ks.yaml
