@@ -1,0 +1,69 @@
+# An alias, so that pipelines pinning `sysbox-runc` keep working.
+#
+# It lived in infrastructure/gvisor and aliased gVisor for as long as ng had no
+# sysbox, on the reasoning that a pipeline naming `sysbox-runc` was repeating a
+# root-cluster default rather than asking for a container engine, and gVisor was
+# this cluster's answer to "sandbox me". ng now carries the sysbox extension on
+# all three LAN hosts, so the name resolves to the runtime it actually names,
+# and the file sits beside it.
+#
+# Why the alias has to exist at all: pipelines pin the class themselves with
+# `backend_options.kubernetes.runtimeClassName` in their .woodpecker.yml, files
+# that live in the repositories being built, not in this one. If the name does
+# not resolve here, the step pod is rejected outright:
+#
+#   pods "wp-…" is forbidden: pod rejected: RuntimeClass "sysbox-runc" not found
+#
+# That rejection cannot be mutated away. `RuntimeClass` is a built-in admission
+# plugin and it runs during the *mutation* phase — it has to, since its job is
+# to copy `overhead` and `scheduling` onto the pod — and it is ordered ahead of
+# MutatingAdmissionWebhook, the single plugin under which every webhook
+# including Kyverno runs. So the lookup fails and the pod is Forbidden before
+# Kyverno is consulted at all. Verified by dry-running such a pod against the
+# live cluster with the sandbox policy in place and watching it be rejected
+# anyway. The name has to resolve *here*, or not be sent.
+#
+# A moment later `woodpecker-sandbox` rewrites the pod's runtimeClassName to
+# `sysbox` outright — patchStrategicMerge replaces the value rather than merging
+# it — so this object's job is only to get the pod past that first gate. Every
+# field below is therefore copied from the `sysbox` class in runtimeclass.yaml
+# and must stay identical to it: the overhead and nodeSelector that land on the
+# pod are read from *this* object, before the rename, so a divergence is a pod
+# scheduled by one class's rules onto another class's runtime.
+#
+# `handler` is immutable. Repointing this from gVisor to sysbox was therefore a
+# delete-and-recreate — `kubectl delete runtimeclass sysbox-runc`, then let Flux
+# put it back — and any future change of runtime will be too. Flux reports the
+# failed update rather than doing it silently, so this is not a trap, but it is
+# a manual step.
+#
+# Still a shim, and still worth deleting: a step should say `sysbox`, or say
+# nothing and be given it. Removal: drop `runtimeClassName` from backend_options
+# in the pipelines that only inherited the old name — the sandbox is not theirs
+# to choose, `woodpecker-sandbox` assigns it — while the few steps that really
+# do want their own kernel pin `kata` instead. Then delete this file.
+---
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: sysbox-runc
+  annotations:
+    # So this is recognisable as a shim from `kubectl get runtimeclass` without
+    # reading the file.
+    yewolf.fr/compat: >-
+      Alias for the sysbox class. Exists so pipelines still pinning sysbox-runc
+      are admitted; woodpecker-sandbox rewrites them to sysbox at admission.
+      Delete once no .woodpecker.yml names it.
+handler: sysbox-runc
+overhead:
+  # sysbox-mgr and sysbox-fs are node-level daemons shared by every sandbox, so
+  # the per-pod cost is only the extra bookkeeping and the FUSE round trips on
+  # procfs reads — well under what a sentry or a VM costs.
+  podFixed:
+    cpu: 50m
+    memory: 32Mi
+scheduling:
+  nodeSelector:
+    # Set by ng/talos/patches/sysbox.yaml, so it is on exactly the nodes that
+    # carry the extension. Must match the `sysbox` class, for the reason above.
+    yewolf.fr/sysbox: "true"

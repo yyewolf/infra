@@ -174,7 +174,170 @@ node_schematic_id() {
     resolve_schematic "$merged" "$OUT/schematics/$n.id"
 }
 
+# ------------------------------------------------------------ custom installer
+#
+# Extensions that are not on the Image Factory. The factory only layers
+# extensions from its own registered set and rejects an OCI reference at build
+# time, so a node wanting one cannot get its installer from the factory at all —
+# it has to be built here, with siderolabs/imager, and pushed somewhere the node
+# can pull from.
+#
+# The trap this replaces: '--system-extension-image' does not *add* to the base
+# installer, it *replaces* the base's entire extension set with exactly what is
+# named on the command line. Passing only the custom extension — even with
+# '--base-installer-image' pointing at the node's factory installer — produces
+# an image carrying that extension and nothing else. Doing this by hand once
+# left a node without iscsi-tools, which took Longhorn down on it. So the list
+# below is assembled from the node's *complete* extension set, official ones
+# included, and never from the custom entries alone.
+
+node_custom_extensions() { cfg ".nodes.\"$1\".custom_extensions[]?"; }
+
+# Every official extension this node carries, as concrete pinned OCI references.
+# The factory publishes the ref and digest it would itself use for a given Talos
+# version, so the image imager builds is the image the factory would have built.
+official_extension_refs() {
+    local n="$1" version wanted
+    version="$(cfg .talos_version)"
+
+    wanted="$( {
+        yq -r '.customization.systemExtensions.officialExtensions[]?' "$SCHEMATIC"
+        cfg ".nodes.\"$n\".extensions[]?"
+    } | sort -u)"
+
+    local catalog
+    catalog="$(curl -fsSL "$FACTORY/version/$version/extensions/official")" ||
+        die "could not fetch the official extension catalog for $version"
+
+    local name ref
+    while read -r name; do
+        [ -n "$name" ] || continue
+        ref="$(printf '%s' "$catalog" |
+            jq -r --arg n "$name" '.[] | select(.name == $n) | "\(.ref|sub(":[^:/]*$";""))@\(.digest)"')"
+        [ -n "$ref" ] && [ "$ref" != "null" ] ||
+            die "extension '$name' is not available for Talos $version"
+        printf '%s\n' "$ref"
+    done <<<"$wanted"
+}
+
+# The complete extension set for a node, official first, then custom. This is
+# the whole input to the image, and the order is stable so the hash below is.
+installer_refs() {
+    official_extension_refs "$1"
+    node_custom_extensions "$1"
+}
+
+# Identifies an installer by what went into it, which is what the build is
+# cached and tagged on. Two nodes asking for the same extension set at the same
+# Talos version get the same hash, so the image is built and pushed once and
+# both point at it — as all three LAN hosts currently do. It also means a
+# changed extension list is a cache miss rather than a silently stale image.
+installer_hash() {
+    local body
+    body="$(installer_refs "$1")" ||
+        die "could not resolve the extension list for $1"
+    printf '%s\n%s\n' "$(cfg .talos_version)" "$body" | sha256sum | cut -d' ' -f1
+}
+
+# Where the pushed reference for a given hash is remembered. Under out/, so it
+# is throwaway — but unlike a schematic ID it cannot be re-derived by asking a
+# service, only by rebuilding and re-pushing. A fresh clone therefore needs
+# 'installer' run once before render, which is what installer_image() says.
+installer_cache() { printf '%s/installer/%s.ref' "$OUT" "$1"; }
+
+# Builds and pushes this node's installer, printing the pushed digest. Cached
+# like schematic IDs: the cache holds a hash of everything that went into the
+# image, so an unchanged node does not rebuild and re-push.
+#
+# Requires push credentials for installer_repository. Nothing here reads them —
+# that is docker's business — but a registry that rejects the push fails the
+# command rather than silently leaving the digest stale.
+cmd_installer() {
+    need docker
+    need curl
+    need jq
+    local n="${1:-}"
+    [ -n "$n" ] || die "usage: $0 installer <node>"
+    require_node "$n"
+
+    local repo version
+    repo="$(cfg '.installer_repository // ""')"
+    [ -n "$repo" ] || die "cluster.yaml has no installer_repository"
+    version="$(cfg .talos_version)"
+
+    # Via a variable, not 'mapfile < <(installer_refs)': a die() inside process
+    # substitution kills only that subshell, and mapfile would happily succeed
+    # on the partial list — building an image missing whatever came after the
+    # failure. Command substitution propagates, so long as the assignment is not
+    # also a declaration.
+    local refs_raw refs=()
+    refs_raw="$(installer_refs "$n")" ||
+        die "could not resolve the extension list for $n"
+    mapfile -t refs <<<"$refs_raw"
+    [ ${#refs[@]} -gt 0 ] || die "node $n has no extensions to build an installer from"
+
+    local hash cache build
+    hash="$(installer_hash "$n")"
+    cache="$(installer_cache "$hash")"
+    if [ -f "$cache" ]; then
+        info "installer for $n already built and pushed"
+        cat "$cache"
+        return
+    fi
+
+    local args=(--arch amd64)
+    for r in "${refs[@]}"; do args+=(--system-extension-image "$r"); done
+
+    # Every extension the node has, official ones included — never just the
+    # custom ones. See the note at the top of this section for what happens
+    # otherwise.
+    info "building installer for $n with ${#refs[@]} extensions"
+    build="$OUT/installer/$hash"
+    rm -rf "$build"
+    mkdir -p "$build"
+    docker run --rm -t -v "$build:/out" \
+        "ghcr.io/siderolabs/imager:$version" installer "${args[@]}" >&2
+
+    # imager tags the loaded image after the base it built from, not after
+    # anything we asked for, so read the tag back rather than assuming it.
+    local loaded
+    loaded="$(docker load -i "$build/installer-amd64.tar" |
+        sed -n 's/^Loaded image: //p' | tail -n1)"
+    [ -n "$loaded" ] || die "could not determine the image docker just loaded"
+
+    # Tagged by content, not by node: the tag is only a handle for the push and
+    # for reading the registry later. What nodes install is the digest below.
+    local tag="$repo:$version-${hash:0:12}"
+    docker tag "$loaded" "$tag"
+    docker rmi "$loaded" >/dev/null 2>&1 || true
+
+    info "pushing $tag"
+    local digest
+    digest="$(docker push "$tag" | sed -n 's/.*digest: \(sha256:[0-9a-f]*\).*/\1/p' | tail -n1)"
+    [ -n "$digest" ] || die "push did not report a digest"
+
+    mkdir -p "$(dirname "$cache")"
+    printf '%s@%s' "$repo" "$digest" >"$cache"
+    rm -rf "$build"
+    cat "$cache"
+}
+
+# What a node installs. Nodes with custom extensions install the image built
+# above; everything else installs straight from the factory.
+#
+# Deliberately does not build on demand: render and upgrade would then push to a
+# registry as a side effect of an otherwise read-only command. Run 'installer'
+# first — the error says so.
 installer_image() {
+    local n="$1"
+    if [ -n "$(node_custom_extensions "$n")" ]; then
+        local cache
+        cache="$(installer_cache "$(installer_hash "$n")")"
+        [ -f "$cache" ] ||
+            die "node $n has custom_extensions but no installer built for its current extension list — run '$0 installer $n' first"
+        cat "$cache"
+        return
+    fi
     printf 'factory.talos.dev/metal-installer/%s:%s' \
         "$(node_schematic_id "$1")" "$(cfg .talos_version)"
 }
@@ -546,18 +709,80 @@ cmd_apply() {
 # version or a changed extension list needs this, which reboots the node onto
 # the new image. One node at a time — with three control-plane nodes, etcd
 # tolerates exactly one being away.
+# The drain is run here rather than by talosctl, because on this cluster it
+# routinely cannot finish and the caller has to decide what to do about it.
+#
+# Why it blocks: the longhorn-yolo storage class is numberOfReplicas 1 with
+# strict-local data locality, so a node holding one of those volumes always
+# holds its *last* replica, and Longhorn's default node-drain-policy of
+# block-if-contains-last-replica keeps a PodDisruptionBudget on that node's
+# instance-manager with zero allowed disruptions. The eviction is refused for as
+# long as the policy stands, which is forever — this is not a slow drain waiting
+# to succeed. 'talosctl upgrade' handles that by timing out and aborting with
+# the node left cordoned and its stateful pods already evicted, which is the
+# worst of both outcomes.
+#
+# So: drain with a short timeout, and if it blocks, say what blocked it and ask.
+# Continuing is usually right — the workloads are off the node by then, and what
+# remains is Longhorn's own node agents, which come back on reboot. The data is
+# on the node's disk and survives, single replica or not.
 cmd_upgrade() {
     local n="${1:-}"
-    [ -n "$n" ] || die "usage: $0 upgrade <node>"
+    [ -n "$n" ] || die "usage: $0 upgrade <node> [talosctl upgrade flags...]"
     require_node "$n"
+    shift
 
     local ip image
     ip="$(node_field "$n" address)"
     image="$(installer_image "$n")"
 
+    local kubeconfig="$OUT/kubeconfig"
+    if [ ! -f "$kubeconfig" ] || ! command -v kubectl >/dev/null 2>&1; then
+        info "no kubectl or no $kubeconfig — skipping the drain, talosctl will do its own"
+        info "upgrading $n ($ip) to $image"
+        talosctl --talosconfig "$(talosconfig)" \
+            upgrade --nodes "$ip" --endpoints "$ip" --image "$image" "$@"
+        return
+    fi
+
+    info "draining $n"
+    if kubectl --kubeconfig "$kubeconfig" drain "$n" \
+        --ignore-daemonsets --delete-emptydir-data --timeout=120s; then
+        info "drained cleanly"
+    else
+        echo >&2
+        info "the drain did not finish. Still on $n:"
+        kubectl --kubeconfig "$kubeconfig" get pods --all-namespaces \
+            --field-selector "spec.nodeName=$n" \
+            -o 'custom-columns=NAMESPACE:.metadata.namespace,NAME:.metadata.name,STATUS:.status.phase' >&2 || true
+        echo >&2
+        info "DaemonSet and Longhorn node agents are expected here and return on reboot."
+        info "Anything stateful in that list will be interrupted."
+        echo >&2
+
+        local reply
+        [ -e /dev/tty ] ||
+            die "the drain of $n did not finish and there is no terminal to ask on"
+        read -r -p "Reboot $n anyway? [y/N] " reply </dev/tty
+        case "$reply" in
+        y | Y | yes | YES) ;;
+        *)
+            info "uncordoning $n and stopping"
+            kubectl --kubeconfig "$kubeconfig" uncordon "$n" || true
+            die "upgrade of $n cancelled"
+            ;;
+        esac
+    fi
+
+    # --drain=false either way: the node is already cordoned and drained as far
+    # as it is going to get, and letting talosctl try again just repeats the
+    # eviction that was already refused.
     info "upgrading $n ($ip) to $image"
     talosctl --talosconfig "$(talosconfig)" \
-        upgrade --nodes "$ip" --endpoints "$ip" --image "$image"
+        upgrade --nodes "$ip" --endpoints "$ip" --image "$image" --drain=false "$@"
+
+    info "uncordoning $n"
+    kubectl --kubeconfig "$kubeconfig" uncordon "$n" || true
 }
 
 # Run once, against one control-plane node only. It creates etcd; the other two
@@ -603,6 +828,9 @@ usage: ./talos.sh <command>
     schematic            resolve schematic.yaml to an Image Factory ID
                          (the base image; per-node extensions are resolved
                           separately by render)
+    installer <node>     build and push this node's installer image, for nodes
+                         carrying extensions the Image Factory does not have
+                         (run before render/upgrade when that list changes)
     iso                  download the metal ISO for that schematic
     usb /dev/sdX         write the ISO to a USB key (destructive, asks first)
 
@@ -613,7 +841,9 @@ usage: ./talos.sh <command>
   Bring-up
     disks <ip>           list disks on a node in maintenance mode
     apply <node> [ip]    apply a config; pass the maintenance IP the first time
-    upgrade <node>       reboot a node onto its current installer image
+    upgrade <node> [..]  drain, then reboot a node onto its installer image;
+                         asks before continuing if the drain blocks.
+                         Extra flags are passed to talosctl upgrade
     bootstrap [node]     create etcd on one control-plane node (once, ever)
     kubeconfig           fetch the cluster kubeconfig
     health               check cluster health
@@ -623,6 +853,7 @@ EOF
 
 case "${1:-}" in
 schematic) shift; cmd_schematic; echo ;;
+installer) shift; cmd_installer "$@"; echo ;;
 iso) shift; cmd_iso ;;
 usb) shift; cmd_usb "$@" ;;
 secrets) shift; cmd_secrets "$@" ;;

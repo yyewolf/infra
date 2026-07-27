@@ -13,10 +13,16 @@
 # Switching snapshotter does not help — the graphdriver path hits the same wall,
 # because the backing filesystem is the variable, not the code reaching it.
 #
-# This is the one thing sysbox was doing for us that kata does not: sysbox
+# This is the one thing sysbox does for us that kata does not: sysbox
 # provisions /var/lib/docker on its own backing store precisely to avoid
-# overlay-on-overlay. Moving to kata loses that, and this policy is what
-# replaces it.
+# overlay-on-overlay. This policy is what replaces that inside kata.
+#
+# Which is why it is scoped to the kata steps and must stay that way. Sysbox is
+# the default sandbox again (see woodpecker-sandbox.yaml), and mounting a tmpfs
+# over /var/lib/docker on a sysbox step would shadow the backing store sysbox
+# already set up there — trading a disk-backed graph for 4 GiB of node RAM and
+# an image-size ceiling nothing explains. Applying this everywhere was right
+# when every step was kata or gVisor; it is wrong now.
 #
 # tmpfs works here only because of the guest kernel. Overlayfs requires its
 # upper filesystem to support `trusted.*` xattrs, which tmpfs did not have until
@@ -53,13 +59,23 @@ spec:
             matchExpressions:
             - key: woodpecker-ci.org/task-uuid
               operator: Exists
-    # Deliberately not scoped to the kata steps, even though the failure that
-    # motivated it is a kata one. A gVisor step's rootfs is an overlay too, so
-    # anything that nests containers hits the same wall there, and "which steps
-    # nest containers" is precisely the question that has no reliable answer
-    # from a manifest — see the note on image matching below. Mounting on every
-    # step keeps the two sandboxes behaving the same way, which is worth more
-    # than the mount entry it costs a step that never looks at the path.
+    # Scoped to the steps that pin kata, matching rule one of
+    # woodpecker-sandbox. Read from `request.object`, the original admission
+    # object, for the same reason that policy does: by the time this evaluates,
+    # the sandbox policy may already have rewritten runtimeClassName, and what
+    # matters is what the step asked for.
+    #
+    # Keep this list in step with `pinned-kata-steps` there. A step that reaches
+    # kata by some route not listed here gets no tmpfs and fails its first image
+    # layer with the `invalid argument` above — which reads as a broken build,
+    # not a missing mount.
+    preconditions:
+      any:
+      - key: "{{ request.object.spec.runtimeClassName || '' }}"
+        operator: AnyIn
+        value:
+        - kata
+        - kata-qemu
     mutate:
       patchStrategicMerge:
         spec:

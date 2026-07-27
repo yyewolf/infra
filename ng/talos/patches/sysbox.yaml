@@ -1,0 +1,212 @@
+# Sysbox, for nodes carrying ghcr.io/yyewolf/talos-sysbox-extension.
+#
+# Sysbox is a third sandbox alongside kata and gvisor. Where kata gives a pod
+# its own kernel in a VM and gvisor gives it a userspace kernel, sysbox is runc
+# with the container in a user namespace and parts of procfs and sysfs emulated
+# by sysbox-fs: the host kernel, native speed, but 'privileged' inside the
+# container no longer means privileged on the host. That is what makes running
+# systemd, dockerd or a nested kubelet inside an unprivileged pod possible.
+#
+# The extension is not on the Image Factory, which only layers extensions from
+# its own registered set and rejects an OCI reference at build time:
+#
+#   error enhancing profile from schematic: official extension
+#   "ghcr.io/yyewolf/talos-sysbox-extension@sha256:…" is not available for
+#   Talos version v1.13.7
+#
+# So it is listed under 'custom_extensions' in cluster.yaml instead, and
+# './talos.sh installer <node>' builds that node's installer with
+# siderolabs/imager and pushes it. machine.install.image is NOT set here — the
+# generated per-node patch carries it, pointing at the pushed digest. Run
+# 'installer' before 'render' whenever the extension list changes; render fails
+# rather than emit a stale image.
+#
+# The extension ships its own CRI handler registration
+# (/etc/cri/conf.d/10-sysbox.part, handler 'sysbox-runc'), so unlike gvisor.yaml
+# there is no CRI config to write here.
+#
+# It needs unprivileged user namespaces — sysbox has no other mode. Talos ships
+# user.max_user_namespaces at 0 per the KSPP recommendation and patches/
+# gvisor.yaml raises it. That is a dependency, not a coincidence: dropping
+# gvisor.yaml from a node that keeps this one leaves every sysbox container
+# failing to start.
+#
+# It does not need siderolabs/fuse3, despite sysbox-fs being a FUSE filesystem.
+# The extension ships its own fusermount3, statically linked against libfuse
+# 3.18.2, under /usr/local/lib/sysbox/ rather than /usr/local/bin/ precisely so
+# it does not collide with the path fuse3 claims — two extensions cannot provide
+# the same file. fuse3 was carried briefly and dropped as redundant.
+
+machine:
+  # sysbox-mgr and sysbox-fs, as a static pod rather than Talos extension
+  # services. Both act on the PIDs of the containers sysbox-runc creates on the
+  # host — seccomp notifications and pidfd_open(2) only resolve those in the
+  # host PID namespace — and extension services get a private one. Working
+  # around that with nsenter fails: setns(2) into an *ancestor* PID namespace
+  # returns EINVAL, which is what an earlier build of this extension did, and it
+  # crash-looped with 'reassociate to namespace ns/pid failed: Invalid argument'.
+  #
+  # hostPID on a static pod is the supported way to get what they need.
+  pods:
+  - apiVersion: v1
+    kind: Pod
+    metadata:
+      name: sysbox
+      namespace: kube-system
+    spec:
+      # sysbox-mgr and sysbox-fs act on the PIDs of the containers
+      # sysbox-runc creates on the host: seccomp notifications and
+      # pidfd_open(2) only resolve those in the host PID namespace
+      hostPID: true
+      priorityClassName: system-node-critical
+      initContainers:
+      # a sidecar, so that it is started (and stays running) before sysbox-fs
+      - name: sysbox-mgr
+        restartPolicy: Always
+        image: busybox:stable
+        command:
+        - /usr/local/bin/sysbox-mgr
+        # inner container image preloading is not used with the CRI, and
+        # skipping it makes container stop faster
+        - --disable-inner-image-preload
+        env:
+        # sysbox-mgr requires rsync, modprobe and iptables to be present:
+        # it looks them up with `/bin/sh -c "command -v <prog>"`. rsync is
+        # shipped by the extension and statically linked, so it runs as
+        # is; modprobe and iptables are Talos binaries and only need to be
+        # found, they are not executed. Note that /lib and /usr/lib must
+        # NOT be mounted from the host: that shadows the image's loader
+        # and /bin/sh can no longer be executed, which fails every check.
+        - name: PATH
+          value: /usr/local/bin:/usr/bin
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: usr-local-bin
+          mountPath: /usr/local/bin
+          readOnly: true
+        - name: usr-bin
+          mountPath: /usr/bin
+          readOnly: true
+        - name: os-release
+          mountPath: /etc/os-release
+          readOnly: true
+        # sysbox-mgr looks for /lib/modules/<kernel release> in its own
+        # mount namespace and, when found, has sysbox-runc bind the very
+        # same path into the containers, so that apps in them can check
+        # which modules are loaded. Talos keeps the modules in
+        # /usr/lib/modules, with /lib a usr-merge symlink, so the path
+        # resolves on the host side as well.
+        - name: lib-modules
+          mountPath: /lib/modules
+          readOnly: true
+        # the mounts sysbox-mgr sets up under the data store have to
+        # propagate back to the host, where sysbox-runc runs
+        - name: var
+          mountPath: /var
+          mountPropagation: Bidirectional
+        - name: run
+          mountPath: /run
+          mountPropagation: Bidirectional
+      containers:
+      - name: sysbox-fs
+        image: busybox:stable
+        command:
+        - /usr/local/bin/sysbox-fs
+        env:
+        # sysbox-fs mounts its per-container FUSE filesystem by executing
+        # fusermount3, which the extension installs (statically linked)
+        # in /usr/local/lib/sysbox
+        - name: PATH
+          value: /usr/local/lib/sysbox:/usr/local/bin
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: usr-local-bin
+          mountPath: /usr/local/bin
+          readOnly: true
+        - name: sysbox-lib
+          mountPath: /usr/local/lib/sysbox
+          readOnly: true
+        - name: os-release
+          mountPath: /etc/os-release
+          readOnly: true
+        # the FUSE filesystem is mounted at /var/lib/sysboxfs and bind
+        # mounted into the containers by sysbox-runc, on the host
+        - name: var
+          mountPath: /var
+          mountPropagation: Bidirectional
+        - name: run
+          mountPath: /run
+          mountPropagation: Bidirectional
+        # /dev/fuse
+        - name: dev
+          mountPath: /dev
+          mountPropagation: HostToContainer
+      # no hostPath `type:` checks: the kubelet validates those inside its own
+      # container, which has no /usr/local at all, while the bind mount itself
+      # is resolved by containerd on the host
+      volumes:
+      - name: usr-local-bin
+        hostPath:
+          path: /usr/local/bin
+      - name: usr-bin
+        hostPath:
+          path: /usr/bin
+      - name: sysbox-lib
+        hostPath:
+          path: /usr/local/lib/sysbox
+      - name: os-release
+        hostPath:
+          path: /etc/os-release
+      - name: lib-modules
+        hostPath:
+          path: /usr/lib/modules
+      - name: var
+        hostPath:
+          path: /var
+      - name: run
+        hostPath:
+          path: /run
+      - name: dev
+        hostPath:
+          path: /dev
+
+  kernel:
+    # Netfilter modules for the workloads sysbox exists to host. A container
+    # engine running *inside* a sysbox pod — dockerd, containerd, a nested
+    # kubelet — sets up its own bridge and NAT rules, and can only ask for
+    # modules that are already loaded: the sandbox is unprivileged and modprobe
+    # inside it cannot load anything into the host kernel. Without these, inner
+    # Docker fails at network setup rather than at start, which reads as a
+    # container bug rather than a host one.
+    #
+    # All four are built into the Talos kernel (they appear in
+    # /lib/modules/6.18.39-talos/modules.builtin), so these entries are
+    # satisfied at boot and deliberately never show up in /proc/modules — that
+    # file lists loadable modules only. Naming them here states what the node
+    # depends on, and fails loudly if a future Talos kernel stops building them
+    # in.
+    #
+    # Deliberately NOT listed: iptable_filter, iptable_nat, iptable_mangle.
+    # Talos's kernel is nftables-only and ships no legacy xtables table modules,
+    # so asking for them puts runtime.KernelModuleSpecController into a
+    # permanent retry loop logging 'module not found' every few seconds, which
+    # buries real errors. Inner container engines are fine without them: Docker
+    # 28 selects the nft backend when the legacy tables are absent, and Talos
+    # pre-creates the iptables-nft chains.
+    modules:
+    # bridged traffic to netfilter, for the inner engine's bridge network
+    - name: br_netfilter
+    - name: xt_conntrack
+    - name: xt_addrtype
+    - name: xt_MASQUERADE
+
+  nodeLabels:
+    # What the sysbox RuntimeClass selects on. It could select the control-plane
+    # role, as kata and gvisor do, now that all three LAN hosts carry sysbox —
+    # but a label set by this same patch cannot disagree with which nodes have
+    # the extension, whereas a role selector silently would during a rollout, or
+    # if a fourth control-plane node were added without it. A pod admitted onto
+    # a node with no sysbox-runc handler fails at the kubelet.
+    yewolf.fr/sysbox: "true"

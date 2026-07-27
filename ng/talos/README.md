@@ -22,6 +22,7 @@ patches/worker.yaml
 nodes/<name>.yaml       hardware facts only (install disk)
 talos.sh                the driver
 out/                    generated, gitignored, contains plaintext PKI
+out/installer/          pushed digests of locally built installer images
 ```
 
 Addressing lives in `cluster.yaml` and nowhere else. `talos.sh render` derives
@@ -306,6 +307,84 @@ node up on `apid` but `NotReady` with `/etc/kubernetes` read-only:
 Recovery, if it happens anyway: the node still answers `talosctl`, so fix the
 config and `./talos.sh apply <node>` — no console needed.
 
+### Sysbox, and extensions the factory does not have
+
+`ghcr.io/yyewolf/talos-sysbox-extension` is not on the Image Factory. The
+factory only layers extensions from its own registered set, and an OCI
+reference in `extensions:` is accepted at upload time but rejected when the
+image is actually built:
+
+```
+error enhancing profile from schematic: official extension
+"ghcr.io/yyewolf/talos-sysbox-extension@sha256:…" is not available for Talos
+version v1.13.7
+```
+
+So it goes under `custom_extensions:` in `cluster.yaml` instead, pinned by
+digest, and the installer is built here rather than by the factory:
+
+```yaml
+cp-0:
+  extensions:
+  - siderolabs/kata-containers
+  - siderolabs/gvisor
+  custom_extensions:
+  - ghcr.io/yyewolf/talos-sysbox-extension@sha256:e92ae18c…
+```
+
+```sh
+./talos.sh installer cp-0        # build, push, remember the digest
+./talos.sh render cp-0
+./talos.sh upgrade cp-0
+```
+
+`installer` resolves the node's *complete* extension set — the official ones
+from `schematic.yaml` and `extensions:`, at the exact refs and digests the
+factory publishes for this Talos version, plus the custom ones — and hands all
+of them to `siderolabs/imager`. It pushes to `installer_repository` and
+remembers the resulting digest under `out/installer/`, which `render` then
+writes into `machine.install.image`.
+
+**`--system-extension-image` replaces, it does not add.** Handing imager only
+the custom extension produces an image carrying only that extension, even with
+`--base-installer-image` pointing at the node's factory installer. Done by hand
+once, that left cp-2 without `iscsi-tools`: `longhorn-manager` died on a missing
+`iscsiadm` and every Longhorn volume on the node refused to attach. This is why
+`installer` builds the list from the whole extension set and why it is a command
+rather than a comment.
+
+The build is keyed on a hash of that list, so nodes sharing an extension set —
+all three LAN hosts do — build and push one image between them. Change the list
+and `render` refuses with a stale image rather than guessing; run `installer`
+again.
+
+Two things that follow from living outside the factory:
+
+- `out/installer/` is throwaway like everything else in `out/`, but unlike a
+  schematic ID it cannot be re-derived by asking a service. A fresh clone needs
+  `installer` run once before `render`.
+- The image is Talos-version-specific. Bumping `talos_version` means running
+  `installer` again before `render`, or the node installs the old version while
+  the rest of the cluster moves on.
+
+`patches/sysbox.yaml` carries the rest: the `sysbox-mgr`/`sysbox-fs` static pod,
+the netfilter modules, and the `yewolf.fr/sysbox` node label the RuntimeClass
+selects on. The daemons are a **static pod**, not extension services, because
+they act on host PIDs and extension services get a private PID namespace —
+`setns(2)` into an ancestor PID namespace returns `EINVAL`, so the `nsenter`
+workaround an earlier build used crash-looped. `hostPID: true` on a static pod
+is the supported way.
+
+Sysbox depends on `patches/gvisor.yaml` for `user.max_user_namespaces`: sysbox
+has no mode that does not use unprivileged user namespaces, and Talos ships that
+sysctl at 0. Drop gvisor.yaml from a node that keeps sysbox.yaml and every
+sysbox container fails to start.
+
+The `sysbox` RuntimeClass comes from `ng/flux/infrastructure/sysbox`. Not to be
+confused with the RuntimeClass *named* `sysbox-runc` in
+`ng/flux/infrastructure/gvisor/compat-sysbox-runc.yaml`, which is a migration
+shim pointing at gVisor and keeps that meaning.
+
 ## Longhorn storage
 
 `cp-0`, `cp-1` and `cp-2` each give Longhorn a dedicated 100 GiB partition of
@@ -414,8 +493,10 @@ check.
 
 ## Upgrades
 
-Bump `talos_version` in `cluster.yaml`, then `./talos.sh render`. The installer
-image in each config now points at the new version, and:
+Bump `talos_version` in `cluster.yaml`, then `./talos.sh installer <node>` for
+any node with `custom_extensions:` (all three LAN hosts, currently), then
+`./talos.sh render`. The installer image in each config now points at the new
+version, and:
 
 ```sh
 ./talos.sh upgrade cp-0        # then cp-1, then cp-2
@@ -424,11 +505,29 @@ image in each config now points at the new version, and:
 reboots each node onto it. One at a time: with three control-plane nodes, etcd
 tolerates exactly one being away.
 
-Changing the extension list — `schematic.yaml` or a node's `extensions:` —
-works the same way. It is a new schematic ID and a new installer image, and
-`apply` alone will not deliver it: `machine.install.image` only decides what the
-*next* install writes, so an extension added to a running node needs the
-upgrade.
+Changing the extension list — `schematic.yaml`, a node's `extensions:` or its
+`custom_extensions:` — works the same way. It is a new image, and `apply` alone
+will not deliver it: `machine.install.image` only decides what the *next*
+install writes, so an extension added to a running node needs the upgrade.
+
+### The drain will not finish, and that is expected
+
+`upgrade` drains the node first and **asks before continuing if the drain
+blocks**. On this cluster it always blocks, and waiting does not help:
+`longhorn-yolo` is `numberOfReplicas: 1` with `strict-local` data locality, so a
+node holding one of those volumes holds its *last* replica, and Longhorn's
+default `block-if-contains-last-replica` drain policy pins that node's
+`instance-manager` PDB at zero allowed disruptions permanently.
+
+By the time it asks, the workloads are already off the node; what is left is
+DaemonSets and Longhorn's own node agents, which come back on reboot. The
+volume data is on the node's disk and survives. So the answer is normally yes —
+but it prints what is still running first, and anything stateful in that list
+is about to be interrupted. Answering no uncordons the node and stops.
+
+Left to `talosctl upgrade`, the same situation ends with the drain timing out,
+the upgrade aborting, and the node cordoned with its stateful pods already
+evicted — which is why the drain is driven here instead.
 
 ## Notes
 

@@ -10,6 +10,17 @@ name: ng
 talos_version: v1.13.7
 kubernetes_version: 1.36.3
 
+# Where './talos.sh installer' pushes the images it builds for nodes carrying
+# extensions the Image Factory does not have. Tagged <talos_version>-<node>
+# there, but nodes are pointed at the pushed digest, not the tag: the tag moves
+# on every rebuild and a node re-installing months later should get the image
+# that was tested.
+#
+# Must be readable without credentials, or by a pull secret in the node's
+# machine config — the node pulls this itself at install time, long before
+# Kubernetes exists.
+installer_repository: ghcr.io/yyewolf/talos-installer
+
 network:
   # Matches lan_subnet / lan_gateway in ng/router.
   subnet: 10.200.0.0/24
@@ -54,14 +65,14 @@ network:
 # Cluster CIDRs are fixed at bootstrap — Kubernetes has no supported way to add
 # an address family to a running cluster — so both are listed from the start.
 pod_subnets:
-  - 10.244.0.0/16
-  - fdde:c64:7096:4400::/56
+- 10.244.0.0/16
+- fdde:c64:7096:4400::/56
 
 service_subnets:
-  - 10.96.0.0/12
-  # IPv6 service CIDRs must be /108 or smaller; Kubernetes rejects anything
-  # larger.
-  - fdde:c64:7096:9600::/112
+- 10.96.0.0/12
+# IPv6 service CIDRs must be /108 or smaller; Kubernetes rejects anything
+# larger.
+- fdde:c64:7096:9600::/112
 
 # Per node: type, address and address6 are required. 'interface' is optional and
 # only needed on a host with more than one physical NIC — without it the config
@@ -98,36 +109,52 @@ nodes:
   # virtualization, and adding an extension there rewrites its machine config,
   # which is its OpenStack user_data — Terraform would destroy and recreate the
   # node to deliver it.
+  # All three also carry sysbox, a third sandbox that is not on the Image
+  # Factory. 'custom_extensions' is how a node asks for one: the factory rejects
+  # an OCI reference, so './talos.sh installer <node>' builds that node's
+  # installer with siderolabs/imager instead and render points the node at it.
+  # Order matters — 'installer' before 'render', or render refuses with a stale
+  # image rather than guessing.
   cp-0:
     type: controlplane
     address: 10.200.0.11
     address6: fdde:c64:7096::11
     extensions:
-      - siderolabs/kata-containers
-      - siderolabs/gvisor
+    - siderolabs/kata-containers
+    - siderolabs/gvisor
+    custom_extensions:
+    - ghcr.io/yyewolf/talos-sysbox-extension@sha256:e92ae18c8efdd4eff53369a6aa34949809b598d803ae3485a0e8c2f6563aa78e
     patches:
-      - gvisor.yaml
-      - longhorn.yaml
+    - gvisor.yaml
+    - longhorn.yaml
+    # After gvisor.yaml, which raises user.max_user_namespaces — sysbox needs it.
+    - sysbox.yaml
   cp-1:
     type: controlplane
     address: 10.200.0.12
     address6: fdde:c64:7096::12
     extensions:
-      - siderolabs/kata-containers
-      - siderolabs/gvisor
+    - siderolabs/kata-containers
+    - siderolabs/gvisor
+    custom_extensions:
+    - ghcr.io/yyewolf/talos-sysbox-extension@sha256:e92ae18c8efdd4eff53369a6aa34949809b598d803ae3485a0e8c2f6563aa78e
     patches:
-      - gvisor.yaml
-      - longhorn.yaml
+    - gvisor.yaml
+    - longhorn.yaml
+    - sysbox.yaml
   cp-2:
     type: controlplane
     address: 10.200.0.13
     address6: fdde:c64:7096::13
     extensions:
-      - siderolabs/kata-containers
-      - siderolabs/gvisor
+    - siderolabs/kata-containers
+    - siderolabs/gvisor
+    custom_extensions:
+    - ghcr.io/yyewolf/talos-sysbox-extension@sha256:e92ae18c8efdd4eff53369a6aa34949809b598d803ae3485a0e8c2f6563aa78e
     patches:
-      - gvisor.yaml
-      - longhorn.yaml
+    - gvisor.yaml
+    - longhorn.yaml
+    - sysbox.yaml
 
   # Cloud worker on Infomaniak OpenStack (see ng/openstack). It is not on the
   # LAN: its physical NIC takes a DHCP lease from the cloud and exists only to

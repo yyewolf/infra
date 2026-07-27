@@ -2,55 +2,47 @@
 #
 # CI is the one workload here that runs code nobody reviewed — a pipeline is a
 # shell script from whichever repository triggered it — so no step runs on plain
-# runc. But the two kinds of step want very different things, and giving every
-# step what the heaviest one needs is how you end up handing a `go test` a
-# privileged VM.
+# runc.
 #
-#   Steps that build container images need a real kernel to run a dockerd
-#   against, and privilege to drive it. Those go to kata: the container's root
-#   is root in a VM, and the escape it would need is out of a hypervisor rather
-#   than out of a namespace. gVisor is not an option for them — runsc does not
-#   implement enough of the mount and overlay surface for an inner container
-#   engine.
+# Every step goes to sysbox, unprivileged, with `hostUsers: false`. This is the
+# approach the root cluster used, and it is back because the thing that ruled it
+# out here is gone: ng now carries the sysbox extension on all three LAN hosts
+# (see ng/talos/patches/sysbox.yaml).
 #
-#   Everything else — compiling, testing, linting, publishing artifacts — needs
-#   none of that. Those go to gVisor, unprivileged: a much cheaper sandbox (a
-#   sentry process beside the container, not a VM) and a much smaller blast
-#   radius, since the step never gets privilege at all.
+# Why one sandbox for everything, when the previous split existed for a reason:
+# the split was there because image builds need to run a container engine, and
+# neither of the other two sandboxes lets them do that unprivileged. gVisor
+# cannot host an inner engine at all — runsc does not implement enough of the
+# mount and overlay surface — so those steps went to kata, which meant granting
+# them real privilege inside a VM. Sysbox's entire purpose is that a container
+# engine runs *unprivileged*: the step's root is root in a user namespace, and
+# `hostUsers: false` maps it to an unprivileged uid on the node. So the step
+# that used to need the most privilege now needs none, and there is nothing left
+# for the split to sort.
 #
-# HOW A STEP SAYS IT NEEDS DOCKER: by pinning `runtimeClassName: kata` (or
-# `kata-qemu`, for the rare step that needs nested virt) in its own
-# backend_options, or by running the `plugin-docker-buildx` image, which is
-# always an image build. Rule one takes either; rule two takes everything else.
+# Kata remains reachable as an escape hatch for a step that pins it — nested
+# virtualisation, or anything that genuinely wants its own kernel — and rule one
+# still grants those the privilege that only makes sense inside a VM. It is no
+# longer the docker path, so the `plugin-docker-buildx` image fallback that used
+# to route builds there is gone: a buildx step now lands on sysbox like anything
+# else, which is where it works unprivileged.
 #
-# `sysbox-runc` is deliberately NOT one of those signals, which is the easy
-# mistake to make. On the root cluster sysbox was the sandbox for *every* step —
-# its policy put all task pods there regardless of what they did — so a pipeline
-# naming it inherited a default rather than asking for a container engine.
-# Treating it as a kata request would hand a VM and full privilege to every
-# ordinary build that was never updated. It resolves to gVisor instead; see
-# infrastructure/gvisor/compat-sysbox-runc.yaml, which is what keeps the old
-# name admissible at all.
+# `sysbox-runc` is no longer a special case either. It used to be a root-cluster
+# name aliased to gVisor precisely because sysbox did not exist here; now it
+# resolves to the real thing and a step pinning it falls into rule two like
+# every other step. See infrastructure/gvisor/compat-sysbox-runc.yaml.
 #
 # The two rules are mutually exclusive by construction: both read
 # `request.object`, which is the *original* admission object, so rule one's
 # mutation cannot make rule two fire as well.
-#
-# This replaces the root cluster's `woodpecker-sysbox-unprivileged`, which took
-# a third approach: sysbox plus `hostUsers: false`, keeping the container
-# unprivileged and mapping its root to an unprivileged uid on the host. That
-# does not carry over — kata has no user-namespace support to hang `hostUsers:
-# false` on, since the pod is a VM and there is no host uid to map to, and the
-# kubelet rejects the combination outright. Privilege is granted rather than
-# emulated, and the isolation moves down a layer instead.
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
   name: woodpecker-sandbox
 spec:
   rules:
-  # --- image builds: kata, privileged ---------------------------------------
-  - name: docker-steps-to-kata
+  # --- explicit kata pin: kata, privileged ----------------------------------
+  - name: pinned-kata-steps
     match:
       any:
       - resources:
@@ -66,20 +58,17 @@ spec:
             matchExpressions:
             - key: woodpecker-ci.org/task-uuid
               operator: Exists
-    # Either signal is enough, and both are needed in practice.
+    # The pin, and only the pin. A step lands here by saying so in its own
+    # backend_options, which is the honest signal and now the only one: with
+    # sysbox as the default, a step that says nothing gets a sandbox that can
+    # already run a container engine, so there is nothing left to guess at from
+    # the image name.
     #
-    # The pin is the honest one — a step saying what it needs — but it only
-    # covers pipelines that have been told to say it. A `plugin-docker-buildx`
-    # step in an untouched pipeline pins nothing, and sending *that* to gVisor
-    # unprivileged is a broken build with a confusing error. So the image of the
-    # one plugin that is always an image build is a fallback.
-    #
-    # The fallback is deliberately narrow: this exact plugin, matched on the
-    # image *name*. It cannot be widened to `*docker*` without also matching the
-    # registry in `docker.io/library/golang`, and it cannot be generalised to
-    # cover a custom image running `kind` or dind — nothing in the manifest
-    # distinguishes those. Such a step must pin `runtimeClassName: kata`, which
-    # is the whole reason the pin remains the primary signal.
+    # What used to be here was a fallback matching the `plugin-docker-buildx`
+    # image, because a buildx step in an untouched pipeline pins nothing and
+    # sending it to gVisor unprivileged was a broken build with a confusing
+    # error. Under sysbox that step just works, so the heuristic is gone rather
+    # than kept as a second way to reach a privileged VM.
     preconditions:
       any:
       - key: "{{ request.object.spec.runtimeClassName || '' }}"
@@ -87,19 +76,20 @@ spec:
         value:
         - kata
         - kata-qemu
-      - key: "{{ length(request.object.spec.containers[?contains(image, 'plugin-docker-buildx')]) }}"
-        operator: GreaterThan
-        value: 0
     mutate:
       patchStrategicMerge:
         spec:
-          # `kata` and not `kata-qemu`: Cloud Hypervisor boots faster and costs
-          # less memory, and a dockerd in the guest is containers-in-a-VM, not
-          # VMs-in-a-VM. A step needing nested virt pins kata-qemu itself and
-          # the precondition above lets that through; this is what the buildx
-          # image fallback resolves to.
-          runtimeClassName: "kata"
-          # No `hostUsers: false` here, deliberately. See above.
+          # runtimeClassName is deliberately not written here. The precondition
+          # already guarantees it is `kata` or `kata-qemu`, and the difference
+          # between them is the step's to make: Cloud Hypervisor boots faster
+          # and costs less memory, but does not pass the CPU virt flag through,
+          # so a step wanting nested virt pins kata-qemu. Rewriting it to `kata`
+          # would silently take that away.
+          #
+          # No `hostUsers: false` here either, deliberately: the pod is a VM,
+          # there is no host uid to map its root to, and the kubelet rejects the
+          # combination outright. Inside kata privilege is granted rather than
+          # emulated, and the isolation moves down a layer instead.
           containers:
           - (name): "*"
             securityContext:
@@ -114,8 +104,8 @@ spec:
             securityContext:
               privileged: true
               allowPrivilegeEscalation: true
-  # --- everything else: gVisor, unprivileged --------------------------------
-  - name: other-steps-to-gvisor
+  # --- everything else: sysbox, unprivileged --------------------------------
+  - name: other-steps-to-sysbox
     match:
       any:
       - resources:
@@ -127,10 +117,14 @@ spec:
             matchExpressions:
             - key: woodpecker-ci.org/task-uuid
               operator: Exists
-    # The exact negation of rule one — both conditions must fail, or a buildx
-    # step with no pin would match both rules. Keep the two lists in step: a
-    # value added above and not removed from here is a pod mutated twice, and
-    # the second write wins.
+    # The exact negation of rule one. Keep the two lists in step: a value added
+    # above and not removed from here is a pod mutated twice, and the second
+    # write wins.
+    #
+    # Note what is *not* excluded — an unset runtimeClassName, `gvisor`, or
+    # `sysbox-runc` all land here and are rewritten to `sysbox`. A pipeline
+    # cannot opt out of the sandbox by naming a weaker one; the only pin this
+    # policy honours is the kata pair above.
     preconditions:
       all:
       - key: "{{ request.object.spec.runtimeClassName || '' }}"
@@ -138,16 +132,20 @@ spec:
         value:
         - kata
         - kata-qemu
-      - key: "{{ length(request.object.spec.containers[?contains(image, 'plugin-docker-buildx')]) }}"
-        operator: Equals
-        value: 0
     mutate:
       patchStrategicMerge:
         spec:
-          runtimeClassName: "gvisor"
-          # Privilege is not granted here and must not be: these steps are the
-          # ones with no reason to have it, and `require-kata-for-privileged`
-          # would reject the pod anyway, since gVisor is not a VM boundary.
+          runtimeClassName: "sysbox"
+          # The half of sysbox that makes the privilege drop below safe rather
+          # than merely strict. Without it the step's root is uid 0 on the node
+          # and only namespaces stand between it and the host; with it the
+          # kubelet maps the pod into a user namespace, so container root is an
+          # unprivileged uid outside. A container engine inside the step still
+          # works — that is the whole reason this cluster carries sysbox.
+          hostUsers: false
+          # Privilege is not granted here and must not be: under sysbox a step
+          # that needs a container engine does not need privilege to run one,
+          # and `require-kata-for-privileged` would reject the pod anyway.
           # Dropped explicitly rather than left alone — a pipeline cannot ask
           # for privilege by writing it into its own backend_options.
           containers:
