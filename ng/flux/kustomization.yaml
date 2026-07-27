@@ -22,6 +22,7 @@ resources:
 - platform/booting-up/ks.yaml
 - platform/envoy-proxy/ks.yaml
 - platform/postgres/applications/vaultwarden/ks.yaml
+- platform/postgres/applications/umami/ks.yaml
 - apps/cyberchef/ks.yaml
 - apps/radar/ks.yaml
 - apps/portfolio/ks.yaml
@@ -29,3 +30,4 @@ resources:
 - apps/capsule/ks.yaml
 
 - apps/vaultwarden/ks.yaml
+- apps/umami/ks.yaml

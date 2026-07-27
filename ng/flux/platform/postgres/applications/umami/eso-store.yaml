@@ -1,0 +1,22 @@
+apiVersion: external-secrets.io/v1
+kind: SecretStore
+metadata:
+  name: umami
+  namespace: postgres
+spec:
+  provider:
+    kubernetes:
+      remoteNamespace: umami
+      server:
+        caProvider:
+          type: ConfigMap
+          name: kube-root-ca.crt
+          key: ca.crt
+      auth:
+        # Must match the ServiceAccount in eso-writer.yaml, which is the one the
+        # RoleBinding in the umami namespace grants. Pointing this at
+        # vaultwarden's `eso-push-writer` instead authenticates as an identity
+        # with no rights here, and the store fails validation with the
+        # unhelpful "client is not allowed to get secrets".
+        serviceAccount:
+          name: eso-push-writer-umami

@@ -49,7 +49,6 @@ resources:
 - infrastructure/backbone/sysbox-deploy.yaml
 - infrastructure/backbone/cluster-debugger.yaml
 
-- infrastructure/monitoring/cluster/umami.yaml
 - infrastructure/monitoring/cluster/kube-prom-stack.yaml
 
 - infrastructure/databases/cluster/postgresql.yaml

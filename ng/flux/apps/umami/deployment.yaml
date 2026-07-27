@@ -1,0 +1,101 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: umami
+  labels:
+    app: umami
+spec:
+  replicas: 1
+  # Recreate, not RollingUpdate. Umami runs its Prisma migrations from the
+  # container entrypoint, so a rolling update would briefly have the old and
+  # new versions both live against a schema only one of them expects. At one
+  # replica the rolling window buys nothing anyway.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: umami
+  template:
+    metadata:
+      labels:
+        app: umami
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: umami
+        # Same image and digest the root cluster runs, deliberately: the data
+        # move below is a plain dump/restore, so the schema on both ends has to
+        # be the one this exact build migrates to. Upgrade after the move has
+        # landed, not as part of it.
+        image: ghcr.io/umami-software/umami:3.2.0@sha256:8edfe4beaef13f9d1300619fa264ef250a3688df9cc54d24ca830ca31cb475ec
+        ports:
+        - containerPort: 3000
+        securityContext:
+          allowPrivilegeEscalation: false
+          # Next.js writes its build cache under /app/.next at runtime, so the
+          # root filesystem cannot be read-only without mounting an emptyDir
+          # over a path that also has to keep its baked-in contents.
+          readOnlyRootFilesystem: false
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        env:
+        # Written into this namespace by the PushSecret in
+        # platform/postgres/applications/umami — it is not in git, and the pod
+        # will not start until that has run.
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: umami-db
+              key: DATABASE_URL
+        # Carried over verbatim from the root cluster. Umami derives the salt
+        # it hashes session identifiers with from this, so changing it makes
+        # every returning visitor look like a new one and breaks session
+        # continuity across the move.
+        - name: APP_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: umami-secrets
+              key: APP_SECRET
+        # No outbound internet in the network policy, and these are the only
+        # two things that would want it. Left on, they retry and log failures
+        # forever against a policy that will never let them through.
+        - name: DISABLE_TELEMETRY
+          value: "1"
+        - name: DISABLE_UPDATES
+          value: "1"
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        readinessProbe:
+          httpGet:
+            path: /api/heartbeat
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 5
+        livenessProbe:
+          httpGet:
+            path: /api/heartbeat
+            port: 3000
+          initialDelaySeconds: 20
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+      volumes:
+      - name: tmp
+        emptyDir: {}

@@ -4,8 +4,8 @@ metadata:
   name: umami
 spec:
   parentRefs:
-  - name: kgateway
-    namespace: kgateway
+  - name: envoy-gateway
+    namespace: envoy-gateway-system
     sectionName: https
   hostnames:
   - "umami.yewolf.fr"

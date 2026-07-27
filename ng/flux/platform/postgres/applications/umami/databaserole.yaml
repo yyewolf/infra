@@ -1,0 +1,12 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: umami
+  namespace: postgres
+spec:
+  cluster:
+    name: postgres
+  name: umami
+  login: true
+  passwordSecret:
+    name: umami-db-credentials

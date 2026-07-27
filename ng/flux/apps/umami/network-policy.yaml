@@ -1,0 +1,46 @@
+# Umami takes tracking beacons and dashboard traffic from the edge and talks to
+# exactly one thing of its own: the shared Postgres. No outbound internet — the
+# two features that would use it (telemetry, the update check) are turned off in
+# the deployment rather than allowed for here.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: umami
+spec:
+  endpointSelector:
+    matchLabels:
+      app: umami
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: envoy-gateway-system
+    toPorts:
+    - ports:
+      - port: "3000"
+        protocol: TCP
+  # The kubelet runs the readiness and liveness probes.
+  - fromEntities:
+    - host
+    - remote-node
+    - health
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+  # The other half of platform/postgres/network-policy.yaml's `fromEntities:
+  # cluster` rule. Without this the app cannot reach the database no matter
+  # what the Postgres side allows.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: postgres
+    toPorts:
+    - ports:
+      - port: "5432"
+        protocol: TCP
