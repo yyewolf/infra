@@ -17,9 +17,20 @@ spec:
       resources:
         requests:
           cpu: 50m
+          # Deliberately left at 128Mi while the limit went up. Steady state is
+          # ~50Mi, and the descheduler reads *requests* rather than real usage
+          # for LowNodeUtilization — inflating this would move the cluster
+          # average and change which pods it evicts, for headroom that is never
+          # occupied. Raise it only if the working set actually grows.
           memory: 128Mi
         limits:
-          memory: 512Mi
+          # Headroom for reconcile storms, where the manager holds many
+          # in-flight informer objects at once. Note this was *not* the cause of
+          # the restarts seen on 2026-07-28: those were exit 137 from a failed
+          # liveness probe, not an OOM (the termination reason was `Error`, and
+          # the pod was using 50Mi of 512Mi). The real cause was the webhook
+          # ingress rule in network-policy.yaml.
+          memory: 1Gi
 
     # Cluster-scoped RBAC: the operator reconciles Clusters in every namespace,
     # so an app keeps its database next to itself instead of here. Same shape

@@ -11,9 +11,29 @@ spec:
     matchLabels:
       app.kubernetes.io/name: cnmsql
   ingress:
-  # Validating webhook for Cluster/Backup/Restore.
+  # Validating webhook for Cluster/Backup/Restore, plus the UPDATE hook on
+  # instance pods.
+  #
+  # `kube-apiserver` alone does not work here and the failure is total, not
+  # intermittent. The API server runs host-network on the control planes, and
+  # its connection into the pod network enters via that node's `cilium_host`
+  # router address — so the source Cilium sees is 10.244.<n>.<x> with identity
+  # `reserved:remote-node` (or `reserved:host` when the apiserver and the
+  # operator happen to share a node), never `reserved:kube-apiserver`. The
+  # symptom is a 10s admission timeout with `Policy denied DROPPED (TCP Flags:
+  # SYN)` to :9443 in Hubble on the operator's node, and it takes the operator
+  # down with it — every reconcile blocks the full webhook timeout, the worker
+  # pool saturates, /healthz stops answering and the kubelet kills the pod on
+  # its liveness probe (exit 137, which reads like an OOM and is not one).
+  #
+  # cnpg has the same shape and works only because its rule also lists
+  # `cluster`, which subsumes `remote-node`. Naming the two node entities is
+  # tighter than that: nothing but the API server calls these admission
+  # endpoints, so pod identities do not need to be in scope.
   - fromEntities:
     - kube-apiserver
+    - remote-node
+    - host
     toPorts:
     - ports:
       - port: "9443"

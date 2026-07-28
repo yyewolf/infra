@@ -20,8 +20,23 @@ spec:
   # The API server calling the admission and cleanup webhooks. Both Services
   # publish 443 and target the pods' `https` port, which is 9443 — the Service
   # port is not what the policy sees.
+  #
+  # `remote-node` and `host` are listed alongside `kube-apiserver` and the
+  # redundancy is deliberate. The API server is host-networked and its
+  # connection enters the pod network via the calling node's `cilium_host`
+  # router address, so what Cilium evaluates is `host` (same node as the
+  # admission controller) or `remote-node` (the other two) — never
+  # `kube-apiserver`. Today that traffic is already admitted by the
+  # port-unrestricted probe rule below, so this policy happens to work, but it
+  # works *by accident*: scoping that rule to the probe ports, which is an
+  # obvious future tidy-up, would silently cut the admission webhook off. The
+  # resource webhook is `failurePolicy: Fail` on pods cluster-wide, so the
+  # blast radius of that mistake is every pod creation outside the excluded
+  # namespaces. Stating it here makes this rule survive on its own.
   - fromEntities:
     - kube-apiserver
+    - remote-node
+    - host
     toPorts:
     - ports:
       - port: "9443"

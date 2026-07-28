@@ -54,8 +54,21 @@ spec:
       app: keda-operator-metrics-apiserver
   ingress:
   # Registered as an APIService, so the aggregation layer calls in.
+  #
+  # `kube-apiserver` is not sufficient and the resulting breakage is partial,
+  # which is why it survived this long. The API server is host-networked on the
+  # control planes and its connection enters the pod network via the calling
+  # node's `cilium_host` router address, so the identity Cilium evaluates is
+  # `host` when the API server and this pod share a node — which Cilium
+  # auto-allows, hiding the bug — and `remote-node` for the other two, which a
+  # `kube-apiserver`-only rule drops. `kubectl get --raw
+  # /apis/external.metrics.k8s.io/v1beta1` therefore succeeds or hangs
+  # depending on which API server answers, and the APIService can report
+  # Available=True while two thirds of the calls are being dropped.
   - fromEntities:
     - kube-apiserver
+    - remote-node
+    - host
     toPorts:
     - ports:
       - port: "6443"
@@ -94,8 +107,20 @@ spec:
     matchLabels:
       app: keda-admission-webhooks
   ingress:
+  # Same correction as the metrics adapter above: the API server arrives as
+  # `remote-node` (or `host` on a shared node), never `kube-apiserver`.
+  #
+  # This one failed *silently*, which is the worst version of it. KEDA's
+  # ScaledObject webhook is registered `failurePolicy: Ignore`, so every write
+  # blocked for the full 10s admission timeout and was then admitted with its
+  # validation skipped entirely — a successful `kubectl apply` that took ten
+  # seconds and checked nothing. If a ScaledObject write is ever mysteriously
+  # slow, check Hubble for drops to :9443 before believing the object was
+  # validated.
   - fromEntities:
     - kube-apiserver
+    - remote-node
+    - host
     toPorts:
     - ports:
       - port: "9443"

@@ -24,6 +24,12 @@ spec:
         io.kubernetes.pod.namespace: longhorn-system
   # The admission and conversion webhooks (9502) and the recovery backend
   # (9503) are called by the apiserver; 9500 serves the manager API.
+  #
+  # This entity does not actually match that traffic — the apiserver is
+  # host-networked and arrives as `host` or `remote-node` via the calling
+  # node's `cilium_host` address. What keeps the webhooks reachable is the
+  # port-unrestricted rule immediately below. Do not scope that rule to the
+  # probe ports without adding `remote-node`/`host` here first.
   - fromEntities:
     - kube-apiserver
   # The node's own iscsid connects to the engine's iSCSI target on the pod IP,
