@@ -23,16 +23,30 @@ spec:
     timeout: 10m
   values:
     defaultSettings:
-      # The dedicated partition from ng/talos/patches/longhorn.yaml. Must match
-      # the UserVolumeConfig name there — Talos mounts a user volume at
-      # /var/mnt/<name>. Leave this unset and Longhorn defaults to
-      # /var/lib/longhorn, a directory on EPHEMERAL, which puts replica data
-      # back in competition with container images and logs.
+      # Only register disks on nodes carrying the
+      # node.longhorn.io/create-default-disk label, and take the disk list from
+      # the node.longhorn.io/default-disks-config annotation. Both are set by
+      # ng/talos/patches/longhorn.yaml, which is also what mounts the two
+      # volumes they name — so the disks a node offers and the disks Longhorn
+      # registers are declared in one place, with the tags (`nvme`, `sata`)
+      # that storageclasses.yaml selects on.
+      #
+      # This is the second half of "edge-0 is not a storage node", and the
+      # stronger half: without the label a node gets no disks at all, so an
+      # untainted worker added later cannot become one by accident. Registration
+      # is one-shot — neither the label nor the annotation does anything to a
+      # node Longhorn already knows about.
+      createDefaultDiskLabeledNodes: true
+
+      # Only reached for a node labelled `true` rather than `config`, i.e. never
+      # here. Kept pointing at a real mount anyway: unset it and the fallback is
+      # /var/lib/longhorn, a directory on EPHEMERAL, which is where replica data
+      # would compete with container images and logs.
       defaultDataPath: /var/mnt/longhorn
 
-      # The partition is Longhorn's alone, so there is no host filesystem to
-      # leave headroom for. The stock 30% would silently hand back 30 of every
-      # 100 GiB carved out for it.
+      # Both disks are Longhorn's alone, so there is no host filesystem to leave
+      # headroom for. The stock 30% would silently hand back 30 of every 100 GiB
+      # given to it.
       storageReservedPercentageForDefaultDisk: 0
 
       # Phones home to Rancher's upgrade responder. The network policy denies

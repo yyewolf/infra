@@ -1,8 +1,26 @@
 # The three classes are declared here rather than through the chart's
 # `persistence.*` values (which is set to createStorageClass: false), so that
 # all three read side by side and a diff between them is the whole story. They
-# reproduce the chart's own parameter set — only replica count and locality
-# differ.
+# reproduce the chart's own parameter set — only replica count, locality and
+# which disk pool they land on differ.
+#
+# Every class carries a `diskSelector`, because there are two pools and they are
+# not interchangeable (see ng/talos/patches/longhorn.yaml):
+#
+#   nvme  100 GiB/node on the system disk — fast, but shares a device with
+#         etcd's write path
+#   sata  ~238 GiB/node on a disk that is Longhorn's alone — slower, entirely
+#         uncontended
+#
+# `longhorn-yolo` takes `nvme`: it is what the databases use, one replica,
+# strict-local, and low latency is the entire reason that class exists. Its
+# working set is small and bounded — four 20 GiB instances today against a
+# 300 GiB raw pool. Everything else takes `sata`, so bulk data and CI churn
+# never land next to etcd.
+#
+# `diskSelector` is stamped onto a Volume when it is provisioned, like
+# reclaimPolicy: changing it here steers new volumes only. Existing volumes stay
+# on whichever disk holds them until someone requests eviction of that disk.
 #
 # Every class is WaitForFirstConsumer. That is the half of "schedule the
 # workload where its data is" that Kubernetes can actually enforce: binding and
@@ -15,7 +33,10 @@
 # see each one. Note that a Longhorn v1 volume is reachable over the network
 # from any node, so apart from strict-local no PV here carries nodeAffinity: a
 # rescheduled pod is never *prevented* from moving, Longhorn just moves a
-# replica to follow it.
+# replica to follow it. `longhorn-ci` is now the only class that pins, and it
+# pins something that lives and dies inside one pipeline; the four database
+# volumes still carry a nodeAffinity from when `longhorn-yolo` was strict-local,
+# because a PV's is immutable once written.
 #
 # Every class is reclaimPolicy: Retain, including yolo. Deleting a PVC — by
 # hand, or by Flux pruning a Kustomization, or by a chart being uninstalled —
@@ -26,7 +47,7 @@
 # Two consequences that are not obvious, and are the price of this:
 #
 #   - Retained volumes are not garbage. A deleted PVC leaves its PV in
-#     `Released` and the Longhorn volume still occupying the 100 GiB budget
+#     `Released` and the Longhorn volume still occupying the per-node budget
 #     forever. Nothing reclaims it, so `kubectl get pv | grep Released` is
 #     housekeeping someone has to actually do, and running out of space will
 #     look like a provisioning failure rather than a pile of orphans.
@@ -61,6 +82,7 @@ volumeBindingMode: WaitForFirstConsumer
 parameters:
   numberOfReplicas: "3"
   dataLocality: "disabled"
+  diskSelector: "sata"
   staleReplicaTimeout: "30"
   fromBackup: ""
   fsType: "ext4"
@@ -90,6 +112,7 @@ volumeBindingMode: WaitForFirstConsumer
 parameters:
   numberOfReplicas: "2"
   dataLocality: "best-effort"
+  diskSelector: "sata"
   staleReplicaTimeout: "30"
   fromBackup: ""
   fsType: "ext4"
@@ -105,14 +128,33 @@ parameters:
 # Postgres instances each on a 1-replica volume beats three instances on
 # 3-replica volumes writing nine copies).
 #
-# strict-local is the only setting here that genuinely pins scheduling: the
-# single replica lives on the node the pod runs on, Longhorn sets nodeAffinity
-# on the PV accordingly, and reads and writes never leave the box. It requires
-# exactly one replica — Longhorn rejects volume creation otherwise — and does
-# not support ReadWriteMany.
+# best-effort rather than strict-local, and the difference is what happens on a
+# cordoned node. strict-local puts a hard nodeAffinity on the PV, so when
+# `talos.sh upgrade` drains a node the database pod on it is evicted and then
+# sits Pending — it is only allowed to run on the node that was just cordoned,
+# and that instance is down for the whole maintenance window. best-effort writes
+# no nodeAffinity: the pod reschedules elsewhere, attaches over the network to
+# the replica on the (cordoned, still running) node, and Longhorn rebuilds a
+# local replica behind it. For CNPG that turns a stall into a failover.
 #
-# Do not add allowedTopologies to this class: the PV nodeAffinity it produces
-# is immutable and collides with strict-local's own pinning.
+# The price is that a pod which moves drags a full replica rebuild across the
+# LAN with it, and serves its reads remotely until that finishes. Nothing
+# routine should move one: the descheduler refuses to evict PVC-backed pods
+# (platform/descheduler), which is the protection that makes this affordable —
+# under strict-local it was merely pointless, here it is load-bearing.
+#
+# What this does *not* change is the drain block itself. Longhorn's
+# node-drain-policy is block-if-contains-last-replica and there is exactly one
+# replica, so the node always holds the last one and the instance-manager
+# eviction is still refused — see the comment in ng/talos/talos.sh.
+#
+# Only the locality is best-effort, not the redundancy: one replica still means
+# losing the node's disk loses the data.
+#
+# Do not add allowedTopologies to this class. The PV nodeAffinity it produces is
+# immutable, which is the whole reason the four volumes provisioned under
+# strict-local are still pinned to their original nodes — changing this
+# parameter steers new volumes only, and cannot unpin an existing PV.
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -123,7 +165,8 @@ reclaimPolicy: Retain
 volumeBindingMode: WaitForFirstConsumer
 parameters:
   numberOfReplicas: "1"
-  dataLocality: "strict-local"
+  dataLocality: "best-effort"
+  diskSelector: "nvme"
   staleReplicaTimeout: "30"
   fromBackup: ""
   fsType: "ext4"
@@ -138,15 +181,24 @@ parameters:
 #
 # The consumer is woodpecker: its Kubernetes backend provisions a workspace PVC
 # per pipeline and deletes it when the pipeline ends. Under Retain each build
-# would leave behind a Released PV and a Longhorn volume out of a 100 GiB
-# budget, forever, with nothing to reclaim it — a CI system is exactly the
+# would leave behind a Released PV and a Longhorn volume out of a finite
+# per-node budget, forever, with nothing to reclaim it — a CI system is exactly the
 # workload that turns "housekeeping someone has to do" into "the partition is
 # full by Thursday". Here the delete is the point, and nothing of value is lost
 # by it.
 #
+# This is the one class that keeps strict-local, and it is not an oversight.
+# What best-effort buys longhorn-yolo is a pod surviving the node it is on being
+# cordoned; a woodpecker workspace has nothing to survive with. It is created by
+# the first step of a pipeline and deleted by the last, the step pods are bare
+# pods with no owner, and an eviction is a failed build either way — so there is
+# no rescheduling to enable, and pinning image builds to local I/O is worth more.
+#
 # Do not point a stateful app at this class because the name sounds fast. It is
-# identical to longhorn-yolo apart from the reclaim policy, and that difference
-# is stamped onto the PV at provisioning time — a database moved onto it is one
+# identical to longhorn-yolo apart from that, the reclaim policy and the pool —
+# and it is on `sata`, the slower one, deliberately: a build cache is the last
+# thing that should be sharing a device with etcd. The reclaim policy is stamped
+# onto the PV at provisioning time, so a database moved onto this class is one
 # `kubectl delete pvc` from gone, with no confirmation step.
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
@@ -159,6 +211,7 @@ volumeBindingMode: WaitForFirstConsumer
 parameters:
   numberOfReplicas: "1"
   dataLocality: "strict-local"
+  diskSelector: "sata"
   staleReplicaTimeout: "30"
   fromBackup: ""
   fsType: "ext4"

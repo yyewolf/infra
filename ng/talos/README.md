@@ -387,50 +387,91 @@ shim pointing at gVisor and keeps that meaning.
 
 ## Longhorn storage
 
-`cp-0`, `cp-1` and `cp-2` each give Longhorn a dedicated 100 GiB partition of
-their 256 GB NVMe. `patches/longhorn.yaml` is the whole story:
+`cp-0`, `cp-1` and `cp-2` each give Longhorn two disks, kept as two pools:
+
+| pool | where | per node | character |
+|---|---|---|---|
+| `nvme` | a 100 GiB partition of the 256 GB KIOXIA the system runs from | 100 GiB | fast, shares a device with etcd |
+| `sata` | the whole 256 GB Netac SSD, Longhorn's alone | ~238 GiB | slower, entirely uncontended |
+
+`patches/longhorn.yaml` is the whole story:
 
 | document | what it does |
 |---|---|
-| `machine.kubelet.extraMounts` | binds `/var/mnt/longhorn` into the kubelet, `rshared` |
-| `VolumeConfig` `EPHEMERAL` | caps `/var` at 128 GiB instead of the whole disk |
-| `UserVolumeConfig` `longhorn` | a fixed 100 GiB partition, mounted at `/var/mnt/longhorn` |
+| `machine.kubelet.extraMounts` | binds both mount points into the kubelet, `rshared` |
+| `machine.nodeLabels` / `nodeAnnotations` | tells Longhorn which disks to register, and their tags |
+| `VolumeConfig` `EPHEMERAL` | caps `/var` at 128 GiB instead of the whole system disk |
+| `UserVolumeConfig` `longhorn` | a fixed 100 GiB partition at `/var/mnt/longhorn` — the `nvme` pool |
+| `UserVolumeConfig` `longhorn-ssd` | the whole Netac at `/var/mnt/longhorn-ssd` — the `sata` pool |
 
-The point of the partition is isolation. Longhorn's default data path is a
-directory on `EPHEMERAL`, which puts replica data, container images and logs on
-one filesystem — either one filling it takes the kubelet down with it. A
-separate partition means neither can starve the other.
+The point of both is isolation. Longhorn's default data path is a directory on
+`EPHEMERAL`, which puts replica data, container images and logs on one
+filesystem — either one filling it takes the kubelet down with it.
 
-`iscsi-tools` and `util-linux-tools` are already in `schematic.yaml`, so this
-costs no re-image. `edge-0` is deliberately excluded: it has no partition carved
-for it, and replicating over the WireGuard tunnel to Infomaniak would be slow.
-The Flux side pins every Longhorn component to the control-plane role to match
-(`ng/flux/infrastructure/longhorn`), where `defaultDataPath` is set to
-`/var/mnt/longhorn` — that value and the `UserVolumeConfig` name have to agree,
-or Longhorn falls back to `/var/lib/longhorn` on `EPHEMERAL` and the partition
-sits unused.
+The point of keeping them *separate* is that they are not interchangeable. The
+NVMe is faster, but it is the device etcd fsyncs to, so sustained churn on it
+competes with the control plane at the queue and not just at the filesystem.
+The Netac is slower and contends with nothing. So the pools are tagged and the
+StorageClasses choose: `longhorn-yolo` — the databases, single replica, latency
+being the entire reason that class exists — takes `nvme`, and the bulk classes
+take `sata`. See
+`ng/flux/infrastructure/longhorn/storageclasses.yaml`.
+
+The Netac is selected by model and transport (`disk.transport == "sata" &&
+disk.model == "Netac SSD 256GB"`), never by device name: `sda` is whatever the
+SATA controller enumerated this boot, a USB installer takes that name while it
+is plugged in, and size is no discriminator either since both disks are
+nominally 256 GB. A model string that stops matching gives a volume that never
+provisions, which is a loud failure; a selector that matches too broadly gives a
+wiped disk.
+
+The disk *list* is declared in the same file, as a node label and annotation
+Longhorn reads when it first registers a node
+(`node.longhorn.io/create-default-disk: config` plus
+`node.longhorn.io/default-disks-config`), paired with
+`createDefaultDiskLabeledNodes: true` in the HelmRelease. So the disks a node
+mounts and the disks Longhorn schedules onto come from one place, with their
+tags. Two things follow: a node **without** the label gets no disks at all,
+which is the enforceable half of "`edge-0` is not a storage node"; and this is
+registration-time only, so neither the label nor the annotation changes a node
+Longhorn already knows about — those disks are a list on the `nodes.longhorn.io`
+object.
+
+`iscsi-tools` and `util-linux-tools` are already in `schematic.yaml`, so none of
+this costs a re-image. `edge-0` is deliberately excluded: it has neither disk,
+and replicating over the WireGuard tunnel to Infomaniak would be slow. The Flux
+side pins every Longhorn component to the control-plane role to match.
 
 ### Storage classes
 
-100 GiB per node, three nodes, so 300 GiB raw — how much usable depends on the
-class a claim picks:
+100 GiB + ~238 GiB per node across three nodes, so ~300 GiB raw in `nvme` and
+~714 GiB raw in `sata`. How much of a pool is usable depends on the class a
+claim picks:
 
-| class | replicas | dataLocality | usable per GiB claimed | survives losing a node |
-|---|---|---|---|---|
-| `longhorn` (default) | 3 | `disabled` | 3 GiB | yes |
-| `longhorn-ha` | 2 | `best-effort` | 2 GiB | yes |
-| `longhorn-yolo` | 1 | `strict-local` | 1 GiB | no |
+| class | pool | replicas | dataLocality | raw per GiB claimed | survives losing a node |
+|---|---|---|---|---|---|
+| `longhorn` (default) | `sata` | 3 | `disabled` | 3 GiB | yes |
+| `longhorn-ha` | `sata` | 2 | `best-effort` | 2 GiB | yes |
+| `longhorn-yolo` | `nvme` | 1 | `best-effort` | 1 GiB | no |
+| `longhorn-ci` | `sata` | 1 | `strict-local` | 1 GiB | no |
 
-All three are `reclaimPolicy: Retain`, so deleting a PVC never destroys data —
+`diskSelector` is stamped onto a volume at provisioning time, the same way
+`reclaimPolicy` is. Changing which pool a class names steers new volumes only;
+existing ones stay where they are until that disk is evicted.
+
+Every class except `longhorn-ci` is `reclaimPolicy: Retain`, so deleting a PVC
+never destroys data —
 it leaves a `Released` PV and the Longhorn volume behind. That is the point,
 and it has a running cost: nothing reclaims those, they keep occupying the
-100 GiB budget, and a full partition will look like a provisioning failure
+pool, and a full pool will look like a provisioning failure
 rather than a pile of orphans. `kubectl get pv | grep Released` is a chore
 someone has to do. Note also that a `Released` PV will *not* rebind to a
 recreated PVC — its `claimRef` still points at the old one, so the app comes
 back with an empty volume until `.spec.claimRef` is cleared by hand.
+`longhorn-ci` is the exception because a woodpecker workspace is a git checkout
+and a build cache, and a CI system would otherwise fill `sata` by Thursday.
 
-All three are also `WaitForFirstConsumer`, which is the half of "run the workload
+All four are `WaitForFirstConsumer`, which is the half of "run the workload
 where its data is" that Kubernetes enforces: nothing is provisioned until a pod
 using the claim is scheduled, so replicas are placed around the node the
 scheduler picked rather than the pod being dragged toward a volume that landed
@@ -442,24 +483,42 @@ storage nodes every node already holds one — locality is satisfied by
 construction. `longhorn-ha` is where `best-effort` matters: two replicas over
 three nodes leaves one node without, so Longhorn keeps one on whichever node
 the workload is attached to and rebuilds a local replica if the pod moves.
-`longhorn-yolo` is `strict-local`, the only one that genuinely pins scheduling —
-the single replica sits on the pod's node, Longhorn puts `nodeAffinity` on the
-PV, and I/O never leaves the box. It requires exactly one replica and does not
-support RWX.
+`longhorn-yolo` is `best-effort` too, and the reason it is not `strict-local`
+is maintenance. `strict-local` writes a hard `nodeAffinity` onto the PV, so
+draining a node for `talos.sh upgrade` leaves the database pod on it `Pending` —
+the only node it is permitted to run on is the one just cordoned — and that
+instance is down for the entire window. `best-effort` writes no `nodeAffinity`:
+the pod moves, attaches over the network to the replica on the cordoned but
+still-running node, and Longhorn rebuilds a local replica behind it. For CNPG
+that is a failover rather than a stall. The price is that a pod which moves
+drags a full replica rebuild across the LAN, which is why the descheduler's
+refusal to evict PVC-backed pods matters more than it used to.
 
-`longhorn-yolo` is the right choice under something that already replicates at
-the application layer — a CNPG or CNMSQL cluster, where three instances on
-1-replica volumes beat three instances on 3-replica volumes writing nine copies
-of the same data.
+`longhorn-ci` keeps `strict-local`, the only class that still pins. A woodpecker
+workspace is created by the first step of a pipeline and deleted by the last, so
+there is no rescheduling to enable and local I/O for image builds is worth more.
 
-### Adding it to a node means wiping EPHEMERAL
+Note that `dataLocality` says nothing about redundancy. Both of these are still
+one replica: losing that node's disk loses the data. They are the right choice
+under something that already replicates at the application layer — a CNPG or
+CNMSQL cluster, where two instances on 1-replica volumes beat two instances on
+3-replica volumes writing six copies of the same data.
+
+Changing this parameter steers new volumes only, and a PV's `nodeAffinity` is
+immutable once written — so the four database volumes provisioned while
+`longhorn-yolo` was `strict-local` are still pinned (`postgres-1` and `mysql-1`
+to cp-2, `postgres-2` and `mysql-2` to cp-1). Unpinning one means recreating the
+claim, which for CNPG and CNMSQL is deleting the instance and letting the
+operator re-clone it from the primary.
+
+### Adding the nvme pool means wiping EPHEMERAL
 
 This is the one part that is not a normal `apply`. Talos applies volume sizing
 **only at provisioning time** — "applying changes after the initial provisioning
-will not have any effect". `EPHEMERAL` grows to fill the disk on first boot, so
-on a node that is already running there is no unallocated space for the user
-volume, and the 128 GiB cap is ignored rather than enforced. The partition only
-appears if `EPHEMERAL` is destroyed and re-provisioned under the new config.
+will not have any effect". `EPHEMERAL` grows to fill the system disk on first
+boot, so on a node that is already running there is no unallocated space for the
+user volume, and the 128 GiB cap is ignored rather than enforced. The partition
+only appears if `EPHEMERAL` is destroyed and re-provisioned under the new config.
 
 `EPHEMERAL` is `/var`, which holds etcd's data directory. Wiping it on a
 control-plane node destroys that node's etcd member; a graceful reset makes it
@@ -485,11 +544,152 @@ talosctl -n 10.200.0.11 etcd members
 talosctl -n 10.200.0.11 get volumestatus     # u-longhorn should be 'ready'
 ```
 
-Then repeat for `cp-1` and `cp-2`. What is lost per node is container images,
-logs and that node's etcd copy — all of which come back on their own. What is
-*not* automatically safe is Longhorn replica data, so once volumes exist this
-sequence needs the usual replica-rebuild wait between nodes, not just an etcd
-check.
+What is lost per node is container images, logs and that node's etcd copy — all
+of which come back on their own. What is *not* automatically safe is Longhorn
+replica data, so once volumes exist this sequence needs the usual replica-rebuild
+wait between nodes, not just an etcd check.
+
+### Adding the sata pool is just an apply
+
+A dedicated disk is blank, so nothing has to be repartitioned around the volume
+and no existing filesystem is in the way. This is the whole reason a second
+physical disk is worth more than a bigger partition:
+
+```sh
+./talos.sh render
+./talos.sh apply cp-0                        # then cp-1, cp-2
+talosctl -n 10.200.0.11 get volumestatus     # u-longhorn-ssd should be 'ready'
+```
+
+Talos then mounts it at `/var/mnt/longhorn-ssd`, and the node picks up the
+`node.longhorn.io/*` label and annotation from the same patch. On a node
+Longhorn has **already registered** — which is all three of them — that
+annotation is not read, so the disk has to be added to the `nodes.longhorn.io`
+object by hand, once per node:
+
+```sh
+kubectl -n longhorn-system patch nodes.longhorn.io cp-0 --type=merge -p '
+spec:
+  disks:
+    longhorn-ssd:
+      path: /var/mnt/longhorn-ssd
+      diskType: filesystem
+      allowScheduling: true
+      evictionRequested: false
+      storageReserved: 0
+      tags: ["sata"]
+'
+```
+
+The existing disk needs its tag too, or `longhorn-yolo` has nowhere to schedule.
+Its key is generated per node, so read it rather than typing it:
+
+```sh
+nvme=$(kubectl -n longhorn-system get nodes.longhorn.io cp-0 \
+        -o jsonpath='{.spec.disks}' \
+        | jq -r 'to_entries[] | select(.value.path == "/var/mnt/longhorn") | .key')
+
+kubectl -n longhorn-system patch nodes.longhorn.io cp-0 --type=merge \
+    -p "{\"spec\":{\"disks\":{\"$nvme\":{\"tags\":[\"nvme\"]}}}}"
+```
+
+Then check both pools are up:
+
+```sh
+kubectl -n longhorn-system get nodes.longhorn.io cp-0 -o json \
+    | jq '.status.diskStatus | to_entries[]
+          | {path: .value.diskPath, ready: (.value.conditions[]
+             | select(.type == "Ready") | .status), free: .value.storageAvailable}'
+```
+
+Adding a tag does not move anything. `diskSelector` is stamped onto a volume when
+it is provisioned, so every volume that exists today stays on the NVMe pool where
+it already is — which is where `longhorn-yolo` wants the databases anyway, so the
+four Postgres and MySQL volumes are already in the right place and never move.
+
+The one volume this left off-pool was vaultwarden's: three replicas on `nvme`,
+one per node, while its class had started saying `sata`. Its `diskSelector` was
+`[]` rather than `nvme`, so any pool was legal for it and a replica rebuilt for
+unrelated reasons — a node reboot, a bad disk — could land on either. It has
+since been moved, by the procedure below.
+
+### Moving an existing volume between pools
+
+There are two ways, and the one that reads like the obvious one is the one not
+used here. `evictionRequested: true` on a disk asks Longhorn to rebuild its
+replicas elsewhere, but it evicts the *whole disk*, not one volume, and with
+`replicaSoftAntiAffinity: false` the rebuild has to place a second replica on a
+node that already holds one before dropping the original — so whether it moves
+anything at all hinges on Longhorn discounting a replica already marked for
+eviction. It costs nothing to try and is undone by setting the flag back, but it
+is not something to plan a maintenance window around.
+
+The other way does not depend on Longhorn's scheduler agreeing: copy the data
+into a volume provisioned fresh from the class you want, then hand the new PV to
+the old claim's name. `Retain` on both classes is what makes this safe — every
+step leaves the previous state recoverable, and the original volume is still
+there at the end.
+
+Suspend Flux first, or it will scale the deployment back up and recreate the PVC
+underneath you:
+
+```sh
+flux suspend kustomization vaultwarden
+kubectl -n vaultwarden scale deploy/vaultwarden --replicas=0
+kubectl -n vaultwarden wait --for=delete pod -l app=vaultwarden --timeout=120s
+```
+
+Create a second claim on the target class and copy into it with a throwaway Job
+that mounts both. Both claims are RWO, so the pod has to see them on one node;
+`WaitForFirstConsumer` arranges that by provisioning the new volume wherever the
+Job lands. Run the copy as uid 0 so `cp -a` can preserve ownership — the
+namespace has no Pod Security label, so admission warns and admits — and verify
+rather than trusting the exit code:
+
+```sh
+cp -a /old/. /new/ && sync
+cd /old && find . -path ./lost+found -prune -o -type f -print0 \
+    | sort -z | xargs -0 sha256sum > /tmp/old.sums
+cd /new && sha256sum -c /tmp/old.sums
+```
+
+Then delete both claims. `Retain` means neither PV goes anywhere; both end up
+`Released`, the old one still holding the data as the rollback:
+
+```sh
+kubectl -n vaultwarden delete job vaultwarden-copy
+kubectl -n vaultwarden delete pvc vaultwarden-pvc-sata vaultwarden-pvc
+```
+
+A `Released` PV will not bind to anything, because its `claimRef` still names the
+claim that was deleted, uid and all. Overwrite it with a *reference* to the
+original claim name and no uid — that is the documented way to reserve a PV for a
+specific claim, and it flips the PV back to `Available`:
+
+```sh
+kubectl patch pv "$NEWPV" --type merge -p '{"spec":{"claimRef":{
+  "apiVersion":"v1","kind":"PersistentVolumeClaim",
+  "namespace":"vaultwarden","name":"vaultwarden-pvc",
+  "uid":null,"resourceVersion":null}}}'
+```
+
+Reserving the PV rather than pinning the PVC with `volumeName` is what keeps this
+out of git: `pvc.yaml` never mentions a volume, so Flux can recreate the claim
+from the unchanged manifest and the binding still lands on the right PV. Resume
+it and the app comes back on the new pool:
+
+```sh
+flux resume kustomization vaultwarden
+flux reconcile kustomization vaultwarden
+```
+
+Do not clear the old PV's `claimRef` — that is the rollback, and two PVs both
+reserved for the same claim is a race. Delete it once the app has been exercised
+enough to trust, which also releases the Longhorn volume holding the space:
+
+```sh
+kubectl delete pv pvc-161f74f9-be06-46de-8d72-d3d3ab5c999e
+```
 
 ## Upgrades
 
@@ -514,10 +714,12 @@ install writes, so an extension added to a running node needs the upgrade.
 
 `upgrade` drains the node first and **asks before continuing if the drain
 blocks**. On this cluster it always blocks, and waiting does not help:
-`longhorn-yolo` is `numberOfReplicas: 1` with `strict-local` data locality, so a
-node holding one of those volumes holds its *last* replica, and Longhorn's
-default `block-if-contains-last-replica` drain policy pins that node's
-`instance-manager` PDB at zero allowed disruptions permanently.
+`longhorn-yolo` and `longhorn-ci` are `numberOfReplicas: 1`, so a node holding
+one of those volumes holds its *last* replica, and Longhorn's default
+`block-if-contains-last-replica` drain policy pins that node's
+`instance-manager` PDB at zero allowed disruptions permanently. This is the
+replica count, not the data locality — moving `longhorn-yolo` to `best-effort`
+made the *pods* reschedulable, and did nothing to this.
 
 By the time it asks, the workloads are already off the node; what is left is
 DaemonSets and Longhorn's own node agents, which come back on reboot. The

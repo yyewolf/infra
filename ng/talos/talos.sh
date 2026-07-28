@@ -712,11 +712,12 @@ cmd_apply() {
 # The drain is run here rather than by talosctl, because on this cluster it
 # routinely cannot finish and the caller has to decide what to do about it.
 #
-# Why it blocks: the longhorn-yolo storage class is numberOfReplicas 1 with
-# strict-local data locality, so a node holding one of those volumes always
-# holds its *last* replica, and Longhorn's default node-drain-policy of
+# Why it blocks: the longhorn-yolo and longhorn-ci storage classes are
+# numberOfReplicas 1, so a node holding one of those volumes always holds its
+# *last* replica, and Longhorn's default node-drain-policy of
 # block-if-contains-last-replica keeps a PodDisruptionBudget on that node's
-# instance-manager with zero allowed disruptions. The eviction is refused for as
+# instance-manager with zero allowed disruptions. This is the replica count,
+# not the data locality — moving longhorn-yolo to best-effort does not lift it. The eviction is refused for as
 # long as the policy stands, which is forever — this is not a slow drain waiting
 # to succeed. 'talosctl upgrade' handles that by timing out and aborting with
 # the node left cordoned and its stateful pods already evicted, which is the

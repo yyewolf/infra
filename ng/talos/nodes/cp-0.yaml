@@ -11,6 +11,9 @@
 # still set to REPLACE_ME.
 machine:
   install:
-    # 256 GB KIOXIA KBG40ZNS256G. Named rather than selected by size because the
-    # 31 GB USB installer also shows up as a disk (sda) while it is plugged in.
+    # 256 GB KIOXIA KBG40ZNS256G. Named rather than selected by size because it
+    # is not the only 256 GB disk in the box — the Netac SATA SSD Longhorn owns
+    # is the same size — and the 31 GB USB installer also shows up while it is
+    # plugged in. The Longhorn disk is selected by model instead, in
+    # patches/longhorn.yaml; this one is the system disk and must be exact.
     disk: /dev/nvme0n1

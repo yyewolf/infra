@@ -1,29 +1,33 @@
-# Longhorn's slice of the system disk, for nodes that are storage nodes.
+# Longhorn's storage, for nodes that are storage nodes.
 #
-# Longhorn's default data path is a directory on EPHEMERAL, which means replica
-# data, container images and logs all compete for the same filesystem — either
-# one filling it takes the kubelet down with it. Instead this carves a real
-# partition out of the system disk and points Longhorn at that, so the two can
-# never starve each other.
+# Two disks per host, kept as two separate pools rather than merged into one:
 #
-# Talos applies volume sizing *only at provisioning time*: "applying changes
-# after the initial provisioning will not have any effect". EPHEMERAL grows to
-# fill the disk on first boot, so on a node that is already running there is no
-# unallocated space left for the user volume and the cap below is ignored.
-# Adding this to a live node therefore means wiping EPHEMERAL — see
-# README.md, "Longhorn storage".
+#   nvme  a 100 GiB partition of the 256 GB KIOXIA the system runs from
+#   sata  the whole 256 GB Netac SSD (~238 GiB), which is Longhorn's alone
+#
+# They are not interchangeable. The NVMe is faster but shares a device with
+# etcd's write path, so anything with sustained churn on it competes with etcd
+# fsyncs at the queue, not just at the filesystem. The Netac is slower and
+# completely uncontended. So the pools are tagged and the StorageClasses in
+# ng/flux/infrastructure/longhorn/storageclasses.yaml pick between them:
+# `longhorn-yolo` (the databases — single replica, strict-local, latency is the
+# whole point) takes `nvme`, and the bulk classes take `sata`.
+#
+# Neither pool is a directory on EPHEMERAL, which is what this file exists to
+# avoid: that is where replica data would compete with container images and
+# logs, and either one filling the filesystem takes the kubelet down with it.
 
 machine:
   kubelet:
-    # The user volume is mounted at /var/mnt/longhorn on the host. The kubelet
-    # runs in its own mount namespace, so without this bind it sees an empty
-    # directory and Longhorn reports the *EPHEMERAL* filesystem's free space
-    # for the disk instead of the partition's.
+    # The user volumes are mounted at /var/mnt/<name> on the host. The kubelet
+    # runs in its own mount namespace, so without these binds it sees empty
+    # directories and Longhorn reports the *EPHEMERAL* filesystem's free space
+    # for both disks instead of the real ones'.
     #
-    # 'rshared' is what makes the mounts Longhorn creates underneath this path
-    # (one per attached volume) propagate back to the host and into the pods
-    # that asked for them. A plain bind would keep them invisible to everything
-    # but the kubelet.
+    # 'rshared' is what makes the mounts Longhorn creates underneath these
+    # paths (one per attached volume) propagate back to the host and into the
+    # pods that asked for them. A plain bind would keep them invisible to
+    # everything but the kubelet.
     extraMounts:
       - destination: /var/mnt/longhorn
         type: bind
@@ -32,14 +36,51 @@ machine:
           - bind
           - rshared
           - rw
+      - destination: /var/mnt/longhorn-ssd
+        type: bind
+        source: /var/mnt/longhorn-ssd
+        options:
+          - bind
+          - rshared
+          - rw
+
+  # Which disks Longhorn should register for this node, and with which tags.
+  #
+  # Longhorn reads these off the Kubernetes Node object the first time it
+  # registers the node: the label opts the node in ('config' meaning "use the
+  # annotation", as opposed to 'true' meaning "use defaultDataPath"), and the
+  # annotation is the disk list. It pairs with createDefaultDiskLabeledNodes in
+  # release.yaml, which is what makes the label required rather than advisory —
+  # a node without it gets no disks at all, so an untainted worker added later
+  # cannot silently become a storage node.
+  #
+  # This is registration-time only. It does nothing to a node Longhorn already
+  # knows about — those disks are a list on the nodes.longhorn.io object and
+  # are edited there. What it buys is that a node rebuilt or added from now on
+  # comes back with both pools and the right tags instead of one hand-typed
+  # kubectl patch away from it.
+  nodeLabels:
+    node.longhorn.io/create-default-disk: config
+  nodeAnnotations:
+    node.longhorn.io/default-disks-config: |-
+      [{"path":"/var/mnt/longhorn","allowScheduling":true,"storageReserved":0,"tags":["nvme"]},
+       {"path":"/var/mnt/longhorn-ssd","allowScheduling":true,"storageReserved":0,"tags":["sata"]}]
 ---
-# Cap EPHEMERAL so it stops short of the end of the disk and leaves room for
-# the user volume below. 'grow: true' is the stock behaviour and stays: the
+# Cap EPHEMERAL so it stops short of the end of the system disk and leaves room
+# for the nvme pool below. 'grow: true' is the stock behaviour and stays: the
 # volume still expands on its own, it just stops at maxSize now.
 #
 # 128GiB + 100GiB = 228GiB, against ~236GiB of usable space on the 256 GB
 # KIOXIA once EFI/META/STATE are taken out. The slack is deliberate — a
 # partition table that does not quite fit fails at boot, not at apply time.
+#
+# Talos applies volume sizing *only at provisioning time*: "applying changes
+# after the initial provisioning will not have any effect". EPHEMERAL grows to
+# fill the disk on first boot, so on a node that is already running there is no
+# unallocated space left for the user volume and this cap is ignored rather
+# than enforced. Getting the nvme pool onto a live node therefore means wiping
+# EPHEMERAL — see README.md, "Longhorn storage". The sata pool below has no
+# such problem, which is the whole reason the second disk is worth having.
 apiVersion: v1alpha1
 kind: VolumeConfig
 name: EPHEMERAL
@@ -50,17 +91,12 @@ provisioning:
   maxSize: 128GiB
   grow: true
 ---
-# The Longhorn partition. Fixed size, not grow: this is a budget, and a volume
-# that quietly expands into whatever is free is not one.
+# The nvme pool. Fixed size, not grow: this is a budget, and a volume that
+# quietly expands into whatever is free is not one.
 #
 # Named 'longhorn', so Talos mounts it at /var/mnt/longhorn and labels the
-# partition 'u-longhorn'. That path is what defaultSettings.defaultDataPath in
-# ng/flux/infrastructure/longhorn/release.yaml is set to; the two have to
-# agree or Longhorn silently falls back to /var/lib/longhorn on EPHEMERAL,
-# which is the exact arrangement this file exists to avoid.
-#
-# On the system disk on purpose — these hosts have one NVMe each. A dedicated
-# spindle would only change the diskSelector.
+# partition 'u-longhorn'. That path is what the nodeAnnotations disk list above
+# tags 'nvme', and what `longhorn-yolo` selects on.
 apiVersion: v1alpha1
 kind: UserVolumeConfig
 name: longhorn
@@ -70,5 +106,33 @@ provisioning:
   minSize: 100GiB
   maxSize: 100GiB
   grow: false
+filesystem:
+  type: xfs
+---
+# The sata pool: the whole Netac, mounted at /var/mnt/longhorn-ssd and tagged
+# 'sata'.
+#
+# The name has to differ from the volume above — the partition label is how
+# Talos identifies an existing user volume, so two of them cannot share one —
+# and renaming later is a repartition, not an edit. It says which disk on
+# purpose.
+apiVersion: v1alpha1
+kind: UserVolumeConfig
+name: longhorn-ssd
+provisioning:
+  # Matched on model and transport rather than a device name: 'sda' is whatever
+  # the SATA controller enumerated this boot, and a USB installer plugged in
+  # for a re-image takes that name. Size is no discriminator either — the Netac
+  # and the system NVMe are both nominally 256 GB.
+  #
+  # A model that stops matching is a volume that never provisions, which is a
+  # loud failure. A selector that matches too broadly is a wiped disk.
+  diskSelector:
+    match: disk.transport == "sata" && disk.model == "Netac SSD 256GB"
+  # Grow to fill: the disk is Longhorn's and there is nothing to leave room
+  # for. minSize is the sanity guard — the whole disk is ~238 GiB, so anything
+  # that matched the selector and could not satisfy this is the wrong device.
+  minSize: 200GiB
+  grow: true
 filesystem:
   type: xfs
