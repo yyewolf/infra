@@ -23,6 +23,7 @@ resources:
 - platform/barman-plugin/ks.yaml
 - platform/postgres/ks.yaml
 - platform/mysql/ks.yaml
+- platform/talos-backup/ks.yaml
 - platform/booting-up/ks.yaml
 - platform/envoy-proxy/ks.yaml
 - platform/postgres/applications/vaultwarden/ks.yaml

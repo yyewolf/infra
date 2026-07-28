@@ -1,0 +1,29 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: talos-backup
+  namespace: flux-system
+spec:
+  # s3-credentials-sops.yaml is reconciled from git, so Flux needs the PGP key
+  # to decrypt it. Note what is deliberately *not* here: the age private key
+  # that decrypts the snapshots themselves. That lives in
+  # ng/talos/etcd-backup-age-sops-all.yaml, outside ./ng/flux, precisely so no
+  # Kustomization can reach it. Only the public recipient is in this directory.
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-gpg
+  dependsOn:
+    # Only the CNI. The `serviceaccounts.talos.dev` CRD this directory depends
+    # on comes from Talos itself once kubernetesTalosAPIAccess is enabled in
+    # talos/patches/controlplane.yaml, not from another Kustomization — if that
+    # machine config has not been applied, this KS fails on an unknown kind and
+    # no dependsOn can fix it.
+    - name: cilium
+  interval: 10m
+  path: ./ng/flux/platform/talos-backup
+  prune: true
+  retryInterval: 1m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

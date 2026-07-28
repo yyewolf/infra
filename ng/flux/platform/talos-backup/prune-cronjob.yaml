@@ -1,0 +1,110 @@
+# Retention. talos-backup uploads and never deletes, and the obvious place to
+# put this — an S3 lifecycle rule on the bucket — does not exist here: Swiss
+# Backup's S3 layer does not implement the lifecycle subresource. It does not
+# reject it either. `GET /default?lifecycle` returns 200 with a plain
+# ListBucketResult, i.e. the subresource is ignored and the request falls
+# through to a bucket listing, which is Swift s3api behaviour. So a lifecycle
+# rule written against this endpoint would appear to succeed and silently do
+# nothing. Retention is therefore a client-side sweep.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: talos-backup-prune
+spec:
+  # Daily, at 05:40 — deliberately between the 00:00 and 06:00 backup slots, so
+  # a prune never runs while an upload is in flight.
+  schedule: "40 5 * * *"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 3
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: talos-backup-prune
+        spec:
+          restartPolicy: OnFailure
+          automountServiceAccountToken: false
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: prune
+              image: rclone/rclone:1.74.4
+              command:
+                - rclone
+              args:
+                # 7 days. At one snapshot every six hours that is 28 objects.
+                #
+                # The path must track S3_PREFIX and BUCKET in cronjob.yaml. If
+                # they drift, this deletes nothing rather than deleting the
+                # wrong thing — rclone errors on a prefix with no objects — but
+                # a prune that quietly stops working looks identical to one with
+                # nothing to do, so check the job log after changing either.
+                - delete
+                - sb:default/etcd
+                - --min-age
+                - 7d
+                - --retries
+                - "3"
+                - --verbose
+              env:
+                # rclone takes a whole remote definition from the environment,
+                # so there is no config file to mount and no plaintext
+                # credential on disk. `sb` is the remote name; it appears in the
+                # path above.
+                - name: RCLONE_CONFIG_SB_TYPE
+                  value: s3
+                - name: RCLONE_CONFIG_SB_PROVIDER
+                  value: Other
+                - name: RCLONE_CONFIG_SB_ENDPOINT
+                  value: https://s3.swiss-backup02.infomaniak.com
+                - name: RCLONE_CONFIG_SB_REGION
+                  value: us-east-1
+                - name: RCLONE_CONFIG_SB_FORCE_PATH_STYLE
+                  value: "true"
+                - name: RCLONE_CONFIG_SB_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: talos-backup-s3
+                      key: AWS_ACCESS_KEY_ID
+                - name: RCLONE_CONFIG_SB_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: talos-backup-s3
+                      key: AWS_SECRET_ACCESS_KEY
+                # No config file exists at this path; rclone falls back to
+                # defaults plus the remote above. Pointing it inside the tmpfs
+                # keeps it from trying to write to a read-only $HOME.
+                - name: RCLONE_CONFIG
+                  value: /tmp/rclone.conf
+                - name: HOME
+                  value: /tmp
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+              resources:
+                requests:
+                  cpu: 25m
+                  memory: 64Mi
+                limits:
+                  memory: 256Mi
+              volumeMounts:
+                - mountPath: /tmp
+                  name: tmp
+          volumes:
+            # Listing 28 keys needs no room; this exists only because the root
+            # filesystem is read-only.
+            - name: tmp
+              emptyDir:
+                sizeLimit: 64Mi

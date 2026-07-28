@@ -1,0 +1,141 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: talos-backup
+spec:
+  # Every six hours. The upstream sample says every ten minutes, which is sized
+  # for a cluster whose etcd is the only record of its state. This one is
+  # GitOps'd: almost everything in etcd is reconstructible from this repo, and
+  # what is not — the sops-gpg Secret, cert-manager's issued certs, Longhorn's
+  # volume and replica metadata, PVC/PV bindings — changes on the order of days,
+  # not minutes. Four snapshots a day against a metered home uplink and a paid
+  # Swiss Backup quota is the right side of that trade. Tighten it if Longhorn's
+  # metadata ever starts moving faster than the backup window.
+  schedule: "0 */6 * * *"
+  concurrencyPolicy: Forbid
+  # A missed window (node down, uplink out) should be skipped, not stampeded
+  # through on recovery — the next scheduled run is at most six hours away and
+  # captures strictly newer state than the one that was missed.
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 3
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: talos-backup
+        spec:
+          restartPolicy: OnFailure
+          # No nodeSelector on purpose. The talosconfig the controller generates
+          # points at the Service `talos.default:50000`, which is selectorless
+          # and whose EndpointSlices Talos populates with the control-plane node
+          # addresses. Any node can reach it, so the pod is free to land
+          # wherever — edge-0 excepted, which its taint already handles.
+          automountServiceAccountToken: false
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            runAsNonRoot: true
+            fsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: talos-backup
+              image: ghcr.io/siderolabs/talos-backup:v0.1.0-beta.3
+              imagePullPolicy: IfNotPresent
+              command:
+                - /talos-backup
+              workingDir: /tmp
+              env:
+                - name: CLUSTER_NAME
+                  value: ng
+                # s3://default/etcd. `default` is the bucket Swiss Backup
+                # provisions with the account; this is its own tenant
+                # (SBI-TS586867), separate from the postgres and mysql ones, so
+                # the prefix is tidiness rather than isolation — the separation
+                # is already at the credential level.
+                - name: BUCKET
+                  value: default
+                - name: S3_PREFIX
+                  value: etcd
+                - name: CUSTOM_S3_ENDPOINT
+                  value: https://s3.swiss-backup02.infomaniak.com
+                # Path-style, so every request goes to that one host with the
+                # bucket in the path. This is also what lets the network policy
+                # below name a single FQDN instead of opening a wildcard.
+                - name: USE_PATH_STYLE
+                  value: "true"
+                # Swiss Backup signs with us-east-1, as the account page states.
+                # A wrong region produces a SignatureDoesNotMatch that reads like
+                # bad credentials rather than like a misconfiguration.
+                - name: AWS_REGION
+                  value: us-east-1
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: talos-backup-s3
+                      key: AWS_ACCESS_KEY_ID
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: talos-backup-s3
+                      key: AWS_SECRET_ACCESS_KEY
+                # The age recipient. Public by construction, so it belongs here
+                # in plaintext — it is the same string as
+                # talos/etcd-backup-age.pub, and its private half is in
+                # talos/etcd-backup-age-sops-all.yaml and must never reach this
+                # cluster. This job can write backups it cannot read.
+                #
+                # Comma-separated for multiple recipients; any one private key
+                # decrypts the snapshot. Add a second before trusting this.
+                - name: AGE_RECIPIENT_PUBLIC_KEY
+                  value: age1lkzt97wnlc70pnrjyxkv3k63dtflw5s5u92xdmzq30rzrwq8xg8syexwu7
+                # zstd before encryption. The bottleneck is bytes leaving a home
+                # uplink, not CPU on a control-plane node for a few seconds
+                # every six hours. Compressing after encryption would do
+                # nothing, which is why the order is not configurable.
+                - name: ENABLE_COMPRESSION
+                  value: "true"
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  memory: 512Mi
+              volumeMounts:
+                # The snapshot is written here, then compressed, encrypted and
+                # uploaded. It is the full etcd database, so it needs real room.
+                - mountPath: /tmp
+                  name: tmp
+                # The client library insists on a writable ~/.talos even though
+                # the config is mounted read-only elsewhere.
+                - mountPath: /.talos
+                  name: talos
+                - mountPath: /var/run/secrets/talos.dev
+                  name: talos-secrets
+                  readOnly: true
+          volumes:
+            # sizeLimit rather than unbounded: this is emptyDir on EPHEMERAL,
+            # the same filesystem as container images and logs, and a runaway
+            # temp file there takes the kubelet down with it.
+            - name: tmp
+              emptyDir:
+                sizeLimit: 4Gi
+            - name: talos
+              emptyDir:
+                sizeLimit: 1Mi
+            # Written by the Talos controller from serviceaccount.yaml. If this
+            # Secret does not exist the pod stays Pending on the volume — check
+            # allowedKubernetesNamespaces in the controlplane patch first.
+            - name: talos-secrets
+              secret:
+                secretName: talos-backup-secrets

@@ -1,5 +1,29 @@
 # Applied to control-plane nodes only.
 
+machine:
+  features:
+    # Lets a pod hold a Talos API credential. Talos registers the
+    # `serviceaccounts.talos.dev` CRD, and for each ServiceAccount in an allowed
+    # namespace writes a Secret holding a talosconfig scoped to the roles it
+    # asks for. It also creates the selectorless `talos` Service in `default`
+    # (port 50000) and keeps its EndpointSlices pointing at the control-plane
+    # node addresses, which is how the pod finds apid without a nodeSelector.
+    #
+    # Control-plane only: Talos rejects this key on a worker.
+    kubernetesTalosAPIAccess:
+      enabled: true
+      # The only role granted anywhere. It can take an etcd snapshot and
+      # nothing else — no machine config, no reboot, no upgrade. Adding a role
+      # here widens what *every* allowed namespace can ask for, so it is not a
+      # list to grow casually.
+      allowedRoles:
+        - os:etcd:backup
+      # Namespaces whose ServiceAccount resources the controller will honour. A
+      # request from anywhere else is ignored silently — the Secret is simply
+      # never created and the consuming pod hangs on a missing volume.
+      allowedKubernetesNamespaces:
+        - talos-backup
+
 cluster:
   network:
     # Cilium replaces both of these, so Talos must not install its own. The

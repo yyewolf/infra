@@ -1,0 +1,82 @@
+# Two policies, because two workloads live here and only one of them has any
+# business holding a Talos API credential. Cilium unions the egress rules of
+# every policy selecting an endpoint, so the baseline below plus the Talos rule
+# is what the backup pod gets; the prune pod matches only the baseline.
+#
+# Cilium's default-deny is per-direction and per-endpoint, so both directions
+# are spelled out.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: talos-backup
+spec:
+  # Namespace-wide: everything here needs DNS and needs to reach the bucket.
+  endpointSelector: {}
+  ingress:
+  # Nothing needs to reach these pods — no ports, no probes. This rule exists to
+  # put the endpoints into ingress default-deny at all (a policy with no ingress
+  # section leaves ingress unrestricted) while still admitting the node, which
+  # is the one thing that legitimately talks to a pod it runs.
+  - fromEntities:
+    - host
+  egress:
+  # DNS. The `rules.dns` matcher is what makes the toFQDNs rule below work:
+  # Cilium learns a name's addresses by inspecting DNS answers as they pass, so
+  # without L7 visibility here the FQDN entry never populates and every upload
+  # is dropped while the name still resolves fine from inside the pod. This must
+  # stay the only DNS egress rule — a second, plain allow to kube-dns alongside
+  # it lets lookups bypass inspection and reintroduces that bug.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+      rules:
+        dns:
+        - matchPattern: "*"
+  # Infomaniak Swiss Backup: the upload for one workload, the sweep for the
+  # other. Scoped to the one hostname rather than opening `world` — path-style
+  # addressing means every request goes to this exact host with the bucket in
+  # the path, so a single name covers it.
+  - toFQDNs:
+    - matchName: "s3.swiss-backup02.infomaniak.com"
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP
+---
+# The Talos API, granted to the backup pod alone. Kept out of the baseline on
+# purpose: the prune job only ever talks to S3, and there is no reason for a
+# container running a third-party binary over the whole bucket to also be able
+# to reach apid.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: talos-backup-api
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: talos-backup
+  egress:
+  # The pod dials the ClusterIP of `talos` in the `default` namespace, but that
+  # Service is selectorless — Talos fills its EndpointSlices with the
+  # control-plane *node* addresses. Since socket-LB is off in this cluster the
+  # translation happens in the tc datapath, so by the time policy is evaluated
+  # the destination is a node identity, not a pod one. Hence entities rather
+  # than toEndpoints or toServices: `host` when the pod happens to run on the
+  # node it picked, `remote-node` for the other two.
+  #
+  # Port 50000 is apid. What can be done through it is bounded by the role on
+  # the talosconfig (os:etcd:backup), not by this rule.
+  - toEntities:
+    - host
+    - remote-node
+    toPorts:
+    - ports:
+      - port: "50000"
+        protocol: TCP
