@@ -1,0 +1,161 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: descheduler
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: descheduler
+      version: "0.36.0"
+      sourceRef:
+        kind: HelmRepository
+        name: descheduler
+      interval: 12h
+  values:
+    # A CronJob, not a Deployment: rebalancing is not latency-sensitive and a
+    # one-shot pod every 30 minutes costs nothing between runs. Deployment mode
+    # would also want leader election to stay safe at more than one replica.
+    kind: CronJob
+    schedule: "*/30 * * * *"
+    successfulJobsHistoryLimit: 1
+    failedJobsHistoryLimit: 3
+    ttlSecondsAfterFinished: 600
+    # Shorter than the interval, so a wedged run cannot overlap the next one.
+    activeDeadlineSeconds: 600
+
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        # Explicit null, because Helm merges maps: the chart ships a 500m CPU
+        # limit and leaving it out inherits it rather than dropping it. Memory
+        # limits only, like every other release here — a CPU limit on a job that
+        # walks every node and pod just makes the run longer.
+        cpu: null
+        memory: 256Mi
+
+    # The chart's container securityContext already satisfies `baseline`, which
+    # is what Talos enforces cluster-wide; this is the one field `restricted`
+    # additionally wants and the chart leaves unset, so the pod stops emitting
+    # an admission warning on every run.
+    podSecurityContext:
+      seccompProfile:
+        type: RuntimeDefault
+
+    deschedulerPolicyAPIVersion: "descheduler/v1alpha2"
+    deschedulerPolicy:
+      # Only the three LAN nodes are balanced against each other. edge-0 carries
+      # `edge-0=true:NoSchedule` and exists to terminate ingress; treating it as
+      # a candidate would make it look permanently under-utilised and every
+      # eviction aimed at it would then be discarded by nodeFit anyway.
+      nodeSelector: "node-role.kubernetes.io/control-plane"
+
+      # Rate limits, per run. Convergence takes a few runs instead of one, which
+      # is the point: a bad policy change moves a handful of pods before the
+      # next `flux reconcile`, not the whole cluster.
+      maxNoOfPodsToEvictTotal: 5
+      maxNoOfPodsToEvictPerNode: 2
+      maxNoOfPodsToEvictPerNamespace: 1
+
+      profiles:
+      - name: balance
+        pluginConfig:
+        - name: DefaultEvictor
+          args:
+            # Never evict a pod that has nowhere to go. Without this the
+            # descheduler happily turns a running pod into a Pending one.
+            nodeFit: true
+            # Give the scheduler's own placement a chance to settle before
+            # second-guessing it, and keep short-lived CI pods out of scope.
+            minPodAge: 10m
+            podProtections:
+              extraEnabled:
+              # The databases, and everything else holding a Longhorn
+              # volume. Postgres uses `longhorn-yolo` (strict-local, one
+              # replica), so its PV is pinned to a node and an eviction
+              # buys no balance at all — it just restarts the instance,
+              # and on the primary that is a failover. The chart's own
+              # default enables the opposite of this; do not copy it.
+              - PodsWithPVC
+            # PodsWithLocalStorage stays enabled (a chart default this file
+            # deliberately does not disable): woodpecker step containers get
+            # an emptyDir tmpfs at /var/lib/docker from the
+            # `woodpecker-docker-tmpfs` policy, and they are bare pods with
+            # no owner, so eviction is a failed build with no retry.
+
+            # Belt and braces on top of PodsWithPVC, and the part that says
+            # out loud what the rule is: no CNPG or CNMSQL instance pod is
+            # ever an eviction candidate. Labels checked against the running
+            # pods in the `postgres` and `mysql` namespaces.
+            labelSelector:
+              matchExpressions:
+              - key: cnpg.io/cluster
+                operator: DoesNotExist
+              - key: mysql.cnmsql.co/cluster
+                operator: DoesNotExist
+
+        - name: LowNodeUtilization
+          args:
+            # Deviation mode: the thresholds are percentage points away from
+            # the cluster *average*, not absolute utilisation. That is what
+            # "balance the cluster" actually means here — with absolute
+            # thresholds a lightly loaded cluster sits below the low water
+            # mark on every node and nothing is ever rebalanced.
+            #
+            # A node more than 10 points below average is a destination; a
+            # node more than 10 points above it is drained towards those.
+            # Utilisation is measured from pod *requests*, which is what the
+            # scheduler packs against. Switching to real usage means adding
+            # `metricsUtilization: {source: KubernetesMetrics}` here plus a
+            # top-level `metricsProviders`, and a dependsOn metrics-server
+            # in ks.yaml.
+            useDeviationThresholds: true
+            thresholds:
+              cpu: 10
+              memory: 10
+              pods: 10
+            targetThresholds:
+              cpu: 10
+              memory: 10
+              pods: 10
+            evictionLimits:
+              node: 2
+
+        - name: RemoveDuplicates
+
+        - name: RemovePodsViolatingNodeAffinity
+          args:
+            nodeAffinityType:
+            - requiredDuringSchedulingIgnoredDuringExecution
+
+        - name: RemovePodsViolatingInterPodAntiAffinity
+
+        - name: RemovePodsViolatingTopologySpreadConstraint
+
+        plugins:
+          balance:
+            enabled:
+            - RemoveDuplicates
+            - RemovePodsViolatingTopologySpreadConstraint
+            - LowNodeUtilization
+          deschedule:
+            enabled:
+            - RemovePodsViolatingNodeAffinity
+            - RemovePodsViolatingInterPodAntiAffinity
+          # RemovePodsViolatingNodeTaints is deliberately absent. `kubectl
+          # cordon` is a `node.kubernetes.io/unschedulable:NoSchedule` taint
+          # that nothing tolerates, and the descheduler does not skip cordoned
+          # nodes when picking *sources* — only when picking destinations. So
+          # enabling it turns every cordon into an unattended drain, including
+          # the one `talos.sh upgrade` takes. RemovePodsHavingTooManyRestarts
+          # is out for a different reason: it is crashloop remediation, not
+          # balance, and it papers over the crash.
+
+    # No Service and no ServiceMonitor — nothing scrapes this cluster yet, and
+    # both would need a network policy hole for callers that do not exist.
+    service:
+      enabled: false
+    serviceMonitor:
+      enabled: false
