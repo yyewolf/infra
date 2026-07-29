@@ -1,0 +1,28 @@
+# Kata Containers: the capability label, and nothing else.
+#
+# The extension registers its own containerd handlers, so unlike gVisor kata
+# needs no machine config to function. This file exists purely so that the node
+# advertising "I can run kata" is the same config that puts kata on it.
+#
+# That matters as of w-1. The kata and kata-qemu RuntimeClasses used to select
+# `node-role.kubernetes.io/control-plane`, which worked only while the set of
+# nodes carrying the extension and the set of control-plane nodes happened to be
+# identical. w-1 is a worker with kata, so the role selector is now simply
+# wrong: it would keep every kata pod off the one worker that can run them.
+#
+# The alternative — widening the selector to all nodes — is worse. edge-0 has no
+# kata extension and no nested virtualization, and a pod admitted to a node with
+# no kata handler does not fall back to runc, it fails at the kubelet with a
+# RunContainerError that names nothing useful.
+#
+# So this follows the pattern patches/sysbox.yaml already established and argues
+# for in its own comment: a label set by the same patch that installs the
+# extension cannot drift out of sync with reality, whereas a role selector
+# silently can — during a rollout, or the day a fourth control-plane node is
+# added without kata.
+#
+# Listing this patch on a node without siderolabs/kata-containers in its
+# extensions would advertise a handler that is not there. The two go together.
+machine:
+  nodeLabels:
+    yewolf.fr/kata: "true"

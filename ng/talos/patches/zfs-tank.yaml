@@ -1,0 +1,93 @@
+# The node that carries the ZFS tank, and the Longhorn pool that lives on it.
+#
+# Named for the function, not the node, like every other file here — but there
+# is exactly one such node (w-1) and the disk layout below assumes its pool.
+# A second tank node would share this file only if it had the same pool name.
+#
+# Unlike patches/longhorn.yaml, this file declares no VolumeConfig or
+# UserVolumeConfig. Those provision and format Talos-managed partitions, and
+# the tank is neither: it is a pre-existing 4-wide raidz1 in an external
+# enclosure (~15.7 TiB usable), imported by the zfs extension's own
+# ext-zfs-service. Talos must not be given the chance to think it
+# owns those disks — the installer's diskSelector must never match a pool
+# member, and the cheapest way to guarantee that is to unplug the enclosure
+# for the install.
+#
+# OpenZFS versions run the safe direction, but only in one direction. The pool
+# was created under 2.3.2; Talos v1.13 ships 2.4.0, which reads every feature
+# 2.3.2 has active. Import is therefore fine. What is NOT fine is running
+# `zpool upgrade` afterwards: that activates 2.4 features and the pool stops
+# being importable by 2.3.2, which is the rollback path to the old OS. Do not
+# upgrade the pool until the migration is no longer something you might undo.
+#
+# This file is safe to apply on a node with no pool attached, which is what
+# makes it the one listed for the first join. It loads a module and declares a
+# bind mount; neither fails if /var/mnt/tank is empty.
+#
+# Its other half is patches/zfs-tank-longhorn.yaml, which registers the pool
+# with Longhorn and is NOT safe to apply early — see the ordering trap
+# documented there. Both files end up in this node's 'patches:' list, but they
+# are added to it at different times.
+#
+# PREREQUISITES, and they must be done on the node's *old* OS, before it is
+# re-imaged. Talos has no shell — changing a pool property afterwards means
+# standing up a privileged pod and nsenter-ing into the host namespace, so
+# anything forgotten here is expensive rather than impossible:
+#
+#   # ZFS cannot mount at /tank: Talos' root filesystem is read-only outside
+#   # /var, so the mountpoint directory cannot be created. /var/mnt is where
+#   # Talos already puts user volumes and is writable.
+#   zfs set mountpoint=/var/mnt/tank tank
+#
+#   # The importer chokes on pools carrying these.
+#   zfs set sharenfs=off tank
+#   zfs set sharesmb=off tank
+#
+#   # Longhorn gets its own dataset, not a directory in an existing one, so
+#   # its record size and its budget can be set independently of the bulk
+#   # data sharing the pool.
+#   #
+#   # recordsize=64K: Longhorn's replicas are sparse images written with small
+#   # random I/O. Against the 128K default every such write becomes a
+#   # read-modify-write of a full record — COW inside COW, which fragments the
+#   # pool and costs write bandwidth for nothing.
+#   #
+#   # quota is the real budget, which is why storageReserved below is 0. On a
+#   # shared COW pool Longhorn's own accounting is unreliable — it reads
+#   # statfs, and free space on ZFS moves with snapshots and compression of
+#   # data Longhorn knows nothing about. A dataset quota is reported through
+#   # statfs as the filesystem size, so Longhorn sees exactly the quota and cannot
+#   # scribble into the media library by miscounting. Raise it here, not in
+#   # the annotation.
+#   zfs create -o recordsize=64K -o quota=12T tank/longhorn
+#
+#   # Verify it re-imports cleanly by device id before wiping the OS disk. A
+#   # pool that only imports by /dev/sdX is a pool that will not come back.
+#   zpool export tank && zpool import -d /dev/disk/by-id tank
+
+machine:
+  # The extension ships zfs.ko but does not load it. Without this the module
+  # sits on the filesystem unloaded, ext-zfs-service finds no pools, and the
+  # node boots healthy with an empty /var/mnt/tank — which fails as a missing
+  # directory at pod start rather than as anything that names ZFS.
+  kernel:
+    modules:
+      - name: zfs
+
+  kubelet:
+    # Same reason as patches/longhorn.yaml: the kubelet runs in its own mount
+    # namespace and would otherwise see an empty directory here, reporting the
+    # EPHEMERAL filesystem's free space for the pool.
+    #
+    # 'rshared' propagates the mounts Longhorn creates underneath this path
+    # (one per attached volume) back to the host and into the pods that asked
+    # for them. It is also what the hostPath PVs migrated from the root cluster
+    # will need, since they address the same tree.
+    extraMounts:
+      - destination: /var/mnt/tank
+        type: bind
+        source: /var/mnt/tank
+        options:
+          - bind
+          - rshared
+          - rw

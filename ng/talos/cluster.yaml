@@ -126,6 +126,7 @@ nodes:
     - ghcr.io/yyewolf/talos-sysbox-extension@sha256:e92ae18c8efdd4eff53369a6aa34949809b598d803ae3485a0e8c2f6563aa78e
     patches:
     - gvisor.yaml
+    - kata.yaml
     - longhorn.yaml
     # After gvisor.yaml, which raises user.max_user_namespaces — sysbox needs it.
     - sysbox.yaml
@@ -140,6 +141,7 @@ nodes:
     - ghcr.io/yyewolf/talos-sysbox-extension@sha256:e92ae18c8efdd4eff53369a6aa34949809b598d803ae3485a0e8c2f6563aa78e
     patches:
     - gvisor.yaml
+    - kata.yaml
     - longhorn.yaml
     - sysbox.yaml
   cp-2:
@@ -153,6 +155,7 @@ nodes:
     - ghcr.io/yyewolf/talos-sysbox-extension@sha256:e92ae18c8efdd4eff53369a6aa34949809b598d803ae3485a0e8c2f6563aa78e
     patches:
     - gvisor.yaml
+    - kata.yaml
     - longhorn.yaml
     - sysbox.yaml
 
@@ -186,3 +189,69 @@ nodes:
     dhcp6: true
     wireguard:
       peer: home-router-0
+
+  # The storage node. Bare metal on the LAN like cp-0/1/2, but a plain worker:
+  # etcd is already three-way and this box is here for its disks, not its vote.
+  #
+  # This is physically the machine the root cluster called `home1`. It is named
+  # w-1 here to match the rest of ng, but the node LABEL stays `location: home1`
+  # — that names a place, not a host, and every hostPath PV migrated off the old
+  # cluster selects on it. Renaming the label means editing every one of them.
+  #
+  # It carries a pre-existing ZFS pool — four 6 TB SAS drives (ST6000NM0034 /
+  # 0095) as a 4-wide raidz1 in an external enclosure, ~15.7 TiB usable. Talos
+  # does not own that pool: it is imported by the zfs extension's own
+  # ext-zpool-importer service, which is why there is no UserVolumeConfig for it
+  # the way patches/longhorn.yaml declares one for cp-0/1/2's Netac. See
+  # patches/zfs-tank.yaml for the mount and the kubelet bind.
+  #
+  # Carries all three sandboxes, like cp-0/1/2. The CPU is an AMD Ryzen 5 3600
+  # and reports svm, so kata has the hardware virtualization it needs — that is
+  # a precondition, not a formality: the extension installs happily on a host
+  # without it and then fails when a pod actually asks for the runtime.
+  #
+  # Adding these made the RuntimeClasses' old `node-role.kubernetes.io/
+  # control-plane` selector wrong rather than merely fragile, because this is a
+  # worker. kata, kata-qemu and gvisor now select capability labels instead
+  # (`yewolf.fr/kata`, `yewolf.fr/gvisor`), set by patches/kata.yaml and
+  # patches/gvisor.yaml — the pattern patches/sysbox.yaml already used and
+  # argued for. The point is that the config which installs an extension is also
+  # the config that advertises it, so the two cannot drift apart. Widening the
+  # selector to all nodes would have been the wrong fix: edge-0 has none of
+  # these, and a pod admitted to a node with no handler fails at the kubelet
+  # rather than falling back to runc.
+  #
+  # patches/kata.yaml carries no config beyond that label — the kata extension
+  # registers its own containerd handlers. gvisor.yaml still carries the sysctl
+  # and CRI handler it always did, and must come before sysbox.yaml, which needs
+  # the raised user.max_user_namespaces.
+  #
+  # One thing adding kata here does NOT settle: Home Assistant is privileged in
+  # order to reach a USB Zigbee dongle, and kata cannot pass USB through. It
+  # does not satisfy require-kata-for-privileged in the way it looks like it
+  # should — HA on this node still needs a Kyverno exemption.
+  #
+  # patches/zfs-tank-longhorn.yaml is NOT in this list yet, and that is the
+  # whole reason it is a separate file. Longhorn reads its default-disk
+  # annotation exactly once, when it first registers the node; the enclosure is
+  # unplugged for the install, so on first boot /var/mnt/tank/longhorn does not
+  # exist and registering against it would produce nothing that re-applying can
+  # retry. Reattach the enclosure, reboot, confirm the pool mounted, then add
+  # the second patch and re-render.
+  w-1:
+    type: worker
+    address: 10.200.0.14
+    address6: fdde:c64:7096::14
+    extensions:
+    - siderolabs/zfs
+    - siderolabs/kata-containers
+    - siderolabs/gvisor
+    custom_extensions:
+    - ghcr.io/yyewolf/talos-sysbox-extension@sha256:e92ae18c8efdd4eff53369a6aa34949809b598d803ae3485a0e8c2f6563aa78e
+    patches:
+    - zfs-tank.yaml
+    - zfs-tank-longhorn.yaml
+    - gvisor.yaml
+    - kata.yaml
+    # After gvisor.yaml, which raises user.max_user_namespaces — sysbox needs it.
+    - sysbox.yaml

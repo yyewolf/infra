@@ -26,4 +26,4 @@ overhead:
     memory: 64Mi
 scheduling:
   nodeSelector:
-    node-role.kubernetes.io/control-plane: ""
+    yewolf.fr/gvisor: "true"

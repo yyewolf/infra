@@ -1,0 +1,39 @@
+# Hardware facts for w-1, the storage node. Addressing is not here — talos.sh
+# derives that from cluster.yaml.
+#
+# The machine is the box that was `home1` in the root cluster. The node is named
+# w-1 here to match cp-0/1/2 and edge-0, but the `location: home1` LABEL it will
+# carry is unchanged — that is a place, not a hostname, and every migrated
+# hostPath PV selects on it.
+#
+# Selected by SERIAL, not by /dev/nvme0n1, and on this machine that is not a
+# style preference. `talos.sh disks` on the maintenance-mode node showed:
+#
+#   nvme0n1  512 GB  nvme  KPART512GBC2DVT   SZSM32042600014624   <- the target
+#   sda       31 GB  usb   Ultra USB 3.0                          <- the installer
+#   sdb      2.0 TB  sata  ORICO-2TB         0027615003122        <- data, keep
+#   sdc-sdf  6.0 TB  sas   ST6000NM0034/0095                      <- the tank
+#
+# Six disks that must not be written to, four of which are raidz1 members
+# holding the only copy of most of this infrastructure's data. Kernel device
+# names are assigned in enumeration order and move: unplug the USB key and
+# sdb..sdf shift, and /dev/sdX in a config file silently means a different
+# platter than it did last boot. A serial does not move.
+#
+# `diskSelector` takes priority over `disk` when both are set, so this file sets
+# only the selector — cp-0/1/2 still use the older `disk:` form and are left
+# alone rather than churned during a migration.
+#
+# Two criteria, and Talos requires ALL of them to match. That is deliberate: if
+# the serial is ever wrong the selector matches nothing and the install refuses,
+# which is the loud failure. A selector that matches too broadly is a wiped
+# disk — the same trade patches/longhorn.yaml calls out for the Netac.
+#
+# The tank enclosure is unplugged for the install anyway. This is the second
+# lock, for the reinstall months from now when it is not.
+machine:
+  install:
+    diskSelector:
+      # 512 GB KPART512GBC2DVT. Exact match, from /sys/block/nvme0n1/serial.
+      serial: SZSM32042600014624
+      type: nvme

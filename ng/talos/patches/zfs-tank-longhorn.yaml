@@ -1,0 +1,60 @@
+# Registers the tank's Longhorn dataset as a disk on this node. The second half
+# of patches/zfs-tank.yaml, split out because the two cannot be applied at the
+# same moment.
+#
+# ORDERING TRAP, and it is the reason this file exists separately:
+#
+# Longhorn reads node.longhorn.io/default-disks-config exactly ONCE, when it
+# first registers the node. The upstream docs are explicit that the annotation
+# "only takes effect when there are no existing disks or tags on the node", that
+# Longhorn "will not keep the node disks in sync ... after the default disks
+# have been created", and that a configuration failing validation is ignored
+# whole rather than partially.
+#
+# The enclosure is unplugged during the Talos install (the installer must not be
+# able to match a pool member), so on this node's first boot /var/mnt/tank does
+# not exist and neither does the dataset under it. Registering then would point
+# Longhorn at a path that is not there, and no amount of re-applying this file
+# afterwards retries it — recovery is hand-editing the nodes.longhorn.io object
+# on a node that has no shell.
+#
+# So this file joins the node's 'patches:' list only after:
+#
+#   1. the node has installed and joined with zfs-tank.yaml alone,
+#   2. the enclosure is plugged back in and the node has been REBOOTED
+#      (ext-zfs-service runs at boot; a pool that appears afterwards is not
+#      imported until the next one), and
+#   3. `talosctl -n <w-1> ls /var/mnt/tank` shows the datasets, and
+#      /var/mnt/tank/longhorn exists.
+#
+# See README.md, "Adding the tank node".
+
+machine:
+  # 'config' means "use the annotation" rather than defaultDataPath. Paired with
+  # createDefaultDiskLabeledNodes in the Longhorn HelmRelease, a node without
+  # this label gets no disks at all — which is precisely what keeps the first
+  # boot above harmless.
+  nodeLabels:
+    node.longhorn.io/create-default-disk: config
+    # Also required, and easy to miss: this is what the Longhorn chart's
+    # nodeSelector matches. Without it no longhorn-manager runs here, and with
+    # no manager Longhorn never creates a nodes.longhorn.io object for the node
+    # — so the disk annotation above is read by nobody and `big-pool` resolves
+    # to nothing. The symptom is `nodes.longhorn.io "w-1" not found`, which
+    # looks like a disk problem and is not.
+    yewolf.fr/longhorn: "true"
+
+  # One disk, one tag. 'bigpool' is what the big-pool StorageClass selects on,
+  # and no other node carries it — that is what makes the class resolve here and
+  # nowhere else.
+  #
+  # storageReserved is 0 because the budget is the dataset's ZFS quota, not this
+  # number. On a shared copy-on-write pool Longhorn's own accounting drifts: it
+  # reads statfs, and free space moves with snapshots and compression of data
+  # Longhorn knows nothing about. A quota is reported through statfs as the
+  # filesystem size, so Longhorn sees a fixed disk and cannot miscount its way
+  # into the media library. Resize with `zfs set quota=`, not by editing here —
+  # this annotation is inert after registration.
+  nodeAnnotations:
+    node.longhorn.io/default-disks-config: |-
+      [{"path":"/var/mnt/tank/longhorn","allowScheduling":true,"storageReserved":0,"tags":["bigpool"]}]

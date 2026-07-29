@@ -61,6 +61,15 @@ machine:
   # kubectl patch away from it.
   nodeLabels:
     node.longhorn.io/create-default-disk: config
+    # What the chart's nodeSelector matches (see flux/infrastructure/longhorn/
+    # release.yaml). Longhorn's manager, driver and UI run only on nodes with
+    # this, and it is set here — beside the disks — so a node cannot claim to be
+    # part of Longhorn without also having been given somewhere to put data.
+    #
+    # It replaced a `node-role.kubernetes.io/control-plane` selector, which was
+    # the same set of nodes right up until w-1 joined as a worker holding the
+    # ZFS tank.
+    yewolf.fr/longhorn: "true"
   nodeAnnotations:
     node.longhorn.io/default-disks-config: |-
       [{"path":"/var/mnt/longhorn","allowScheduling":true,"storageReserved":0,"tags":["nvme"]},

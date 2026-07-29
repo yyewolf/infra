@@ -67,23 +67,41 @@ spec:
       # file, from the two beside it.
       createStorageClass: false
 
-    # Pin every user-deployed component to the LAN hosts. edge-0's
-    # `edge-0=true:NoSchedule` taint already keeps them off it — nothing here
-    # tolerates it — but that is a property of the *node*, and an untainted
-    # worker added later would silently become a storage node with no partition
-    # carved for it. The selector is what actually states the intent.
+    # Pin every user-deployed component to the nodes that are deliberately part
+    # of Longhorn. edge-0's `edge-0=true:NoSchedule` taint already keeps them off
+    # it — nothing here tolerates it — but that is a property of the *node*, and
+    # an untainted worker added later would silently become a storage node with
+    # no partition carved for it. The selector is what actually states the intent.
+    #
+    # That intent used to be spelled `node-role.kubernetes.io/control-plane`,
+    # which was the same set only while every storage node happened to also run
+    # etcd. w-1 broke that: a worker holding the ZFS tank, and therefore the one
+    # node in the cluster that most needs a manager. The role selector did not
+    # merely fail to include it — it made Longhorn unaware the node existed at
+    # all, since `nodes.longhorn.io` objects are created by the manager.
+    #
+    # A capability label keeps the guard the comment above describes while
+    # letting a storage node be chosen on purpose: it is set by the same patches
+    # that carve the disk (patches/longhorn.yaml for cp-0/1/2,
+    # patches/zfs-tank-longhorn.yaml for w-1), so a node cannot advertise
+    # Longhorn without also having been given somewhere to put the data. A
+    # worker added later still gets nothing by default.
+    #
+    # CHANGING THIS IS ORDER-SENSITIVE. The label must exist on the nodes before
+    # this selector reaches the cluster; reconcile it first and every manager is
+    # evicted at once, taking the CSI plugin and every attached volume with it.
     #
     # System-managed components (instance managers, the CSI plugin) follow the
     # manager: Longhorn only places them on nodes where a manager is running.
     longhornManager:
       nodeSelector:
-        node-role.kubernetes.io/control-plane: ""
+        yewolf.fr/longhorn: "true"
     longhornDriver:
       nodeSelector:
-        node-role.kubernetes.io/control-plane: ""
+        yewolf.fr/longhorn: "true"
     longhornUI:
       nodeSelector:
-        node-role.kubernetes.io/control-plane: ""
+        yewolf.fr/longhorn: "true"
 
     # Plain NetworkPolicy objects shaped for k3s/rke. This cluster expresses
     # policy as CiliumNetworkPolicy — see network-policy.yaml.

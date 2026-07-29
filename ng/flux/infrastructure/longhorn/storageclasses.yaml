@@ -219,3 +219,78 @@ parameters:
   disableRevisionCounter: "true"
   dataEngine: "v1"
   backupTargetName: "default"
+---
+# Bulk capacity from the ZFS tank on w-1, attachable from any node.
+#
+# The fourth pool, and the only one that is not on every storage node: `bigpool`
+# is a single 12 TiB-quota dataset on w-1's raidz1 (see
+# ng/talos/patches/zfs-tank.yaml). Everything above spreads across cp-0/1/2;
+# this one exists on exactly one machine and is reachable from the others the
+# way any Longhorn v1 volume is — the engine runs on the node the pod landed
+# on and talks to the replica over TCP. Nothing here pins a workload to w-1.
+#
+# numberOfReplicas: 1 is not a durability choice, it is arithmetic — one node
+# carries the tag, so a second replica has nowhere to go and asking for one
+# leaves every volume permanently Degraded. The redundancy is real but it is
+# underneath Longhorn, not in it: raidz1 survives a disk. It does not survive
+# the machine, and it is not a backup.
+#
+# dataLocality is 'disabled', and this is the one parameter that must not be
+# changed:
+#
+#   - strict-local writes a nodeAffinity onto every PV pinning its pod to
+#     w-1, which destroys the only property this class exists to provide.
+#     A PV's nodeAffinity is immutable, so that mistake is not repairable by
+#     editing this file — it is repairable by recreating the volumes.
+#   - best-effort would have Longhorn try to keep a replica on whichever node
+#     the pod runs. No other disk carries `bigpool`, so it can never succeed;
+#     setting it would imply a guarantee that is not coming from this knob.
+#
+# For the same reason, do not add allowedTopologies.
+#
+# Two consequences that are the price of a one-node pool, both deliberate:
+#
+#   - w-1 going down takes every big-pool volume with it, cluster-wide,
+#     including on nodes that are perfectly healthy. Elsewhere a node failure
+#     costs you the pods on that node; here it costs you the class.
+#   - w-1 cannot be drained while any big-pool volume exists. Longhorn's
+#     node-drain-policy is block-if-contains-last-replica and with one replica
+#     w-1 always holds the last one, so `talos.sh upgrade w-1` hits the
+#     same instance-manager eviction refusal documented for longhorn-yolo in
+#     ng/talos/talos.sh — but for every volume on this class at once.
+#
+# What this class is NOT for, and both are load-bearing:
+#
+#   - The data already on the tank. Longhorn owns its on-disk layout — volumes
+#     are opaque sparse images under <disk>/replicas/ — so it cannot be pointed
+#     at /var/mnt/tank/servarr and serve that. Existing bulk data stays as
+#     hostPath PVs with `location: home1` nodeAffinity. The two mechanisms
+#     share the pool and do different jobs.
+#   - Multi-writer workloads. This is RWO. Longhorn implements RWX by spawning
+#     a share-manager pod that re-exports the volume over NFS, which for
+#     something like the servarr stack means NFS on top of sparse files on top
+#     of ZFS to reach what is already a plain directory. Serve those from an
+#     NFS pod with a hostPath instead — one layer rather than three.
+#
+# Reads and writes cross the LAN. On 1GbE that is a ~110 MB/s ceiling per
+# volume, which is fine for media and wrong for anything latency-bound; the
+# databases have longhorn-yolo for that reason.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: big-pool
+provisioner: driver.longhorn.io
+allowVolumeExpansion: true
+reclaimPolicy: Retain
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  numberOfReplicas: "1"
+  dataLocality: "disabled"
+  diskSelector: "bigpool"
+  staleReplicaTimeout: "30"
+  fromBackup: ""
+  fsType: "ext4"
+  unmapMarkSnapChainRemoved: "ignored"
+  disableRevisionCounter: "true"
+  dataEngine: "v1"
+  backupTargetName: "default"

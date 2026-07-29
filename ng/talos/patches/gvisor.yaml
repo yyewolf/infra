@@ -59,3 +59,14 @@ machine:
           # boundary on the network side — the syscall boundary is unaffected —
           # so it belongs to this handler only, never to the stock 'runsc'.
           allow-packet-socket-write = "true"
+
+  nodeLabels:
+    # What the gvisor RuntimeClass selects on, for the same reason
+    # patches/sysbox.yaml gives: a label set by the patch that installs the
+    # extension cannot disagree with which nodes actually have it, whereas the
+    # control-plane role selector this replaced silently could.
+    #
+    # It became wrong rather than merely fragile when w-1 joined — a worker with
+    # gVisor, which the role selector would have excluded from every gvisor pod
+    # while still admitting nothing to edge-0, which has no runsc at all.
+    yewolf.fr/gvisor: "true"

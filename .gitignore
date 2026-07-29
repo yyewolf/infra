@@ -92,3 +92,5 @@ kubeconfig.yaml
 # home assistant encrypted passwords
 passwords
 kubeconfig
+
+migrate/
