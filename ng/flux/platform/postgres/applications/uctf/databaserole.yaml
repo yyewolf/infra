@@ -1,0 +1,28 @@
+# The role names match what the dumps were taken under (`uctf` owns basilic's
+# schema, `safran` its own), so the restored objects land on an owner that
+# already exists rather than on `postgres`.
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: uctf
+  namespace: postgres
+spec:
+  cluster:
+    name: postgres
+  name: uctf
+  login: true
+  passwordSecret:
+    name: uctf-db-credentials
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: safran
+  namespace: postgres
+spec:
+  cluster:
+    name: postgres
+  name: safran
+  login: true
+  passwordSecret:
+    name: safran-db-credentials

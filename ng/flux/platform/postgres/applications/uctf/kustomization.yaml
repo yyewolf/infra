@@ -1,0 +1,17 @@
+# One directory for two databases, unlike every other app under
+# applications/: basilic and safran are separate services with separate
+# schemas, but they ship together in the `uctf` namespace, and the push half of
+# this pattern is per-namespace rather than per-database. Split in two, both
+# directories would want a SecretStore, a writer ServiceAccount and — the part
+# that actually breaks — a Role named `eso-push-writer` in the *same* uctf
+# namespace, which is two Kustomizations fighting over one object.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- databaserole.yaml
+- database.yaml
+- db-credentials-sops.yaml
+- eso-store.yaml
+- eso-pushsecret.yaml
+- eso-writer.yaml

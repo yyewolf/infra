@@ -1,0 +1,21 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: uctf
+  namespace: postgres
+spec:
+  cluster:
+    name: postgres
+  name: uctf
+  owner: uctf
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: safran
+  namespace: postgres
+spec:
+  cluster:
+    name: postgres
+  name: safran
+  owner: safran

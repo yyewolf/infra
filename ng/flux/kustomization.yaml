@@ -29,6 +29,7 @@ resources:
 - platform/postgres/applications/vaultwarden/ks.yaml
 - platform/postgres/applications/umami/ks.yaml
 - platform/postgres/applications/woodpecker/ks.yaml
+- platform/postgres/applications/uctf/ks.yaml
 - apps/cyberchef/ks.yaml
 - apps/radar/ks.yaml
 - apps/portfolio/ks.yaml

@@ -10,4 +10,5 @@ resources:
 - webhook/network-policy.yaml
 - yewolf-fr.yaml
 - hackcorp-net.yaml
+- uctf-io.yaml
 - reference-grant.yaml
