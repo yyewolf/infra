@@ -1,0 +1,12 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: immich
+  namespace: postgres
+spec:
+  cluster:
+    name: postgres
+  name: immich
+  login: true
+  passwordSecret:
+    name: immich-db-credentials

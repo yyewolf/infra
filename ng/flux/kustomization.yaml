@@ -31,6 +31,7 @@ resources:
 - platform/postgres/applications/woodpecker/ks.yaml
 - platform/postgres/applications/uctf/ks.yaml
 - platform/postgres/applications/authentik/ks.yaml
+- platform/postgres/applications/immich/ks.yaml
 - apps/cyberchef/ks.yaml
 - apps/radar/ks.yaml
 - apps/portfolio/ks.yaml
@@ -43,5 +44,7 @@ resources:
 - apps/home-assistant/ks.yaml
 # - apps/jellyfin/storage/ks.yaml
 # - apps/jellyfin/ks.yaml
+- apps/immich/storage/ks.yaml
+- apps/immich/ks.yaml
 - apps/uctf/ks.yaml
 - apps/authentik/ks.yaml
