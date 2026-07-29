@@ -57,6 +57,36 @@ spec:
           namespaces:
           - kube-system
           - longhorn-system
+          # home-assistant, and the argument for it — because granting a
+          # namespace the right to run privileged on the host should be
+          # readable, not just present.
+          #
+          # TWO workloads justify this, both for the same reason:
+          #
+          #   zigbee2mqtt     drives the Sonoff Zigbee radio on /dev/ttyUSB0
+          #   home-assistant  mounts the same char device
+          #
+          # A char device cannot be reached from an unprivileged container: the
+          # device cgroup blocks it regardless of capabilities or file
+          # permissions, and there is no volumeMode: Block equivalent for
+          # character devices the way there is for block ones.
+          #
+          # The policy's normal escape hatch does not apply. kata would satisfy
+          # the rule, but kata runs the workload in a VM with its own kernel and
+          # cannot pass a USB device into it — so the runtime that makes
+          # privileged acceptable is exactly the runtime that breaks the reason
+          # for wanting it. gVisor has the same problem.
+          #
+          # What this exclusion is NOT covering, deliberately: esphome and
+          # music-assistant both ran privileged in the root cluster and neither
+          # does here. esphome's privilege was unused; music-assistant's was
+          # narrowed to `capabilities: [SYS_ADMIN, DAC_READ_SEARCH]`, which is
+          # what it actually needed for mounting SMB shares and which this rule
+          # does not test. Four privileged workloads became two by reading what
+          # they used rather than what they asked for.
+          #
+          # If the two above ever stop needing the device, remove this entry.
+          - home-assistant
     validate:
       failureAction: Enforce
       message: >-

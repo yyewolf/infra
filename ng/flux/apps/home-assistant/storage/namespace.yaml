@@ -1,0 +1,33 @@
+# This cluster enforces Pod Security Admission at `baseline` by default — the
+# setting lives in the API server's AdmissionConfiguration, not on the
+# namespaces, which is why most namespaces show no pod-security labels at all
+# and the enforcement is easy to miss. The ones that need more carry an explicit
+# label: longhorn-system, woodpecker and test all do.
+#
+# home-assistant needs `privileged`, and not only for the migration Jobs.
+# `baseline` forbids, among other things:
+#
+#   hostPath      the USB char device for the Zigbee radio, /run/udev, and
+#                 migrate/'s read-only mount of the old local-path data
+#   hostNetwork   home-assistant, esphome, music-assistant and snapcast all use
+#                 it — for SSDP/mDNS discovery, OTA flashing, and snapcast's
+#                 fixed broadcast ports respectively
+#   privileged    home-assistant and zigbee2mqtt, for /dev/ttyUSB0
+#
+# So four of the six workloads here would be rejected at `baseline` even with
+# the Kyverno exclusion in place.
+#
+# The two admission systems are independent and a pod must satisfy BOTH.
+# Kyverno's require-kata-for-privileged tests `securityContext.privileged`; PSA
+# tests the whole pod spec against a profile. Passing one says nothing about the
+# other, and the failure modes look different: Kyverno denies with its own
+# message, PSA denies with "violates PodSecurity baseline:latest" naming the
+# specific field.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: home-assistant
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/warn: privileged

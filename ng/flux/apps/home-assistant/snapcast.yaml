@@ -1,0 +1,70 @@
+# Snapcast server — synchronised multi-room audio.
+#
+# Never ran privileged; carried across unchanged apart from the toleration and
+# the anti-affinity rule. hostNetwork is genuine: snapcast clients discover the
+# server by broadcast and stream to it on fixed ports, neither of which survives
+# pod networking.
+#
+# The root cluster's `podAntiAffinity` on `app: snapcast` is dropped. With
+# `replicas: 1` on a StatefulSet it could never bind — a rule saying "do not
+# co-schedule with the other replicas" when there are none is a no-op that reads
+# like a constraint. The StatefulSet's single-writer guarantee is what actually
+# stops two snapservers fighting over the same port.
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: snapcast
+  labels: {app: snapcast}
+spec:
+  serviceName: snapcast
+  replicas: 1
+  podManagementPolicy: OrderedReady
+  updateStrategy: {type: RollingUpdate}
+  selector:
+    matchLabels: {app: snapcast}
+  template:
+    metadata:
+      labels: {app: snapcast}
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: w-1
+      hostNetwork: true
+      hostname: snapcast
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+      - name: snapcast
+        image: docker.io/sweisgerber/snapcast:latest@sha256:1927ab0166cb2d4a02531e3b0fba93403fdeb0b776bb232daeefe6df0100fcbd
+        securityContext:
+          allowPrivilegeEscalation: false
+          seccompProfile: {type: RuntimeDefault}
+        livenessProbe:
+          tcpSocket: {port: 1780}
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          failureThreshold: 5
+        env:
+        - {name: PUID, value: "1000"}
+        - {name: PGID, value: "1000"}
+        - {name: TZ, value: "Europe/Paris"}
+        - {name: START_SNAPCLIENT, value: "false"}
+        - {name: START_AIRPLAY, value: "false"}
+        ports:
+        - {containerPort: 1704}
+        - {containerPort: 1705}
+        - {containerPort: 1780}
+        - {containerPort: 22382}
+        # One claim, three subPaths — the same shape the root cluster used, kept
+        # because snapcast expects these as separate trees and merging them
+        # would change what its config file resolves.
+        volumeMounts:
+        - {name: snapcast-storage, mountPath: /config, subPath: config}
+        - {name: snapcast-storage, mountPath: /data,   subPath: data}
+        - {name: snapcast-storage, mountPath: /audio,  subPath: audio}
+        resources:
+          requests: {memory: "64Mi", cpu: "50m"}
+          limits: {memory: "512Mi"}
+      volumes:
+      - name: snapcast-storage
+        persistentVolumeClaim:
+          claimName: snapcast-storage

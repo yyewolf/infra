@@ -72,7 +72,7 @@ machine:
   # directory at pod start rather than as anything that names ZFS.
   kernel:
     modules:
-      - name: zfs
+    - name: zfs
 
   kubelet:
     # Same reason as patches/longhorn.yaml: the kubelet runs in its own mount
@@ -84,10 +84,10 @@ machine:
     # for them. It is also what the hostPath PVs migrated from the root cluster
     # will need, since they address the same tree.
     extraMounts:
-      - destination: /var/mnt/tank
-        type: bind
-        source: /var/mnt/tank
-        options:
-          - bind
-          - rshared
-          - rw
+    - destination: /var/mnt/tank
+      type: bind
+      source: /var/mnt/tank
+      options:
+      - bind
+      - rshared
+      - rw

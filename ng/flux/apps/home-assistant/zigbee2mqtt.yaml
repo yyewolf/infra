@@ -1,0 +1,65 @@
+# Zigbee2MQTT — the other privileged workload, and the one with the clearest
+# claim to it: it drives the Sonoff Zigbee radio over /dev/ttyUSB0.
+#
+# Kept privileged deliberately. A char device cannot be reached from an
+# unprivileged container (the device cgroup blocks it regardless of capabilities
+# or file permissions), and the policy's kata escape hatch cannot pass USB into
+# a VM. This and home-assistant are the two workloads that justify the
+# ns/home-assistant exclusion in require-kata-for-privileged.
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: zigbee2mqtt
+  labels: {app: zigbee2mqtt}
+spec:
+  serviceName: zigbee2mqtt
+  replicas: 1
+  selector:
+    matchLabels: {app: zigbee2mqtt}
+  template:
+    metadata:
+      labels: {app: zigbee2mqtt}
+    spec:
+      # The radio is bolted to this machine.
+      nodeSelector:
+        kubernetes.io/hostname: w-1
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: zigbee2mqtt
+        image: ghcr.io/koenkk/zigbee2mqtt:2.12.1@sha256:80f7f04f72a99e4c4ef51ef7e98ee736edba6db0ecbb7abc626d0c4b0f1871f1
+        securityContext:
+          privileged: true   # /dev/ttyUSB0 — see header
+        env:
+        - {name: TZ, value: "Europe/Paris"}
+        ports:
+        - {containerPort: 8080, name: http}
+        volumeMounts:
+        - {name: data, mountPath: /app/data}
+        - {name: usb, mountPath: /dev/ttyUSB0}
+        - {name: udev, mountPath: /run/udev, readOnly: true}
+        resources:
+          requests: {memory: "128Mi", cpu: "50m"}
+          limits: {memory: "512Mi"}
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: zigbee2mqtt-storage
+      - name: usb
+        hostPath:
+          path: /dev/serial/by-id/usb-Itead_Sonoff_Zigbee_3.0_USB_Dongle_Plus_V2_0a83b9ece0c2ef11b0cbecb08048b910-if00-port0
+          type: CharDevice
+      - name: udev
+        hostPath: {path: /run/udev, type: Directory}
+---
+# ClusterIP, not the NodePort 30082 the root cluster used. Nothing outside the
+# cluster needs to reach the z2m dashboard directly — it goes through the
+# HTTPRoute or the tailnet like everything else.
+apiVersion: v1
+kind: Service
+metadata:
+  name: zigbee2mqtt
+spec:
+  selector: {app: zigbee2mqtt}
+  ports:
+  - {name: http, port: 8080, targetPort: 8080, protocol: TCP}

@@ -38,4 +38,6 @@ resources:
 - apps/vaultwarden/ks.yaml
 - apps/umami/ks.yaml
 - apps/woodpecker/ks.yaml
+- apps/home-assistant/storage/ks.yaml
+- apps/home-assistant/ks.yaml
 - apps/uctf/ks.yaml

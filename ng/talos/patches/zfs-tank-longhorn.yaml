@@ -58,3 +58,53 @@ machine:
   nodeAnnotations:
     node.longhorn.io/default-disks-config: |-
       [{"path":"/var/mnt/tank/longhorn","allowScheduling":true,"storageReserved":0,"tags":["bigpool"]}]
+
+  # Static pod that mounts the ext4 zvol at /var/mnt/tank/longhorn. The zvol
+  # device appears only after ext-zfs-service imports the pool, which happens
+  # during boot — later than machine.disks processing — so a Talos-native
+  # mount is not possible. A static pod bypasses the API server (no PSA, no
+  # Kyverno) and retries via restartPolicy: OnFailure until the device exists.
+  #
+  # The kubelet's extraMounts on /var/mnt/tank already uses rshared propagation
+  # (zfs-tank.yaml), so this mount becomes visible to Longhorn pods without
+  # further configuration.
+  pods:
+  - apiVersion: v1
+    kind: Pod
+    metadata:
+      name: mount-longhorn-zvol
+      namespace: kube-system
+    spec:
+      hostPID: true
+      hostNetwork: true
+      restartPolicy: OnFailure
+      priorityClassName: system-node-critical
+      containers:
+      - name: mount
+        image: busybox:1.36
+        command: [ "sh", "-c" ]
+        args:
+        - |
+          mkdir -p /host/var/mnt/tank/longhorn
+          if mount | grep -q /host/var/mnt/tank/longhorn; then
+            echo "already mounted"
+          else
+            until [ -b /host/dev/zvol/tank/longhorn ]; do
+              echo "waiting for /dev/zvol/tank/longhorn..."
+              sleep 5
+            done
+            mount -t ext4 -o noatime,discard /host/dev/zvol/tank/longhorn /host/var/mnt/tank/longhorn
+            echo "mounted ext4 zvol at /var/mnt/tank/longhorn"
+          fi
+          echo "holding mount open — do not restart this container"
+          exec sleep infinity
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: root
+          mountPath: /host
+          mountPropagation: Bidirectional
+      volumes:
+      - name: root
+        hostPath:
+          path: /

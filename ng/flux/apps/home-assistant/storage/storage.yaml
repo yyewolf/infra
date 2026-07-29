@@ -1,0 +1,70 @@
+# The six volumes Home Assistant and its addons need, all on `big-pool`.
+#
+# WHY BIG-POOL AND NOT A hostPath PV
+#
+# The root cluster put these on `local-path-home1-retain`, which meant the data
+# landed in /tank/others/pvcs/pvc-<uuid>_<ns>_<claim> — a directory whose name
+# contains the PV's UID, generated at provision time. Nothing about that name is
+# reproducible, so these claims could never have been "migrated" by recreating
+# the same YAML the way the explicit hostPath PVs (paperless, stalwart, registry)
+# can be. The data has to be copied, which is what migrate/ does.
+#
+# Given a copy is unavoidable, big-pool is the better destination: the volumes
+# stop being pinned to whichever node happened to provision them, and become
+# attachable from anywhere.
+#
+# Every claim is ReadWriteOnce, which is not a limitation to work around: each
+# of these apps is single-writer by nature, and the StatefulSets exist to
+# guarantee exactly one replica ever holds the volume.
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: home-assistant
+  annotations:
+    k8up.io/backup: "true"
+spec:
+  accessModes: [ ReadWriteOnce ]
+  storageClassName: big-pool
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: zigbee2mqtt-storage
+  annotations:
+    k8up.io/backup: "true"
+spec:
+  accessModes: [ ReadWriteOnce ]
+  storageClassName: big-pool
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: esphome-config
+  annotations:
+    k8up.io/backup: "true"
+spec:
+  accessModes: [ ReadWriteOnce ]
+  storageClassName: big-pool
+  resources:
+    requests:
+      storage: 15Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: snapcast-storage
+  annotations:
+    k8up.io/backup: "true"
+spec:
+  accessModes: [ ReadWriteOnce ]
+  storageClassName: big-pool
+  resources:
+    requests:
+      storage: 5Gi

@@ -25,7 +25,7 @@ variable "wan_interface_list" {
 variable "lan_blocked_destinations" {
   description = "Subnets LAN clients must not reach through the router, the upstream network sitting behind the WAN interface"
   type        = list(string)
-  default     = ["192.168.1.0/24"]
+  default     = []
 }
 
 variable "lan_subnet" {

@@ -1,0 +1,27 @@
+# Public entry for Home Assistant. Re-parented from the root cluster's kgateway
+# to ng's Envoy Gateway — the two express ingress differently, so this is a
+# rewrite rather than a copy.
+#
+# Note the backend port: 8123, not the 8080 the old route used. The root
+# cluster's chart put a Service in front on 8080; here the Service and the
+# container both speak 8123, so an 8080 backendRef would resolve to nothing.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: home-assistant
+spec:
+  parentRefs:
+  - name: envoy-gateway
+    namespace: envoy-gateway-system
+    sectionName: https
+  hostnames:
+  - "ha.yewolf.fr"
+  rules:
+  - matches:
+    - path: {type: PathPrefix, value: /}
+    backendRefs:
+    - group: ""
+      kind: Service
+      name: home-assistant
+      port: 8123
+      weight: 1

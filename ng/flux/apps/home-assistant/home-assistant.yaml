@@ -1,0 +1,94 @@
+# Home Assistant, as a hand-written StatefulSet rather than the k8s-at-home
+# chart the root cluster used.
+#
+# The chart was already producing a StatefulSet — the old volume was named
+# `home-assistant-home-assistant-0`, which is `<claimTemplate>-<sts>-<ordinal>`.
+# Writing it out directly costs nothing and removes a HelmRepository, a
+# HelmRelease and a values block that mostly existed to fight the chart's
+# defaults.
+#
+# The claim is NOT a volumeClaimTemplate. A template would have Kubernetes
+# provision a fresh empty volume named after the StatefulSet, which is exactly
+# what must not happen here: the volume already exists, holds data copied by
+# migrate/, and is referenced by name. Templates are for volumes the workload
+# creates; this one it inherits.
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: home-assistant
+  labels: {app: home-assistant}
+spec:
+  serviceName: home-assistant
+  replicas: 1
+  selector:
+    matchLabels: {app: home-assistant}
+  template:
+    metadata:
+      labels: {app: home-assistant}
+    spec:
+      # Pinned to w-1 because of the USB volume below: the Zigbee dongle is
+      # physically attached to that machine. The big-pool claim would happily
+      # follow the pod anywhere — the hardware is what does not move.
+      nodeSelector:
+        kubernetes.io/hostname: w-1
+
+      # hostNetwork for device discovery on the LAN (SSDP, mDNS, HomeKit), which
+      # is broadcast-based and does not survive being NATed out of a pod
+      # network. It also means HA binds :8123 directly on w-1, so the NodePort
+      # the root cluster used for local access is unnecessary here.
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+
+      # The root cluster tolerated `PrivateNode=home1`. w-1 carries no such
+      # taint in ng, so the toleration is dropped rather than carried across as
+      # decoration.
+      terminationGracePeriodSeconds: 30
+      containers:
+      - name: home-assistant
+        image: mirror.gcr.io/homeassistant/home-assistant:2026.7
+        securityContext:
+          # One of only two privileged workloads in this namespace, and the
+          # reason ns/home-assistant is excluded from require-kata-for-privileged.
+          # It is here for /dev/ttyUSB0: the device cgroup blocks a char device
+          # otherwise, and kata — the policy's usual escape hatch — cannot pass
+          # USB through at all.
+          #
+          # Worth revisiting. zigbee2mqtt below claims the same dongle, and two
+          # processes cannot both own one serial port. In practice z2m owns the
+          # radio and HA talks to it over MQTT, which would make this mount (and
+          # therefore this privilege) vestigial. Removing it is a live test
+          # nobody has run, so it is carried across as-is.
+          privileged: true
+        ports:
+        - {containerPort: 8123, name: http}
+        env:
+        - {name: TZ, value: "Europe/Paris"}
+        volumeMounts:
+        - {name: config, mountPath: /config}
+        - {name: usb, mountPath: /dev/ttyUSB0}
+        livenessProbe:
+          httpGet: {path: /, port: 8123}
+          initialDelaySeconds: 120
+          periodSeconds: 30
+          failureThreshold: 5
+        resources:
+          requests: {memory: "512Mi", cpu: "200m"}
+          limits: {memory: "4Gi"}
+      volumes:
+      - name: config
+        persistentVolumeClaim:
+          claimName: home-assistant
+      - name: usb
+        hostPath:
+          path: /dev/serial/by-id/usb-Itead_Sonoff_Zigbee_3.0_USB_Dongle_Plus_V2_0a83b9ece0c2ef11b0cbecb08048b910-if00-port0
+          type: CharDevice
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: home-assistant
+spec:
+  selector: {app: home-assistant}
+  ports:
+  - {name: http, port: 8123, targetPort: 8123, protocol: TCP}

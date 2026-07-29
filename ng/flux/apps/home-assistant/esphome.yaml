@@ -1,0 +1,66 @@
+# ESPHome dashboard/builder.
+#
+# PRIVILEGE REMOVED. The root cluster ran this `privileged: true` with no
+# devices, no extra capabilities and no host mounts — nothing in the manifest
+# used the privilege, and it reads as copy-paste from the two workloads that
+# genuinely need it. What it actually needs is hostNetwork, for mDNS discovery
+# and OTA flashing of devices on the LAN, and that is kept.
+#
+# If ESPHome turns out to need something back, add the specific capability
+# rather than restoring `privileged` — the whole point of the namespace
+# exclusion being narrow is that it stays narrow.
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: esphome
+  labels: {app: esphome}
+spec:
+  serviceName: esphome
+  replicas: 1
+  podManagementPolicy: OrderedReady
+  updateStrategy: {type: RollingUpdate}
+  selector:
+    matchLabels: {app: esphome}
+  template:
+    metadata:
+      labels: {app: esphome}
+    spec:
+      # hostNetwork puts this on a specific host's address, so it is pinned for
+      # the same reason a static IP would be: devices flashed with an OTA target
+      # should not have it change because a pod rescheduled.
+      nodeSelector:
+        kubernetes.io/hostname: w-1
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+      - name: esphome
+        image: ghcr.io/esphome/esphome:2026.6.2
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities: {drop: [ALL]}
+        env:
+        - {name: USERNAME, value: "admin"}
+        - name: PASSWORD
+          valueFrom:
+            secretKeyRef: {name: esphome-admin-password, key: password}
+        ports:
+        - {containerPort: 6052, name: http}
+        volumeMounts:
+        - {name: config, mountPath: /config}
+        resources:
+          requests: {memory: "256Mi", cpu: "100m"}
+          limits: {memory: "2Gi"}
+      volumes:
+      - name: config
+        persistentVolumeClaim:
+          claimName: esphome-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: esphome
+spec:
+  selector: {app: esphome}
+  ports:
+  - {name: http, port: 6052, targetPort: 6052, protocol: TCP}
