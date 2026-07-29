@@ -52,6 +52,29 @@ spec:
       # apps/portfoliosh's ListenerSet, public SSH on 22.
       - port: "10022"
         protocol: TCP
+  # Workloads inside the cluster calling their own public hostname instead of a
+  # Service — basilic building a URL from FRONTEND_BASE_URL and following it,
+  # or reaching safran on storage.yewolf.fr. The name resolves to this
+  # Gateway's LoadBalancer address and Cilium translates it straight to this
+  # pod, so the connection never leaves the cluster and arrives as entity
+  # `cluster` rather than `world`. Without this it is dropped here, after the
+  # calling app's own egress policy has already allowed it, and the symptom is
+  # a hang rather than a refusal.
+  #
+  # This grants nothing that was not already reachable: these two listeners
+  # face the internet, so any pod with egress could reach them the long way
+  # round. 10022 is deliberately not included — the SSH listener has no
+  # in-cluster caller, and there is no reason to give one a path to it.
+  - fromEntities:
+    - cluster
+    toPorts:
+    - ports:
+      - port: "10080"
+        protocol: TCP
+      - port: "10443"
+        protocol: TCP
+      - port: "10443"
+        protocol: UDP
   egress:
   - toEntities:
     - kube-apiserver

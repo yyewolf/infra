@@ -1,0 +1,57 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: fenouil
+spec:
+  interval: 10m
+  releaseName: fenouil
+  chart:
+    spec:
+      chart: fenouil
+      version: 1.6.2
+      sourceRef:
+        kind: HelmRepository
+        name: uctf-charts
+        namespace: uctf
+      interval: 30m
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    image:
+      repository: ghcr.io/u-ctf/fenouil
+      tag: 1.6.2
+
+    imagePullSecrets:
+    - name: ghcr-auth
+
+    env:
+      appUrl: "https://uctf.io/"
+      apiUrlExternal: "https://uctf.io/"
+      # `.svc`, not `.svc.cluster.local`, and port 8080 — this is the one path
+      # that does not go back out through the gateway, and the netpol's
+      # fenouil→basilic-api rule is what permits it.
+      apiUrlInternal: "http://basilic.uctf.svc:8080/"
+      extra: []
+
+    route:
+      enabled: true
+      annotations: {}
+      hostnames:
+      - uctf.io
+      parentRefs:
+      - name: envoy-gateway
+        namespace: envoy-gateway-system
+        sectionName: https
+      # Ordering against basilic's route is not left to chance: both attach to
+      # the same hostname, and the Gateway API resolves overlapping HTTPRoute
+      # rules by path specificity before creation timestamp. `/api` is longer
+      # than `/`, so basilic wins its prefix regardless of which release
+      # reconciles first.
+      matches:
+      - path:
+          type: PathPrefix
+          value: /

@@ -1,0 +1,104 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: basilic
+spec:
+  interval: 10m
+  releaseName: basilic
+  chart:
+    spec:
+      chart: basilic
+      version: 1.6.1
+      sourceRef:
+        kind: HelmRepository
+        name: uctf-charts
+        namespace: uctf
+      interval: 30m
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    image:
+      repository: ghcr.io/u-ctf/basilic
+      tag: 1.6.1
+
+    api:
+      enabled: true
+      replicaCount: 1
+      args:
+      - serve
+      - --worker=false
+      resources: {}
+
+    worker:
+      enabled: true
+      replicaCount: 2
+      args:
+      - serve
+      - --api=false
+      resources: {}
+
+    imagePullSecrets:
+    - name: ghcr-auth
+
+    env:
+      config:
+        LOG_LEVEL: "info"
+        GITHUB_CLIENT_ID: "Ov23li122q765qLNWhrb"
+        GITHUB_REDIRECT_URL: "https://uctf.io/api/auth/github/callback"
+        OAUTH_REDIRECT_ALLOWLIST: "https://uctf.io/,https://uctf.io/organizations,https://uctf.io/organization-invitations/accept?token=*"
+        OAUTH_ERROR_REDIRECT_URL: "https://uctf.io/error?error=oauth_failed"
+        TENANT_DEFAULT_DOMAIN: "urc.tf"
+        SESSION_COOKIE_DOMAIN: ".uctf.io"
+        CORS_ALLOWED_ORIGINS: "https://uctf.io"
+        FRONTEND_BASE_URL: "https://uctf.io"
+        STRIPE_CHECKOUT_SUCCESS_URL: "https://uctf.io/organizations?checkout=success"
+        STRIPE_CHECKOUT_CANCEL_URL: "https://uctf.io/organizations?checkout=cancel"
+        RESEND_FROM: "U-CTF <no-reply@uctf.io>"
+        INVITATION_ACCEPT_URL_BASE: "https://uctf.io/organization-invitations/accept"
+        INVITATION_DAILY_LIMIT: "25"
+        INVITATION_BURST_LIMIT: "5"
+        INVITATION_BURST_WINDOW_MINUTES: "15"
+        INVITATION_EXPIRY_HOURS: "168"
+      secret: {}
+      # Two, where the root cluster had one. `basilic-secrets` is sops-encrypted
+      # in this directory and holds everything the app needs that is not the
+      # DSN; `basilic-db` is written by the PushSecret in
+      # platform/postgres/applications/uctf and holds only DATABASE_URL. The
+      # chart turns each into an `envFrom`, so the app sees the same flat
+      # environment it always did — the split is only about which half is in
+      # git and which is derived from the cluster's own Postgres.
+      #
+      # Order matters if a key ever appears in both: later wins. DATABASE_URL
+      # was deliberately dropped from basilic-secrets so it cannot.
+      existingSecrets:
+      - basilic-secrets
+      - basilic-db
+
+    # Both off because this cluster has no kube-prometheus-stack: there is no
+    # ServiceMonitor CRD for the first to create an object against, and no
+    # Grafana to discover the dashboard the second renders into a ConfigMap.
+    # The root cluster had both on. Turn them back on with the monitoring
+    # stack, not before — `serviceMonitor.enabled: true` here is a release that
+    # fails on a missing API.
+    serviceMonitor:
+      enabled: false
+    grafanaDashboard:
+      enabled: false
+
+    route:
+      enabled: true
+      annotations: {}
+      hostnames:
+      - uctf.io
+      parentRefs:
+      - name: envoy-gateway
+        namespace: envoy-gateway-system
+        sectionName: https
+      matches:
+      - path:
+          type: PathPrefix
+          value: /api

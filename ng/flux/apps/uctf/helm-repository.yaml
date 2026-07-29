@@ -1,0 +1,14 @@
+# The charts are public, but the images behind them are not — `ghcr-auth` is
+# the pull secret every one of the three releases references. It is kept on the
+# repository as well so a private chart push does not silently break the whole
+# namespace later.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: uctf-charts
+spec:
+  type: oci
+  url: oci://ghcr.io/u-ctf/charts
+  interval: 10m
+  secretRef:
+    name: ghcr-auth

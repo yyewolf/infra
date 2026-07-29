@@ -1,0 +1,341 @@
+# The root cluster ran this namespace on one policy: everything may reach
+# Postgres, everything may reach the internet, everything may reach everything
+# else in the namespace. That was tolerable when basilic was the only thing
+# holding credentials; it is not now, because basilic's secret carries a GitHub
+# App private key, a Stripe live-mode key and the key tenant kubeconfigs are
+# encrypted under, and fenouil is a static frontend that should never be a path
+# to any of it.
+#
+# Split per workload, as in apps/woodpecker:
+#
+#   basilic-api    — edge traffic in; Postgres, safran and the internet out.
+#   basilic-worker — no ingress at all; same egress as the api.
+#   fenouil        — edge traffic in; basilic and DNS out. No Postgres, no
+#                    internet: it renders a bundle and proxies to the API.
+#   safran         — basilic and the edge in; Postgres and R2 out.
+#
+# The first policy is what makes that hold. Cilium's default-deny is per
+# endpoint and only engages once *some* policy selects it, so a pod matching
+# none of the four below would be unrestricted rather than denied — a label
+# drifting on a chart upgrade would silently open everything instead of
+# breaking visibly. Selecting the whole namespace with no rules at all closes
+# that, and Cilium policies are additive so it costs the named workloads
+# nothing.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: uctf-default-deny
+spec:
+  endpointSelector: {}
+  # An empty selector list is the idiom: it matches no peer, so nothing is
+  # allowed, but the rule still exists and that is what switches the endpoint
+  # into default-deny for that direction. The CRD rejects a policy carrying
+  # only `enableDefaultDeny` with no rules at all ("spec.ingress: Required
+  # value"), so this is not the same thing written more verbosely.
+  ingress:
+  - fromEndpoints: []
+  egress:
+  - toEndpoints: []
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: uctf-dns
+spec:
+  # The one rule every workload here shares. Kept separate so the four policies
+  # below are about what makes each of them different.
+  endpointSelector: {}
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: uctf-basilic-api
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: basilic
+      app.kubernetes.io/instance: basilic
+      app.kubernetes.io/component: api
+  ingress:
+  # 8080, not the Service's port: the two are the same number here, but Cilium
+  # enforces at the endpoint, after the translation.
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: envoy-gateway-system
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
+  # fenouil's server-side rendering, which calls this API in-cluster on
+  # `apiUrlInternal` rather than going back out through the gateway. Cilium
+  # enforces at both ends and a rule on one side is not enough: fenouil's
+  # policy already permits the egress, and without this the connection is
+  # dropped here instead, which surfaces in the frontend as a 10s
+  # UND_ERR_CONNECT_TIMEOUT rather than as a refusal.
+  - fromEndpoints:
+    - matchLabels:
+        app.kubernetes.io/name: fenouil
+        app.kubernetes.io/instance: fenouil
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
+  # The kubelet runs the readiness and liveness probes.
+  - fromEntities:
+    - host
+    - remote-node
+    - health
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: postgres
+    toPorts:
+    - ports:
+      - port: "5432"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        app.kubernetes.io/name: safran
+        app.kubernetes.io/instance: safran
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
+  # basilic calling one of its own public hostnames — uctf.io, or safran on
+  # storage.yewolf.fr — rather than the in-cluster Service. The name resolves
+  # to the Gateway's LoadBalancer address, and Cilium translates that to the
+  # envoy pod, so what would have been egress to `world` on the root cluster is
+  # a pod-to-pod connection here and the CIDR rule below never sees it.
+  #
+  # 10080/10443, not 80/443: Envoy Gateway offsets every listener by 10000 so
+  # the proxy can run unprivileged, and Cilium enforces at the endpoint, after
+  # the Service translation. Matching on 443 here silently does nothing.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: envoy-gateway-system
+    toPorts:
+    - ports:
+      - port: "10080"
+        protocol: TCP
+      - port: "10443"
+        protocol: TCP
+  # GitHub (OAuth, the App's API calls, the git-sync webhooks it answers by
+  # calling back out), Stripe, Resend, the Infomaniak DNS API it uses to
+  # provision event custom domains — and the tenant clusters it drives with the
+  # kubeconfigs in `clusters`.
+  #
+  # Deliberately not port-restricted, which is the one place this policy is
+  # looser than the rest of the file. Everything in the first list is 443, but
+  # a tenant cluster's API server is on whatever port that tenant exposes, and
+  # in practice that is the NodePort range rather than 443. Pinning 443 here
+  # looks tighter and simply breaks cluster management, with the failure
+  # showing up as a POLICY_DENIED egress to `world-ipv4` on a port that looks
+  # like nothing in particular.
+  #
+  # The excepted ranges are the control that actually matters, and they are
+  # what the port restriction was standing in for: basilic holds credentials
+  # for other people's clusters, and this is what stops "reach a tenant
+  # cluster" from also meaning "reach this cluster's API server, the home LAN,
+  # or the WireGuard overlay". 10.0.0.0/8 covers the LAN, the pods and the
+  # WireGuard subnet; 192.168.0.0/16 the network in front of the router; the v6
+  # half excepts the ULA prefix this cluster is addressed out of.
+  #
+  # A `toFQDNs` rule is the available tightening for the first list, at the
+  # cost of the L7 DNS visibility it requires — but it cannot cover the tenant
+  # clusters, whose names are rows in a database rather than anything in git.
+  - toCIDRSet:
+    - cidr: 0.0.0.0/0
+      except:
+      - 10.0.0.0/8
+      - 172.16.0.0/12
+      - 192.168.0.0/16
+    - cidr: ::/0
+      except:
+      - fdde:c64:7096::/48
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: uctf-basilic-worker
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: basilic
+      app.kubernetes.io/instance: basilic
+      app.kubernetes.io/component: worker
+  ingress:
+  # Nothing dials a worker — it pulls jobs from the river queue in Postgres.
+  # Only the kubelet's probes.
+  - fromEntities:
+    - host
+    - remote-node
+    - health
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: postgres
+    toPorts:
+    - ports:
+      - port: "5432"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        app.kubernetes.io/name: safran
+        app.kubernetes.io/instance: safran
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
+  # The same gateway hairpin as the api — see the note there. The worker is if
+  # anything likelier to take it, since the URLs it builds for mail and
+  # webhooks are the public ones.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: envoy-gateway-system
+    toPorts:
+    - ports:
+      - port: "10080"
+        protocol: TCP
+      - port: "10443"
+        protocol: TCP
+  # Same reach as the api, unrestricted port included, and for the same
+  # reasons: the background jobs are what actually send the Resend mail, drive
+  # the Stripe calls and reconcile the tenant clusters. If anything this is the
+  # half that needs it — the api mostly answers requests, the worker is what
+  # dials out.
+  - toCIDRSet:
+    - cidr: 0.0.0.0/0
+      except:
+      - 10.0.0.0/8
+      - 172.16.0.0/12
+      - 192.168.0.0/16
+    - cidr: ::/0
+      except:
+      - fdde:c64:7096::/48
+---
+# The chart's pre-install/pre-upgrade hook. It is a third component label, not
+# api and not worker, so without this it matches only the default-deny above
+# and the release fails at `migrate up` with a connection timeout rather than
+# an error that names the cause.
+#
+# safran's migration job needs no equivalent: that chart labels it with the
+# plain selector labels, so it is already covered by `uctf-safran` below.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: uctf-basilic-migration
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: basilic
+      app.kubernetes.io/instance: basilic
+      app.kubernetes.io/component: migration
+  ingress:
+  - fromEndpoints: []
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: postgres
+    toPorts:
+    - ports:
+      - port: "5432"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: uctf-fenouil
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: fenouil
+      app.kubernetes.io/instance: fenouil
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: envoy-gateway-system
+    toPorts:
+    - ports:
+      - port: "3000"
+        protocol: TCP
+  - fromEntities:
+    - host
+    - remote-node
+    - health
+  egress:
+  # `apiUrlInternal` — server-side rendering calls basilic directly rather than
+  # going back out through the gateway. That is its whole egress: no Postgres,
+  # no internet.
+  - toEndpoints:
+    - matchLabels:
+        app.kubernetes.io/name: basilic
+        app.kubernetes.io/instance: basilic
+        app.kubernetes.io/component: api
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: uctf-safran
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: safran
+      app.kubernetes.io/instance: safran
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: envoy-gateway-system
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
+  - fromEndpoints:
+    - matchLabels:
+        app.kubernetes.io/name: basilic
+        app.kubernetes.io/instance: basilic
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
+  - fromEntities:
+    - host
+    - remote-node
+    - health
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: postgres
+    toPorts:
+    - ports:
+      - port: "5432"
+        protocol: TCP
+  # Cloudflare R2 — safran is a signing proxy in front of a bucket, so this is
+  # the one external dependency it has.
+  - toCIDRSet:
+    - cidr: 0.0.0.0/0
+      except:
+      - 10.0.0.0/8
+      - 172.16.0.0/12
+      - 192.168.0.0/16
+    - cidr: ::/0
+      except:
+      - fdde:c64:7096::/48
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP

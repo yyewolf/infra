@@ -1,0 +1,61 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: safran
+spec:
+  interval: 10m
+  releaseName: safran
+  chart:
+    spec:
+      chart: safran
+      version: 1.0.11
+      sourceRef:
+        kind: HelmRepository
+        name: uctf-charts
+        namespace: uctf
+      interval: 30m
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    image:
+      repository: ghcr.io/u-ctf/safran
+      tag: 1.0.11
+      pullSecrets:
+        - ghcr-auth
+
+    secrets:
+      # Written by the PushSecret in platform/postgres/applications/uctf, and
+      # it has to be an existing Secret rather than something the chart builds
+      # from values: `migration.enabled` below installs a *pre-install* hook,
+      # and Helm runs hooks before ordinary resources. Let the chart own this
+      # Secret and the very first install deadlocks — the migrate Job mounts a
+      # Secret Helm has not created yet and sits in CreateContainerConfigError
+      # until the release times out.
+      #
+      # An upgrade would not show it (the Secret survives from the previous
+      # release), which is exactly why the root cluster ran this way for four
+      # months without noticing.
+      existingSecret: safran-runtime
+
+    config:
+      # Same reasoning, different source: this one is sops in git rather than a
+      # push, because its contents are the R2 credentials and nothing derives
+      # them from cluster state. See config-sops.yaml.
+      existingSecret: safran-config
+
+    migration:
+      enabled: true
+
+    gateway:
+      enabled: true
+      parentRefs:
+        - name: envoy-gateway
+          namespace: envoy-gateway-system
+          sectionName: https
+      hostnames:
+        - storage.yewolf.fr
+

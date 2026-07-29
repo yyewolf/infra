@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: Secret
+metadata:
+    name: ghcr-auth
+data:
+    .dockerconfigjson: ENC[AES256_GCM,data:vIzpaYaxfuob+3w8I+l0yzUkozerP7ejtI/uJT5g9opKblX5jPLEEqCNfmZYX/zpE+a3vw/48jO4BEPZ0pedWyT2ECyVgFN5UByXAPMU52NybjVNbcFCCXVBLrZPpVYjOEvGKXS5TycbLqBZn03jJ11mpvMvunEaBkd/KSgZU509KVSF8FSO1igFjnFdWd9fAZJ4gLAdOGpMomcsUM82GhwWg4SbTxK3YcCW/mnLxCHBF5/04eqwfXymMJoVC/ylVDkd2Ui4/2MdAdh4I+uX1kuxaAdkdthG4DwMg7ZP1yTq2V17/rehrg==,iv:MEXl+ILToPtXNpJrogMTd3WufaF9+bsDvtDFd5FQGL4=,tag:1PpFXLegtlghf4vC4dytWA==,type:str]
+type: kubernetes.io/dockerconfigjson
+sops:
+    encrypted_regex: ^(data|stringData|secrets)$
+    lastmodified: "2026-07-29T10:46:27Z"
+    mac: ENC[AES256_GCM,data:5yBnFh1+n8WvXvsfCc8jAzxA8u4vK1nuw8008KjF648g1ND8QHjluv63QQcPTpJFNsA0sHZM64hXBdH5ckwRGP6PHFK3Qat0JZQukPolrYg+LPRENg+m7XdjgqmxUWFkC9DTzdd6Oq6Sfi9P5fo9TPIlCx5hAu/1EaXb8Q/PoJY=,iv:uKslvWfjWeWDmJ1utQuFYRbkJ9B4Fo7GXGDCqJY7nFo=,tag:s68aOwomXTgdAvt6na/pZQ==,type:str]
+    pgp:
+        - created_at: "2026-07-29T10:46:27Z"
+          enc: |-
+            -----BEGIN PGP MESSAGE-----
+
+            hF4DC4LUCsV/V+wSAQdA4QWwBEH6BxFGFWhA5uXSIHFWPEAaADqT4LM5ln7TPkgw
+            822A2atjJAVIxWiuOjfbkT6OAfoSa67uNSQEuC+X9yBiE2aBBlVyima4CIG3DT0Q
+            0l4BlB9aWROb5R9OWlojjvwL4Ca7um+WrxN5DsJ2LLsm0g6dCWQbH+N/3XOBjzzj
+            yZfJ6urVBSFsoSyN/DbRFHlggTpuG1jJNrd9dtLMMylU8JndamykWNzCuIYWVvSu
+            =vARk
+            -----END PGP MESSAGE-----
+          fp: 459895EB0A5F446D3831E99F95F6A162E4A71B06
+        - created_at: "2026-07-29T10:46:27Z"
+          enc: |-
+            -----BEGIN PGP MESSAGE-----
+
+            hF4D8q6e3Tem1ZoSAQdAVrDob9x7vazm5q5xFbFLJJPRJwoIt+GHm4c9xlPYOAow
+            jAoeM2IB+vgVgSVMZlf5XkF3g9Fmzf0CZZOpMbZeHnv1MOp9Q0dRcxV/COw1mwi/
+            0l4BSqcTKYxmbvLbJdscVMgom/DXu1l7Y8EjfkoY8TUaxLsl9ZrFgZW05B/3B6ZE
+            4/99TODFB59DL7uocNGtIMwoyjmLlbyP5BvEBaPpZnKpT8C/SzF7LDN7Lrnnew9G
+            =8FvW
+            -----END PGP MESSAGE-----
+          fp: DF7F5D62376A57228F35FE4C665F8C5B8E0732E5
+    version: 3.13.1

@@ -18,6 +18,30 @@ spec:
       # name, so cert-manager's side of the connection is unchanged.
       - port: "8443"
         protocol: TCP
+  # The rule above is not the path that actually presents a challenge. This
+  # webhook is an aggregated APIService (v1alpha1.acme.infomaniak.com), so
+  # cert-manager never dials the pod: it POSTs a ChallengePayload to the
+  # apiserver, and the aggregation layer proxies that to this Service. The
+  # connection therefore arrives from the apiserver, not from a cert-manager
+  # pod, and the DNS01 solver fails with "the server is currently unable to
+  # handle the request (post infomaniak.acme.infomaniak.com)" — a message that
+  # names the API group and gives no hint that a network policy dropped it.
+  #
+  # All three entities because the apiserver is a static pod on the host
+  # netns of cp-0/1/2: Cilium identifies it as `host` when it happens to be on
+  # the same node as this pod and `remote-node` when it is not, and
+  # `kube-apiserver` only where the identity is derived from the apiserver's
+  # own addresses. Which one you get depends on scheduling, so pinning any
+  # single one makes issuance work until the pod moves. This matches
+  # platform/cert-manager's own webhook policy.
+  - fromEntities:
+    - kube-apiserver
+    - remote-node
+    - host
+    toPorts:
+    - ports:
+      - port: "8443"
+        protocol: TCP
   egress:
   - toEntities:
     - kube-apiserver
