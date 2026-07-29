@@ -1,0 +1,70 @@
+# Authentik handles auth.yewolf.fr traffic from the edge, talks to the shared
+# CNPG Postgres, and serves ext-auth requests from envoy-gateway-system. Workers
+# also reach Postgres. Email is sent outbound to the LAN/tailnet SMTP server.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: authentik
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/instance: authentik
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: envoy-gateway-system
+    toPorts:
+    - ports:
+      - port: "80"
+        protocol: TCP
+      - port: "9443"
+        protocol: TCP
+      - port: "9000"
+        protocol: TCP
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: authentik
+  - fromEntities:
+    - host
+    - remote-node
+    - health
+  egress:
+  - toEntities:
+    - kube-apiserver
+    toPorts:
+    - ports:
+      - port: "6443"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: postgres
+    toPorts:
+    - ports:
+      - port: "5432"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: authentik
+  - toCIDRSet:
+    - cidr: 0.0.0.0/0
+      except:
+      - 10.0.0.0/8
+      - 192.168.0.0/16
+    toPorts:
+    - ports:
+      - port: "25"
+        protocol: TCP
+      - port: "465"
+        protocol: TCP
+      - port: "587"
+        protocol: TCP

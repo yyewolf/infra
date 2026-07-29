@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: eso-push-writer-authentik
+  namespace: postgres
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: eso-push-writer
+  namespace: authentik
+rules:
+- apiGroups: [""]
+  resources: [secrets]
+  verbs: [get, list, watch, create, update, patch]
+- apiGroups: [authorization.k8s.io]
+  resources: [selfsubjectrulesreviews]
+  verbs: [create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: eso-push-writer
+  namespace: authentik
+subjects:
+- kind: ServiceAccount
+  name: eso-push-writer-authentik
+  namespace: postgres
+roleRef:
+  kind: Role
+  name: eso-push-writer
+  apiGroup: rbac.authorization.k8s.io

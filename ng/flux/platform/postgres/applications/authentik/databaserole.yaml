@@ -1,0 +1,12 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: authentik
+  namespace: postgres
+spec:
+  cluster:
+    name: postgres
+  name: authentik
+  login: true
+  passwordSecret:
+    name: authentik-db-credentials
