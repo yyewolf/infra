@@ -16,3 +16,4 @@ resources:
 - tls-routes.yaml
 - backend-traffic-policy.yaml
 - network-policy.yaml
+- zones/

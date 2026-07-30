@@ -49,6 +49,13 @@ spec:
         protocol: TCP
   - fromEndpoints:
     - matchLabels:
+        io.kubernetes.pod.namespace: webmail
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
+  - fromEndpoints:
+    - matchLabels:
         io.kubernetes.pod.namespace: stalwart
   - fromEntities:
     - host

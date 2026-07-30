@@ -49,3 +49,4 @@ resources:
 - apps/uctf/ks.yaml
 - apps/authentik/ks.yaml
 - apps/stalwart/ks.yaml
+- apps/webmail/ks.yaml

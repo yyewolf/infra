@@ -1,0 +1,114 @@
+apiVersion: externaldns.k8s.io/v1alpha1
+kind: DNSEndpoint
+metadata:
+  name: zones-yewolf-fr
+  namespace: stalwart
+spec:
+  endpoints:
+  - dnsName: v1-ed25519-20260730._domainkey.yewolf.fr
+    recordType: TXT
+    targets:
+    - v=DKIM1; k=ed25519; h=sha256; p=/iICUyjCSWtk0le2CbHoQBJRf1CTppOU/QLVvCcmOPQ=
+  - dnsName: v1-rsa-20260730._domainkey.yewolf.fr
+    recordType: TXT
+    targets:
+    - v=DKIM1; k=rsa; h=sha256; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnbm0AWoRvje1ORIF7mWNz2XCRq+wZwN3cFU5F68C2UorCvkJosrrd5WMCj65xJdB/AEYx7aElJ58WZkKWumEpmwpg+nONTv6kXpP2m5e9l0Fc614wjxCOcaPy12nk27O8ioH7lHC3qFQNHwrKLb/2lgmzC6Xk1uAuCxtKdlg83CcsVVaTlXvyCH
+    - v45wTyQdQAxawUCWXaFwYA1D8REv9MMQFUGruXGaZ/4uTYbXvVy/7H1ee98hKJYTjzhuIozQQhLpPHodh6zrApFTqI8zA+REhMTA5Syk2OjHs1Oeugc6V3tv7xQ61Qh7VFtMlsQ03wUhws0J2WZQxuup/WRkjvwIDAQAB
+  - dnsName: _25._tcp.mail.yewolf.fr
+    recordType: TLSA
+    targets:
+    - 3 1 1 93b4e5bf9a44999eecd5ac5c0c5a8084ae773df35521a704aa68a9216fa11f8f
+    - 2 1 1 9d637b3d27a9e570d07607b9ccadb80a70915c7af72afce12841b1b1da825fd1
+    - 2 1 1 7e4e8838a8add6295de7ae3b047d3aba3488ab95db0a0aa56d897a00d8618bcf
+  - dnsName: _993._tcp.mail.yewolf.fr
+    recordType: TLSA
+    targets:
+    - 3 1 1 93b4e5bf9a44999eecd5ac5c0c5a8084ae773df35521a704aa68a9216fa11f8f
+    - 2 1 1 9d637b3d27a9e570d07607b9ccadb80a70915c7af72afce12841b1b1da825fd1
+    - 2 1 1 7e4e8838a8add6295de7ae3b047d3aba3488ab95db0a0aa56d897a00d8618bcf
+  - dnsName: _443._tcp.mail.yewolf.fr
+    recordType: TLSA
+    targets:
+    - 3 1 1 93b4e5bf9a44999eecd5ac5c0c5a8084ae773df35521a704aa68a9216fa11f8f
+    - 2 1 1 9d637b3d27a9e570d07607b9ccadb80a70915c7af72afce12841b1b1da825fd1
+    - 2 1 1 7e4e8838a8add6295de7ae3b047d3aba3488ab95db0a0aa56d897a00d8618bcf
+  - dnsName: _465._tcp.mail.yewolf.fr
+    recordType: TLSA
+    targets:
+    - 3 1 1 93b4e5bf9a44999eecd5ac5c0c5a8084ae773df35521a704aa68a9216fa11f8f
+    - 2 1 1 9d637b3d27a9e570d07607b9ccadb80a70915c7af72afce12841b1b1da825fd1
+    - 2 1 1 7e4e8838a8add6295de7ae3b047d3aba3488ab95db0a0aa56d897a00d8618bcf
+  - dnsName: _995._tcp.mail.yewolf.fr
+    recordType: TLSA
+    targets:
+    - 3 1 1 93b4e5bf9a44999eecd5ac5c0c5a8084ae773df35521a704aa68a9216fa11f8f
+    - 2 1 1 9d637b3d27a9e570d07607b9ccadb80a70915c7af72afce12841b1b1da825fd1
+    - 2 1 1 7e4e8838a8add6295de7ae3b047d3aba3488ab95db0a0aa56d897a00d8618bcf
+  - dnsName: mail.yewolf.fr
+    recordType: TXT
+    targets:
+    - v=spf1 a -all
+  - dnsName: yewolf.fr
+    recordType: TXT
+    targets:
+    - v=spf1 mx -all
+  - dnsName: yewolf.fr
+    recordType: MX
+    targets:
+    - 10 mail.yewolf.fr
+  - dnsName: _dmarc.yewolf.fr
+    recordType: TXT
+    targets:
+    - v=DMARC1; p=reject; rua=mailto:[EMAIL]
+  - dnsName: _caldavs._tcp.yewolf.fr
+    recordType: SRV
+    targets:
+    - 0 1 443 mail.yewolf.fr.
+  - dnsName: _carddavs._tcp.yewolf.fr
+    recordType: SRV
+    targets:
+    - 0 1 443 mail.yewolf.fr.
+  - dnsName: _imaps._tcp.yewolf.fr
+    recordType: SRV
+    targets:
+    - 0 1 993 mail.yewolf.fr.
+  - dnsName: _jmap._tcp.yewolf.fr
+    recordType: SRV
+    targets:
+    - 0 1 443 mail.yewolf.fr.
+  - dnsName: _pop3s._tcp.yewolf.fr
+    recordType: SRV
+    targets:
+    - 0 1 995 mail.yewolf.fr.
+  - dnsName: _submissions._tcp.yewolf.fr
+    recordType: SRV
+    targets:
+    - 0 1 465 mail.yewolf.fr.
+  - dnsName: mta-sts.yewolf.fr
+    recordType: CNAME
+    targets:
+    - mail.yewolf.fr
+  - dnsName: _mta-sts.yewolf.fr
+    recordType: TXT
+    targets:
+    - v=STSv1; id=16876838626814041543
+  - dnsName: _smtp._tls.yewolf.fr
+    recordType: TXT
+    targets:
+    - v=TLSRPTv1; rua=mailto:[EMAIL]
+  - dnsName: ua-auto-config.yewolf.fr
+    recordType: CNAME
+    targets:
+    - mail.yewolf.fr
+  - dnsName: _ua-auto-config.yewolf.fr
+    recordType: TXT
+    targets:
+    - v=UAAC1; a=sha256; d=HrMnUXYdaimSXPa0nnbRkI5IZDQ4kyMuA99utsrMyyI=
+  - dnsName: autoconfig.yewolf.fr
+    recordType: CNAME
+    targets:
+    - mail.yewolf.fr
+  - dnsName: autodiscover.yewolf.fr
+    recordType: CNAME
+    targets:
+    - mail.yewolf.fr

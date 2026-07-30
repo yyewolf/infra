@@ -79,7 +79,10 @@ spec:
   # This grants nothing that was not already reachable: these two listeners
   # face the internet, so any pod with egress could reach them the long way
   # round. 10022 is deliberately not included — the SSH listener has no
-  # in-cluster caller, and there is no reason to give one a path to it.
+  # in-cluster caller, and there is no reason to give one a path to it. The
+  # mail ports (10465, 10587, 10025) ARE included: they are also public, and
+  # in-cluster callers (vaultwarden, authentik) use them to relay SMTP through
+  # the edge proxy to stalwart rather than bypassing PROXY protocol.
   - fromEntities:
     - cluster
     toPorts:
@@ -90,6 +93,12 @@ spec:
         protocol: TCP
       - port: "10443"
         protocol: UDP
+      - port: "10465"
+        protocol: TCP
+      - port: "10587"
+        protocol: TCP
+      - port: "10025"
+        protocol: TCP
   egress:
   - toEntities:
     - kube-apiserver

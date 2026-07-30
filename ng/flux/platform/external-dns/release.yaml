@@ -28,7 +28,7 @@ spec:
     - service
 
     policy: sync
-    interval: 1m
+    interval: 30m
     triggerLoopOnEvent: true
 
     # TXT ownership records keep external-dns from touching anything it did not
@@ -37,9 +37,19 @@ spec:
     txtOwnerId: ng
     txtPrefix: k8s-
 
+    enableGatewayListenerSets: true
+
     domainFilters:
     - yewolf.fr
     - hackcorp.net
+    - uctf.io
+
+    managedRecordTypes:
+    - A
+    - AAAA
+    - TXT
+    - CNAME
+    - SRV
 
     provider:
       name: webhook
@@ -83,7 +93,7 @@ spec:
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
-            drop: ["ALL"]
+            drop: [ "ALL" ]
           readOnlyRootFilesystem: true
           runAsNonRoot: true
           runAsUser: 65532
