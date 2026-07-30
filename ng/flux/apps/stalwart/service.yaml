@@ -1,11 +1,6 @@
-# Management port only, and that is an exposure decision rather than a
-# reflection of what the process binds. A fresh v0.16 already listens on 25,
-# 443, 465, 993, 995 and 4190 (verified on the running pod; 143, 587 and 110 are
-# not bound — v0.16 stopped adding plain-text mail listeners by default). None of
-# them are named here because none are routed yet: reaching them from outside
-# needs a ListenerSet on the edge Gateway, an ingress rule in network-policy.yaml
-# and a decision about whether this cluster's public IP is the right place to
-# answer for port 25 at all. Ports get added in that change, not before it.
+# Management port plus the six mail-protocol ports forwarded by the ListenerSet.
+# The ports here match what stalwart binds by default and what the TCPRoutes in
+# tcp-routes.yaml target.
 apiVersion: v1
 kind: Service
 metadata:
@@ -15,5 +10,23 @@ spec:
   - name: mgmt
     port: 8080
     targetPort: 8080
+  - name: smtp
+    port: 25
+    targetPort: 25
+  - name: smtps
+    port: 465
+    targetPort: 465
+  - name: submission
+    port: 587
+    targetPort: 587
+  - name: imaps
+    port: 993
+    targetPort: 993
+  - name: pop3s
+    port: 995
+    targetPort: 995
+  - name: sieve
+    port: 4190
+    targetPort: 4190
   selector:
     app: stalwart

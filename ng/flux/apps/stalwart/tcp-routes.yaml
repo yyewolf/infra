@@ -1,0 +1,57 @@
+# TCPRoutes for the STARTTLS ports — SMTP (25, delivery), submission (587) and
+# ManageSieve (4190). These open plaintext and upgrade to TLS later; Envoy
+# cannot inspect the ClientHello because there is none at connection start, so
+# they stay on plain TCP passthrough.
+#
+# The implicit-TLS ports (SMTPS 465, IMAPS 993, POP3S 995) are TLS passthrough
+# listeners with TLSRoutes in tls-routes.yaml.
+apiVersion: gateway.networking.k8s.io/v1alpha2
+kind: TCPRoute
+metadata:
+  name: smtp
+spec:
+  parentRefs:
+  - group: gateway.networking.k8s.io
+    kind: ListenerSet
+    name: stalwart-mail
+    sectionName: smtp
+  rules:
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: stalwart
+      port: 25
+---
+apiVersion: gateway.networking.k8s.io/v1alpha2
+kind: TCPRoute
+metadata:
+  name: submission
+spec:
+  parentRefs:
+  - group: gateway.networking.k8s.io
+    kind: ListenerSet
+    name: stalwart-mail
+    sectionName: submission
+  rules:
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: stalwart
+      port: 587
+---
+apiVersion: gateway.networking.k8s.io/v1alpha2
+kind: TCPRoute
+metadata:
+  name: sieve
+spec:
+  parentRefs:
+  - group: gateway.networking.k8s.io
+    kind: ListenerSet
+    name: stalwart-mail
+    sectionName: sieve
+  rules:
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: stalwart
+      port: 4190

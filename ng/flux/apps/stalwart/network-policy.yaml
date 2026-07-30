@@ -1,7 +1,6 @@
-# What this policy covers is an empty mail server that is only reachable through
-# the edge on its management port. It is deliberately not pre-loosened for the
-# mail ports: ingress on 25/465/587/993/4190 arrives from the Envoy pods once
-# the ListenerSet exists, and belongs in that change.
+# Ingress: the envoy-proxy pods forward traffic to the management port (WebUI)
+# and the six mail ports (SMTP, SMTPS, submission, IMAPS, POP3S, ManageSieve).
+# Intra-namespace and health probes are unrestricted.
 #
 # Egress, on the other hand, is written for the configured server rather than the
 # empty one, because both destinations are needed the moment the directory and a
@@ -35,6 +34,18 @@ spec:
     toPorts:
     - ports:
       - port: "8080"
+        protocol: TCP
+      - port: "25"
+        protocol: TCP
+      - port: "465"
+        protocol: TCP
+      - port: "587"
+        protocol: TCP
+      - port: "993"
+        protocol: TCP
+      - port: "995"
+        protocol: TCP
+      - port: "4190"
         protocol: TCP
   - fromEndpoints:
     - matchLabels:

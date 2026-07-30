@@ -77,9 +77,9 @@ spec:
         # name that changes on every restart — but it is also what the server
         # advertises as its own hostname until one is set in the database: with
         # this unset the JMAP session hands clients `https://stalwart-0/jmap/`.
-        # Keep it equal to the hostname in route.yaml.
+        # Keep it equal to the hostname in route.yaml and certificate.yaml.
         - name: STALWART_HOSTNAME
-          value: mail-ng.yewolf.fr
+          value: mail.yewolf.fr
         volumeMounts:
         - name: config
           mountPath: /etc/stalwart/config.json
@@ -87,6 +87,9 @@ spec:
           readOnly: true
         - name: data
           mountPath: /var/lib/stalwart
+        - name: tls
+          mountPath: /etc/stalwart/tls
+          readOnly: true
         - name: tmp
           mountPath: /tmp
         # /healthz on the management port, which is the one listener that is not
@@ -121,5 +124,8 @@ spec:
       - name: data
         persistentVolumeClaim:
           claimName: stalwart-data
+      - name: tls
+        secret:
+          secretName: stalwart-tls
       - name: tmp
         emptyDir: {}

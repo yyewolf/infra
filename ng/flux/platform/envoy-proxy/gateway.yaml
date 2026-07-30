@@ -6,9 +6,9 @@ spec:
   gatewayClassName: eg
   # Apps do not get to bolt listeners onto this Gateway by default — the
   # Gateway API default is to allow no ListenerSets at all, and it stays that
-  # way for everything not named here. `portfoliosh` is the exception: its SSH
-  # listener is useful to that one app, so it declares it in its own directory
-  # (apps/portfoliosh/listenerset.yaml) and this is the consent half.
+  # way for everything not named here. `portfoliosh` opens SSH, `stalwart`
+  # opens the mail ports. Both declare their ListenerSets in their own
+  # directories and this is the consent half.
   #
   # Selector rather than `All`, so a new namespace cannot open a port on the
   # public edge by creating an object in its own directory. The label is the
@@ -17,8 +17,12 @@ spec:
     namespaces:
       from: Selector
       selector:
-        matchLabels:
-          kubernetes.io/metadata.name: portfoliosh
+        matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: In
+          values:
+          - portfoliosh
+          - stalwart
   listeners:
   - protocol: HTTP
     port: 80

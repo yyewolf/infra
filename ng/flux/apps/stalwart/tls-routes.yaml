@@ -1,0 +1,60 @@
+# TLSRoutes for the implicit-TLS ports. The TLS handshake starts immediately
+# on these, so Envoy reads the SNI from the ClientHello and routes to stalwart
+# without terminating the connection. Stalwart handles its own TLS using the
+# stalwart-tls Secret mounted at /etc/stalwart/tls.
+apiVersion: gateway.networking.k8s.io/v1alpha2
+kind: TLSRoute
+metadata:
+  name: smtps
+spec:
+  parentRefs:
+  - group: gateway.networking.k8s.io
+    kind: ListenerSet
+    name: stalwart-mail
+    sectionName: smtps
+  hostnames:
+  - mail.yewolf.fr
+  rules:
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: stalwart
+      port: 465
+---
+apiVersion: gateway.networking.k8s.io/v1alpha2
+kind: TLSRoute
+metadata:
+  name: imaps
+spec:
+  parentRefs:
+  - group: gateway.networking.k8s.io
+    kind: ListenerSet
+    name: stalwart-mail
+    sectionName: imaps
+  hostnames:
+  - mail.yewolf.fr
+  rules:
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: stalwart
+      port: 993
+---
+apiVersion: gateway.networking.k8s.io/v1alpha2
+kind: TLSRoute
+metadata:
+  name: pop3s
+spec:
+  parentRefs:
+  - group: gateway.networking.k8s.io
+    kind: ListenerSet
+    name: stalwart-mail
+    sectionName: pop3s
+  hostnames:
+  - mail.yewolf.fr
+  rules:
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: stalwart
+      port: 995

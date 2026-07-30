@@ -7,7 +7,12 @@ resources:
 - recovery-admin-sops.yaml
 - configmap.yaml
 - pvc.yaml
+- certificate.yaml
 - deployment.yaml
 - service.yaml
 - route.yaml
+- listenersets.yaml
+- tcp-routes.yaml
+- tls-routes.yaml
+- backend-traffic-policy.yaml
 - network-policy.yaml

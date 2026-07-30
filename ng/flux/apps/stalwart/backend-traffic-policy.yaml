@@ -1,0 +1,24 @@
+# Layer-4 PROXY protocol on every upstream connection to stalwart, so the mail
+# server sees the real client address instead of the envoy-proxy pod IP. Without
+# this every delivered message, every IMAP login and every rate-limit decision
+# appears to come from the edge proxy — spam filtering and auth failure counting
+# are blind.
+#
+# Targets the Service rather than individual TCPRoutes: the policy applies on
+# the upstream side regardless of which listener or route the connection came
+# through.
+#
+# Stalwart's listener must also accept PROXY protocol. That is database state
+# set via the management API (listeners → advanced → proxy protocol), not
+# manifest state.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: stalwart-proxy-protocol
+spec:
+  targetRefs:
+  - group: ""
+    kind: Service
+    name: stalwart
+  proxyProtocol:
+    version: V2

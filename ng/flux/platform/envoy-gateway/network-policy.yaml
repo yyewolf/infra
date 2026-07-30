@@ -52,6 +52,21 @@ spec:
       # apps/portfoliosh's ListenerSet, public SSH on 22.
       - port: "10022"
         protocol: TCP
+      # apps/stalwart's ListenerSet, mail protocols. Envoy Gateway translates
+      # the listener port to a 10xxx container port for TCP proxying, exactly
+      # as it does for the Gateway's own listeners.
+      - port: "10025"
+        protocol: TCP
+      - port: "10465"
+        protocol: TCP
+      - port: "10587"
+        protocol: TCP
+      - port: "10993"
+        protocol: TCP
+      - port: "10995"
+        protocol: TCP
+      - port: "14190"
+        protocol: TCP
   # Workloads inside the cluster calling their own public hostname instead of a
   # Service — basilic building a URL from FRONTEND_BASE_URL and following it,
   # or reaching safran on storage.yewolf.fr. The name resolves to this

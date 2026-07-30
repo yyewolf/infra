@@ -13,9 +13,11 @@ spec:
       name: sops-gpg
   dependsOn:
   # envoy-proxy owns the Gateway this app's HTTPRoute attaches to; longhorn
-  # provisions the volume the whole server lives on.
+  # provisions the volume the whole server lives on. certificates creates the
+  # infomaniak ClusterIssuer the Certificate resource references.
   - name: envoy-proxy
   - name: longhorn
+  - name: certificates
   interval: 10m
   path: ./ng/flux/apps/stalwart
   prune: true

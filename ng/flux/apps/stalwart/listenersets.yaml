@@ -1,0 +1,63 @@
+# TCP and TLS-passthrough listeners for the mail protocols. Envoy never
+# terminates TLS for any of these — stalwart handles its own TLS.
+#
+# The split: implicit-TLS ports (465/993/995) use protocol TLS with
+# Passthrough mode so Envoy can route by SNI. STARTTLS ports (25/587/4190)
+# stay TCP because the connection opens plaintext and there is no
+# ClientHello to inspect at connection start.
+#
+# The Gateway in envoy-proxy/gateway.yaml must consent via allowedListeners;
+# this namespace's label is added there.
+apiVersion: gateway.networking.k8s.io/v1
+kind: ListenerSet
+metadata:
+  name: stalwart-mail
+spec:
+  parentRef:
+    group: gateway.networking.k8s.io
+    kind: Gateway
+    namespace: envoy-gateway-system
+    name: envoy-gateway
+  listeners:
+  - name: smtp
+    protocol: TCP
+    port: 25
+    allowedRoutes:
+      namespaces:
+        from: Same
+  - name: smtps
+    protocol: TLS
+    port: 465
+    tls:
+      mode: Passthrough
+    allowedRoutes:
+      namespaces:
+        from: Same
+  - name: submission
+    protocol: TCP
+    port: 587
+    allowedRoutes:
+      namespaces:
+        from: Same
+  - name: imaps
+    protocol: TLS
+    port: 993
+    tls:
+      mode: Passthrough
+    allowedRoutes:
+      namespaces:
+        from: Same
+  - name: pop3s
+    protocol: TLS
+    port: 995
+    tls:
+      mode: Passthrough
+    allowedRoutes:
+      namespaces:
+        from: Same
+  - name: sieve
+    protocol: TCP
+    port: 4190
+    allowedRoutes:
+      namespaces:
+        from: Same
