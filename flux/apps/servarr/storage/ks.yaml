@@ -1,0 +1,27 @@
+# Deliberately no `wait: true`, unlike the other storage Kustomizations on ng.
+#
+# Every class on this cluster is volumeBindingMode: WaitForFirstConsumer, so a
+# freshly applied PVC sits `Pending` until a pod references it. kstatus reports a
+# Pending PVC as InProgress, so `wait: true` here would block on the seven config
+# claims until something mounted them — and the only thing that will is
+# servarr-migrate, which dependsOn this Kustomization. That is a deadlock with no
+# timeout short of the KS's own.
+#
+# Without `wait`, Ready means "the objects applied cleanly", which is the whole
+# ordering guarantee servarr-migrate actually needs: the claims exist, so its
+# Jobs can be the first consumers and bind them.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: servarr-storage
+  namespace: flux-system
+spec:
+  dependsOn:
+  - name: longhorn
+  interval: 10m
+  path: ./flux/apps/servarr/storage
+  prune: false
+  retryInterval: 1m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

@@ -247,7 +247,7 @@ talosctl -n 10.200.0.11 reset --system-labels-to-wipe EPHEMERAL --graceful --reb
 cd ng/openstack && terraform init
 
 # Bootstrap Flux on the cluster (one-time, after Cilium is healthy)
-flux bootstrap git --url=https://github.com/yyewolf/infra.git --branch=main --path=./ng/flux
+flux bootstrap git --url=https://github.com/yyewolf/infra.git --branch=main --path=./flux
 
 # Force Flux to reconcile (without waiting for the interval)
 flux reconcile kustomization shared

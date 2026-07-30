@@ -1,0 +1,28 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: uctf
+  namespace: flux-system
+spec:
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-gpg
+  dependsOn:
+  # envoy-proxy for the Gateway all three routes attach to, and certificates
+  # for the uctf.io Secret that Gateway's https listener terminates on — a
+  # route for a hostname the listener has no certificate for is accepted and
+  # then answered with the wrong cert.
+  #
+  # Not uctf-db: that Kustomization writes a Role into this namespace, so it is
+  # the one that waits. basilic and safran simply stay pending on their missing
+  # DSN secrets until the push lands.
+  - name: envoy-proxy
+  - name: certificates
+  interval: 10m
+  path: ./flux/apps/uctf
+  prune: false
+  retryInterval: 1m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

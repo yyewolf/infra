@@ -1,0 +1,23 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: portfoliosh
+  namespace: flux-system
+spec:
+  # hostkey-sops.yaml — without this the encrypted Secret is applied verbatim
+  # and sshd comes up with an unusable host key rather than an error.
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-gpg
+  dependsOn:
+  # envoy-proxy owns the Gateway this app's ListenerSet attaches to, and the
+  # `allowedListeners` entry that lets it.
+  - name: envoy-proxy
+  interval: 10m
+  path: ./flux/apps/portfoliosh
+  prune: false
+  retryInterval: 1m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
