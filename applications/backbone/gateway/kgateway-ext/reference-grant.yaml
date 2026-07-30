@@ -10,9 +10,6 @@ spec:
     - group: gateway.kgateway.dev
       kind: TrafficPolicy
       namespace: syncthing
-    - group: gateway.kgateway.dev
-      kind: TrafficPolicy
-      namespace: ytdlp
   to:
     - group: gateway.kgateway.dev
       kind: GatewayExtension

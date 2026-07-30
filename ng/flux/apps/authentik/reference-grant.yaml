@@ -21,6 +21,9 @@ spec:
   - group: gateway.envoyproxy.io
     kind: SecurityPolicy
     namespace: servarr
+  - group: gateway.envoyproxy.io
+    kind: SecurityPolicy
+    namespace: ytdlp
   to:
   - group: ""
     kind: Service

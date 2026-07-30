@@ -1,0 +1,59 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: yt-dlp-webui
+spec:
+  parentRefs:
+  - name: envoy-gateway
+    namespace: envoy-gateway-system
+    sectionName: https
+  hostnames:
+  - "dl.yewolf.fr"
+  rules:
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: yt-dlp-webui
+      port: 80
+      weight: 1
+    timeouts:
+      request: 0s
+      backendRequest: 0s
+    matches:
+    - path:
+        type: PathPrefix
+        value: /
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: yt-dlp-webui-ext-auth
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: yt-dlp-webui
+  extAuth:
+    headersToExtAuth:
+    - cookie
+    - authorization
+    - proxy-authorization
+    - accept
+    - x-forwarded-proto
+    - x-forwarded-for
+    - x-real-ip
+    http:
+      backendRefs:
+      - group: ""
+        kind: Service
+        name: ak-outpost-proxy
+        namespace: authentik
+        port: 9000
+      path: /outpost.goauthentik.io/auth/envoy
+      headersToBackend:
+      - x-authentik-uid
+      - x-authentik-username
+      - x-authentik-name
+      - x-authentik-email
+      - x-authentik-groups
+      - x-authentik-entitlements
