@@ -105,3 +105,19 @@ spec:
         protocol: TCP
       - port: "587"
         protocol: TCP
+  # ICMP for path-MTU discovery and general reachability checks to destination
+  # MX servers. Dropping it fails silently as delivery timeouts rather than as
+  # rejected connections, which is worse — the message queues, the retry
+  # schedule burns, and the sender never knows why.
+  - toEntities:
+    - world
+    icmps:
+    - fields:
+      - type: 0
+        family: IPv4
+      - type: 8
+        family: IPv4
+      - type: 129
+        family: IPv6
+      - type: 128
+        family: IPv6

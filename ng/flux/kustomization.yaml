@@ -48,5 +48,7 @@ resources:
 - apps/immich/ks.yaml
 - apps/uctf/ks.yaml
 - apps/authentik/ks.yaml
+- apps/rustfs/ks.yaml
+- apps/registry/ks.yaml
 - apps/stalwart/ks.yaml
 - apps/webmail/ks.yaml

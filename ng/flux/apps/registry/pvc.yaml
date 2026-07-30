@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: registry-storage
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: big-pool
+  resources:
+    requests:
+      storage: 100Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: registry-database
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: longhorn-yolo
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: registry-redis
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: longhorn-yolo
+  resources:
+    requests:
+      storage: 2Gi

@@ -72,6 +72,19 @@ spec:
   - toEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: servarr
+  # The authentik LDAP outpost. Cilium enforces after service translation and
+  # the outpost runs unprivileged, so the backend ports 3389/6636, not the
+  # Service ports 389/636. See the same rule in ng/flux/apps/stalwart/.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: authentik
+        goauthentik.io/outpost-type: ldap
+    toPorts:
+    - ports:
+      - port: "3389"
+        protocol: TCP
+      - port: "6636"
+        protocol: TCP
   # The internet, minus the LAN and the cluster. See the header.
   - toCIDRSet:
     - cidr: 0.0.0.0/0
