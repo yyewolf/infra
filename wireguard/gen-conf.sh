@@ -5,7 +5,7 @@ SCRIPT_DIR="$(dirname "$0")"
 REPO_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
-SOPS_FILE="ng/wireguard/identities-sops.yaml"
+SOPS_FILE="wireguard/identities-sops.yaml"
 
 PEER="home-router-0"
 ENDPOINT=""

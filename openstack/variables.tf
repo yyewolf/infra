@@ -5,7 +5,7 @@ variable "openstack_cloud" {
 }
 
 variable "instance_name" {
-  description = "Instance hostname. Must match a node in ng/talos/cluster.yaml and an identity in ng/wireguard/identities-sops.yaml — this module looks itself up in both by this name"
+  description = "Instance hostname. Must match a node in talos/cluster.yaml and an identity in wireguard/identities-sops.yaml — this module looks itself up in both by this name"
   type        = string
   default     = "edge-0"
 }

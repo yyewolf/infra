@@ -13,7 +13,7 @@
 # 5 3600's cores, which is what the 3-core limit is sized for. Getting the GPU
 # back means `siderolabs/nonfree-kmod-nvidia-production` plus
 # `siderolabs/nvidia-container-toolkit-production` in w-1's `extensions:` in
-# ng/talos/cluster.yaml, a `talos.sh upgrade w-1`, an `nvidia` RuntimeClass and
+# talos/cluster.yaml, a `talos.sh upgrade w-1`, an `nvidia` RuntimeClass and
 # the device plugin DaemonSet — a deliberate piece of work, not a field here.
 apiVersion: apps/v1
 kind: StatefulSet

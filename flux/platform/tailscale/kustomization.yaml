@@ -7,4 +7,5 @@ resources:
 - oauth-sops.yaml
 - repository.yaml
 - release.yaml
+- egress-lte.yaml
 - network-policy.yaml

@@ -10,11 +10,11 @@
 #
 # The containerd handler named below comes from the extension itself
 # (/etc/cri/conf.d/10-sysbox.part), not from a Talos patch — see
-# ng/talos/patches/sysbox.yaml for how the extension gets onto the node, which
+# talos/patches/sysbox.yaml for how the extension gets onto the node, which
 # is not the usual Image Factory route.
 #
 # Not to be confused with the RuntimeClass *called* 'sysbox-runc' in
-# ng/flux/infrastructure/gvisor/compat-sysbox-runc.yaml. That one is a migration
+# flux/infrastructure/gvisor/compat-sysbox-runc.yaml. That one is a migration
 # shim pointing at gVisor for pipelines that inherited the old root-cluster
 # default, and it keeps that meaning: a pipeline naming it is saying "sandbox
 # me", not "give me the sysbox runtime". This class is the real thing and is
@@ -34,7 +34,7 @@ overhead:
     memory: 32Mi
 scheduling:
   nodeSelector:
-    # Set by ng/talos/patches/sysbox.yaml, so it is on exactly the nodes that
+    # Set by talos/patches/sysbox.yaml, so it is on exactly the nodes that
     # carry the extension — all three LAN hosts. Deliberately not the
     # control-plane role that kata and gvisor select on, even though it would
     # currently pick the same three: a label written by the same patch that

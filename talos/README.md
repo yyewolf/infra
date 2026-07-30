@@ -1,4 +1,4 @@
-# ng/talos — Talos cluster definition
+# talos — Talos cluster definition
 
 Three physical hosts behind the MikroTik router, all control-plane with
 scheduling enabled. A cloud worker joins later over the router's WireGuard
@@ -31,7 +31,7 @@ from it, so there is no second place to keep in sync.
 
 | | |
 |---|---|
-| LAN | `10.200.0.0/24`, gateway `10.200.0.1` (see `ng/router`) |
+| LAN | `10.200.0.0/24`, gateway `10.200.0.1` (see `router`) |
 | Control-plane VIP | `10.200.0.10` |
 | Nodes | `cp-0` `.11`, `cp-1` `.12`, `cp-2` `.13` |
 | WireGuard overlay | `10.200.255.0/24` — `edge-0` is `.2` |
@@ -48,7 +48,7 @@ touches local storage, so you carry the same key from box to box and the real
 install happens over the network in step 4.
 
 ```sh
-cd ng/talos
+cd talos
 ./talos.sh usb /dev/sdX        # prompts before erasing anything
 ```
 
@@ -115,7 +115,7 @@ Cilium replaces both.
 
 ## The cloud worker (edge-0)
 
-`edge-0` runs on Infomaniak's OpenStack (`ng/openstack`) and is the one node not
+`edge-0` runs on Infomaniak's OpenStack (`openstack`) and is the one node not
 on the LAN. Its physical NIC takes a DHCP lease from the cloud and exists only
 to carry a WireGuard tunnel; its cluster address, `10.200.255.2`, lives on `wg0`.
 
@@ -125,7 +125,7 @@ node reaches the API server through the tunnel on its very first attempt and
 never talks to the control plane over the bare internet — not even during join.
 
 `talos.sh render` builds the `wg0` interface from
-`ng/wireguard/identities-sops.yaml`, the same registry `ng/router` builds its
+`wireguard/identities-sops.yaml`, the same registry `router` builds its
 peers from, and refuses to render if the address there disagrees with
 `cluster.yaml`. The two ends cannot drift.
 
@@ -136,14 +136,14 @@ other way round — which means the router needs `edge-0`'s public address befor
 `edge-0` can be built with it. Create the port on its own first:
 
 ```sh
-./ng/openstack/tf.sh apply -target=openstack_networking_port_v2.edge
-./ng/openstack/tf.sh output wireguard_endpoint      # e.g. 83.228.230.x:51820
+./openstack/tf.sh apply -target=openstack_networking_port_v2.edge
+./openstack/tf.sh output wireguard_endpoint      # e.g. 83.228.230.x:51820
 ```
 
 Then record it against the identity, regenerating the keypair in place:
 
 ```sh
-./ng/wireguard/gen-identity.sh edge-0 10.200.255.2/32 51820 195.15.x.y:51820
+./wireguard/gen-identity.sh edge-0 10.200.255.2/32 51820 195.15.x.y:51820
 ```
 
 Do this *before* rendering — `gen-identity.sh` mints a new keypair every run, so
@@ -152,9 +152,9 @@ a config rendered earlier would carry a private key the router no longer knows.
 Now render, teach the router about the peer, and build the box:
 
 ```sh
-cd ng/talos && ./talos.sh schematic && ./talos.sh render edge-0
-./ng/router/tf.sh apply          # picks up the new peer + route automatically
-./ng/openstack/tf.sh apply
+cd talos && ./talos.sh schematic && ./talos.sh render edge-0
+./router/tf.sh apply          # picks up the new peer + route automatically
+./openstack/tf.sh apply
 ```
 
 The router's WireGuard module derives peers from every identity in the registry
@@ -183,7 +183,7 @@ the router, `/interface wireguard peers print` shows the last handshake.
   v6 pod traffic inside v4 outer packets, so the v4-only tunnel is not a
   barrier to that.
 - **MTU is coupled to Cilium.** `network.wg_mtu` (1420) is the number
-  `ng/cluster/cilium/values.yaml` sets as its underlay MTU. Pod traffic to this
+  `flux/infrastructure/cilium/helmrelease.yaml` sets as its underlay MTU. Pod traffic to this
   node is built for it: pod payload 1370 + VXLAN 50 = 1420, exactly filling the
   tunnel. Change one without the other and cross-node traffic to the edge drops
   silently at full size while ping keeps working.
@@ -211,7 +211,7 @@ Image Factory ID (cached in `out/schematics/<node>.id`) and points only that
 node's `machine.install.image` at it. Nodes without extras keep the base ID, so
 adding an extension to one host does not re-image the others.
 
-Off-LAN nodes are excluded on purpose: `ng/openstack` builds `edge-0`'s Glance
+Off-LAN nodes are excluded on purpose: `openstack` builds `edge-0`'s Glance
 image from `out/schematic-id`, the *base* ID, so an extension listed on
 `edge-0` would have it install an image it never booted from. `render` refuses
 rather than let that through — extensions that node needs go in
@@ -223,7 +223,7 @@ rather than let that through — extensions that node needs go in
 it run under a lightweight VM with their own kernel instead of sharing the
 host's. The extension registers the containerd runtime handlers itself; the
 `RuntimeClass` objects that expose them come from Flux
-(`ng/flux/infrastructure/kata`), one per hypervisor:
+(`flux/infrastructure/kata`), one per hypervisor:
 
 | class | hypervisor | when |
 |---|---|---|
@@ -283,7 +283,7 @@ Both let the sandbox craft arbitrary packets onto the pod network. That is a
 real weakening of gVisor's *network* isolation — the syscall boundary is
 untouched — so the extension's own flagless `runsc` handler is left registered
 and unused rather than overridden. The `gvisor` RuntimeClass
-(`ng/flux/infrastructure/gvisor`) points at `runsc-netraw` and, like kata's,
+(`flux/infrastructure/gvisor`) points at `runsc-netraw` and, like kata's,
 selects the control-plane role — which on this cluster means the three LAN
 hosts, and keeps pods off `edge-0`, which has no extension.
 
@@ -380,9 +380,9 @@ has no mode that does not use unprivileged user namespaces, and Talos ships that
 sysctl at 0. Drop gvisor.yaml from a node that keeps sysbox.yaml and every
 sysbox container fails to start.
 
-The `sysbox` RuntimeClass comes from `ng/flux/infrastructure/sysbox`. Not to be
+The `sysbox` RuntimeClass comes from `flux/infrastructure/sysbox`. Not to be
 confused with the RuntimeClass *named* `sysbox-runc` in
-`ng/flux/infrastructure/gvisor/compat-sysbox-runc.yaml`, which is a migration
+`flux/infrastructure/gvisor/compat-sysbox-runc.yaml`, which is a migration
 shim pointing at gVisor and keeps that meaning.
 
 ## Longhorn storage
@@ -415,7 +415,7 @@ The Netac is slower and contends with nothing. So the pools are tagged and the
 StorageClasses choose: `longhorn-yolo` — the databases, single replica, latency
 being the entire reason that class exists — takes `nvme`, and the bulk classes
 take `sata`. See
-`ng/flux/infrastructure/longhorn/storageclasses.yaml`.
+`flux/infrastructure/longhorn/storageclasses.yaml`.
 
 The Netac is selected by model and transport (`disk.transport == "sata" &&
 disk.model == "Netac SSD 256GB"`), never by device name: `sda` is whatever the

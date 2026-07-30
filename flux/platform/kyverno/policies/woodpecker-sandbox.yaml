@@ -7,7 +7,7 @@
 # Every step goes to sysbox, unprivileged, with `hostUsers: false`. This is the
 # approach the root cluster used, and it is back because the thing that ruled it
 # out here is gone: ng now carries the sysbox extension on all three LAN hosts
-# (see ng/talos/patches/sysbox.yaml).
+# (see talos/patches/sysbox.yaml).
 #
 # Why one sandbox for everything, when the previous split existed for a reason:
 # the split was there because image builds need to run a container engine, and

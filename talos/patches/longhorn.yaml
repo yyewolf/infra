@@ -9,7 +9,7 @@
 # etcd's write path, so anything with sustained churn on it competes with etcd
 # fsyncs at the queue, not just at the filesystem. The Netac is slower and
 # completely uncontended. So the pools are tagged and the StorageClasses in
-# ng/flux/infrastructure/longhorn/storageclasses.yaml pick between them:
+# flux/infrastructure/longhorn/storageclasses.yaml pick between them:
 # `longhorn-yolo` (the databases — single replica, strict-local, latency is the
 # whole point) takes `nvme`, and the bulk classes take `sata`.
 #

@@ -6,9 +6,9 @@
 # control plane across the bare internet — not even once, during join.
 #
 # Consequently nothing about the cluster is defined here. The machine config,
-# including the tunnel, is rendered by ng/talos/talos.sh from cluster.yaml and
+# including the tunnel, is rendered by talos/talos.sh from cluster.yaml and
 # the WireGuard registry; this file only builds the box it runs on and hands it
-# that config as user data. See ng/talos/README.md for the ordering.
+# that config as user data. See talos/README.md for the ordering.
 
 locals {
   # Read rather than duplicated: the image has to be the same Talos version and
@@ -27,7 +27,7 @@ locals {
   image_url = "https://factory.talos.dev/image/${local.schematic_id}/${local.talos_version}/openstack-amd64.raw.xz"
 
   # Rendered by 'talos.sh render edge-0'. Contains the cluster PKI and the
-  # WireGuard private key, which is why ng/talos/out/ is gitignored and this
+  # WireGuard private key, which is why talos/out/ is gitignored and this
   # module's state is PGP-encrypted by tf.sh.
   machine_config_path = "${path.module}/../talos/out/${var.instance_name}.yaml"
   machine_config      = fileexists(local.machine_config_path) ? file(local.machine_config_path) : ""
@@ -87,7 +87,7 @@ resource "openstack_images_image_v2" "talos" {
   lifecycle {
     precondition {
       condition     = local.schematic_id != ""
-      error_message = "No ${local.schematic_path}. Run 'ng/talos/talos.sh schematic' first."
+      error_message = "No ${local.schematic_path}. Run 'talos/talos.sh schematic' first."
     }
     # Glance stamps its own properties (checksums, store locations, boot flags)
     # onto every image, which would otherwise show as permanent drift.
@@ -136,7 +136,7 @@ resource "openstack_networking_secgroup_rule_v2" "wireguard_v6" {
   port_range_max    = local.wg_listen_port
   remote_ip_prefix  = "::/0"
   security_group_id = openstack_networking_secgroup_v2.edge.id
-  description       = "WireGuard over IPv6, for when ng/router terminates v6"
+  description       = "WireGuard over IPv6, for when router terminates v6"
 }
 
 resource "openstack_networking_secgroup_rule_v2" "icmp_v4" {
@@ -260,7 +260,7 @@ resource "openstack_networking_secgroup_rule_v2" "ssh_v6" {
 }
 
 # Stalwart mail server — six ports forwarded by the ListenerSet in
-# ng/flux/apps/stalwart/listenersets.yaml. Three are implicit TLS
+# flux/apps/stalwart/listenersets.yaml. Three are implicit TLS
 # (465/993/995, TLS passthrough), three are STARTTLS (25/587/4190, plain TCP).
 # All arrive through the same envoy-proxy pod on edge-0.
 resource "openstack_networking_secgroup_rule_v2" "smtp_v4" {
@@ -401,9 +401,9 @@ resource "openstack_networking_secgroup_rule_v2" "sieve_v6" {
 #
 # It also breaks a chicken-and-egg: the router needs edge-0's public address as
 # the WireGuard endpoint, but that address does not exist until Terraform
-# creates something. Create just the port first — see ng/talos/README.md:
+# creates something. Create just the port first — see talos/README.md:
 #
-#     ./ng/openstack/tf.sh apply -target=openstack_networking_port_v2.edge
+#     ./openstack/tf.sh apply -target=openstack_networking_port_v2.edge
 resource "openstack_networking_port_v2" "edge" {
   name               = var.instance_name
   network_id         = data.openstack_networking_network_v2.public.id
@@ -459,7 +459,7 @@ resource "openstack_compute_instance_v2" "edge" {
   lifecycle {
     precondition {
       condition     = local.machine_config != ""
-      error_message = "No ${local.machine_config_path}. Run 'ng/talos/talos.sh render ${var.instance_name}' first."
+      error_message = "No ${local.machine_config_path}. Run 'talos/talos.sh render ${var.instance_name}' first."
     }
   }
 }
@@ -478,12 +478,12 @@ output "instance_name" {
 }
 
 output "public_v4" {
-  description = "Public IPv4 on the port. Record this as edge-0's endpoint in ng/wireguard/identities-sops.yaml so the router can dial it."
+  description = "Public IPv4 on the port. Record this as edge-0's endpoint in wireguard/identities-sops.yaml so the router can dial it."
   value       = try(local.port_v4[0], null)
 }
 
 output "public_v6" {
-  description = "Public IPv6 on the port. Ingress only — deliberately not edge-0's Kubernetes node address; see ng/talos/README.md."
+  description = "Public IPv6 on the port. Ingress only — deliberately not edge-0's Kubernetes node address; see talos/README.md."
   value       = try(local.port_v6[0], null)
 }
 

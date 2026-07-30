@@ -52,7 +52,7 @@ spec:
     - matchLabels:
         io.kubernetes.pod.namespace: servarr
   # Kubelet probes and health checking. `host` covers the node the pod is on,
-  # `remote-node` the other two — see the note in ng/AGENTS.md about why naming
+  # `remote-node` the other two — see the note in AGENTS.md about why naming
   # both is necessary rather than defensive.
   - fromEntities:
     - host
@@ -74,7 +74,7 @@ spec:
         io.kubernetes.pod.namespace: servarr
   # The authentik LDAP outpost. Cilium enforces after service translation and
   # the outpost runs unprivileged, so the backend ports 3389/6636, not the
-  # Service ports 389/636. See the same rule in ng/flux/apps/stalwart/.
+  # Service ports 389/636. See the same rule in flux/apps/stalwart/.
   - toEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: authentik

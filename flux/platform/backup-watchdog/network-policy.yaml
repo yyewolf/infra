@@ -1,0 +1,53 @@
+# Cilium default-deny is per-direction and per-endpoint, so both directions are
+# spelled out even though only egress carries any traffic.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: backup-watchdog
+spec:
+  endpointSelector: {}
+  ingress:
+  # Nothing reaches this pod — no ports, no probes. The rule exists to put the
+  # endpoint into ingress default-deny at all (a policy with no ingress section
+  # leaves ingress unrestricted) while admitting the node that runs it.
+  - fromEntities:
+    - host
+  egress:
+  # Five API queries, and nothing else this job does needs the apiserver.
+  - toEntities:
+    - kube-apiserver
+    toPorts:
+    - ports:
+      - port: "6443"
+        protocol: TCP
+  # DNS. Plain allow rather than the L7-inspecting form used where a toFQDNs
+  # rule follows: the notification target below is an in-cluster endpoint
+  # matched by label, so there is no FQDN entry needing DNS answers to
+  # populate it.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+  # The notification. NOTIFY_URL points at `lte.tailscale.svc:8080`, an
+  # ExternalName the operator repoints at the egress proxy it creates for
+  # lte.goby-beaufort.ts.net — so the packet that actually leaves this pod is
+  # addressed to a proxy pod in the tailscale namespace, not to the tailnet.
+  # That is why this is a toEndpoints rule and not toFQDNs: by the time policy
+  # is evaluated the destination is an in-cluster endpoint. The proxy end of
+  # this already admits it, via `fromEntities: cluster` in the tailscale
+  # policy. The proxy label is the only one that does not name the Service it
+  # was created for, so it is the only one stable enough to match on here.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: tailscale
+        tailscale.com/managed: "true"
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP

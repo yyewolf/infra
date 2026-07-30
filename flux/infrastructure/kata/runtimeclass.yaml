@@ -5,7 +5,7 @@
 # drop-in — there is nothing to configure on the node. These objects are only
 # what lets a pod ask for one, with 'runtimeClassName: kata'.
 #
-# The extension is in cp-0/cp-1/cp-2's schematic (ng/talos/cluster.yaml) and
+# The extension is in cp-0/cp-1/cp-2's schematic (talos/cluster.yaml) and
 # deliberately not in edge-0's: the cloud instance has no nested virtualization
 # and a kata pod landing there would fail to start with an unknown runtime
 # handler. The nodeSelector below is what keeps that from happening — it is

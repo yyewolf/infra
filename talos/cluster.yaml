@@ -22,7 +22,7 @@ kubernetes_version: 1.36.3
 installer_repository: ghcr.io/yyewolf/talos-installer
 
 network:
-  # Matches lan_subnet / lan_gateway in ng/router.
+  # Matches lan_subnet / lan_gateway in router.
   subnet: 10.200.0.0/24
   gateway: 10.200.0.1
 
@@ -43,21 +43,21 @@ network:
 
   # No IPv6 default route yet: the router does not route v6, and pointing at a
   # gateway that does not answer only buys connection timeouts. Set gateway6
-  # here once ng/router has IPv6 working and render will start emitting it.
+  # here once router has IPv6 working and render will start emitting it.
   gateway6: ""
 
   # WireGuard overlay. Nodes that are not on the LAN — the cloud edge worker —
   # take their cluster address from here instead of network.subnet, and reach
   # everything else through the tunnel the router terminates.
   #
-  # Must match the addresses in ng/wireguard/identities-sops.yaml: the router
+  # Must match the addresses in wireguard/identities-sops.yaml: the router
   # derives its peer allowed-address and static routes from that registry, so an
   # address written only here would be one the router never routes. talos.sh
   # cross-checks the two and refuses to render on a mismatch.
   wg_subnet: 10.200.255.0/24
 
   # MTU of the WireGuard interface on off-LAN nodes. This is the number Cilium's
-  # MTU value in ng/cluster/cilium/values.yaml is set to — it is the narrowest
+  # MTU value in flux/infrastructure/cilium/helmrelease.yaml is set to — it is the narrowest
   # underlay in the cluster, and pod traffic to this node is built for it. The
   # two have to move together or cross-node traffic to the edge silently drops.
   wg_mtu: 1420
@@ -97,7 +97,7 @@ nodes:
   # carry kata-containers: workloads that ask for the 'kata' RuntimeClass run
   # inside a lightweight VM instead of sharing the host kernel. The extension
   # registers the containerd runtime handlers by itself; the RuntimeClass
-  # objects come from ng/flux/infrastructure/kata.
+  # objects come from flux/infrastructure/kata.
   #
   # They also carry gVisor, which needs no virtualization but, unlike kata, does
   # need machine config to go with the extension — a sysctl and the CRI handler
@@ -159,11 +159,11 @@ nodes:
     - longhorn.yaml
     - sysbox.yaml
 
-  # Cloud worker on Infomaniak OpenStack (see ng/openstack). It is not on the
+  # Cloud worker on Infomaniak OpenStack (see openstack). It is not on the
   # LAN: its physical NIC takes a DHCP lease from the cloud and exists only to
   # carry a WireGuard tunnel, and the address below lives on wg0.
   #
-  # 'wireguard.peer' names the identity in ng/wireguard/identities-sops.yaml
+  # 'wireguard.peer' names the identity in wireguard/identities-sops.yaml
   # this node dials or is dialled by. The tunnel is part of the machine config,
   # so it is up before the kubelet starts — the node never talks to the cluster
   # over the bare internet, not even once during join.
@@ -176,7 +176,7 @@ nodes:
   # the other three nodes reaching it over the open internet instead of the
   # tunnel — exactly what this design exists to avoid.
   #
-  # No address6 for the same reason: the overlay is v4-only until ng/router
+  # No address6 for the same reason: the overlay is v4-only until router
   # terminates IPv6, so this node registers a v4-only *node address*. That does
   # not stop it backing IPv6 Services — kube-controller-manager still hands it
   # a v6 podCIDR out of pod_subnets, and pods here get both families — so a

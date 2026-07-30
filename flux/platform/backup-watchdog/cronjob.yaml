@@ -1,0 +1,255 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup-watchdog
+spec:
+  # 07:00 UTC, three hours after the last scheduled backup of the night starts
+  # (MySQL 02:30, Postgres 03:30, Longhorn 04:00) — enough margin that a slow
+  # run is reported as slow rather than as missing, and early enough to be read
+  # over breakfast.
+  schedule: "0 7 * * *"
+  concurrencyPolicy: Forbid
+  # A missed window is skipped rather than replayed: the report is a snapshot of
+  # "how do backups look right now", so a run fired hours late says nothing the
+  # next morning's run will not say better.
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      # One retry. The failure this covers is the notification POST, not the
+      # queries — and if the endpoint is down, a second attempt a few seconds
+      # later is about as much as is worth spending on it.
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: backup-watchdog
+        spec:
+          serviceAccountName: backup-watchdog
+          restartPolicy: Never
+          securityContext:
+            runAsUser: 65534
+            runAsGroup: 65534
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: report
+              # kubectl, jq and curl in one image, which is the whole reason for
+              # this one rather than a bare kubectl image — the previous
+              # incarnation of this job ran `apk add curl jq` at the top of
+              # every execution, which put a package mirror on the critical path
+              # of the thing meant to tell you when things are broken.
+              image: mirror.gcr.io/alpine/k8s:1.36.2@sha256:44ef4942e171939b9c665a4a84beb80e2dcdb9a24330d4651cfdfd2e9deecc47
+              imagePullPolicy: IfNotPresent
+              env:
+                # How old the newest backup may be before it is flagged. 26h,
+                # not 24h: the newest backup is ~3h old when this runs, so the
+                # next one out is yesterday's at ~27h. Anything under 26 is a
+                # window that fired; anything over it is a window that did not.
+                - name: STALE_HOURS
+                  value: "26"
+                - name: NOTIFY_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: notify-url
+                      key: URL
+                - name: TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: notify-url
+                      key: TOKEN
+                - name: PHONE
+                  valueFrom:
+                    secretKeyRef:
+                      name: notify-url
+                      key: PHONE
+                # kubectl writes its discovery cache under $HOME, and the root
+                # filesystem is read-only.
+                - name: HOME
+                  value: /tmp
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -eu
+
+                  # A failed query degrades the report rather than killing it:
+                  # the section it feeds comes back empty and the failure is
+                  # named at the bottom of the message. Aborting here would mean
+                  # one missing CRD costs you the notification entirely — which
+                  # is exactly the morning you would want one.
+                  errors=""
+                  fetch() {
+                    out=$1
+                    shift
+                    if ! kubectl get "$@" -o json >"$out" 2>/tmp/kubectl.err; then
+                      echo '{"items":[]}' >"$out"
+                      errors="${errors}⚠️ kubectl get $* failed: $(tr '\n' ' ' </tmp/kubectl.err)
+                  "
+                    fi
+                  }
+
+                  fetch /tmp/cnpg.json  backups.postgresql.cnpg.io -A
+                  fetch /tmp/mysql.json backups.mysql.cnmsql.co -A
+                  fetch /tmp/vols.json  volumes.longhorn.io -n longhorn-system
+                  fetch /tmp/rjobs.json recurringjobs.longhorn.io -n longhorn-system
+                  fetch /tmp/lhb.json   backups.longhorn.io -n longhorn-system
+
+                  # All time arithmetic is done in jq: its fromdateiso8601
+                  # parses RFC3339 exactly, whereas busybox `date -d` does not
+                  # accept the trailing Z and would silently produce garbage
+                  # ages rather than an error.
+                  message=$(jq -rn \
+                    --argjson now "$(date -u +%s)" \
+                    --argjson stale "$(( STALE_HOURS * 3600 ))" \
+                    --arg errors "$errors" \
+                    --slurpfile c /tmp/cnpg.json \
+                    --slurpfile m /tmp/mysql.json \
+                    --slurpfile v /tmp/vols.json \
+                    --slurpfile r /tmp/rjobs.json \
+                    --slurpfile b /tmp/lhb.json '
+                    ($c[0].items) as $cnpg | ($m[0].items) as $mysql |
+                    ($v[0].items) as $vols | ($r[0].items) as $rjobs |
+                    ($b[0].items) as $lhb |
+
+                    def ts: sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601;
+
+                    def human($s):
+                      if   $s < 3600  then "\(($s / 60) | floor)m"
+                      elif $s < 86400 then "\(($s / 3600) | floor)h"
+                      else "\(($s / 86400) | floor)d\((($s % 86400) / 3600) | floor)h"
+                      end;
+
+                    # cnpg and cnmsql Backup objects carry the same three status
+                    # fields, so one function covers both. Grouping by
+                    # namespace+cluster rather than naming the clusters means a
+                    # second database cluster shows up here on its own.
+                    def dbsection($title; $items):
+                      ( $items
+                        | map(select(.status.startedAt != null))
+                        | group_by([.metadata.namespace, (.spec.cluster.name // "?")])
+                        | map(
+                            (.[0].metadata.namespace + "/" + (.[0].spec.cluster.name // "?")) as $cluster
+                            | (sort_by(.status.startedAt) | last) as $b
+                            | ($now - (($b.status.stoppedAt // $b.status.startedAt) | ts)) as $age
+                            | ( if   $b.status.phase != "completed" then "❌"
+                                elif $age > $stale                 then "⚠️"
+                                else "✅" end ) as $icon
+                            | "\($icon) \($cluster) — \($b.status.phase), \(human($age)) ago"
+                          )
+                      ) as $lines
+                      | "\($title)\n" +
+                        (if ($lines | length) == 0
+                         then "❌ no backup objects found"
+                         else ($lines | join("\n")) end);
+
+                    # The expected set. A volume is due a backup when it carries
+                    # the group label of a RecurringJob whose task is backup, or
+                    # the per-volume label naming that job directly. Note what
+                    # this deliberately does not do: treat
+                    # recurring-job-group.longhorn.io/default as meaningful.
+                    # Longhorn stamps that label on every volume at creation and
+                    # never removes it, so it marks nothing unless some
+                    # RecurringJob claims the default group — and none does.
+                    ( $rjobs
+                      | map(select(.spec.task == "backup"))
+                      | map({ name: .spec.name, groups: (.spec.groups // []) }) ) as $jobs
+
+                    | ( $vols
+                        | map(
+                            . as $v
+                            | ((.metadata.labels // {}) | keys) as $labels
+                            | ( $jobs
+                                | map(select(
+                                    . as $j
+                                    | ($j.groups | any(. as $g | $labels | index("recurring-job-group.longhorn.io/\($g)") != null))
+                                      or ($labels | index("recurring-job.longhorn.io/\($j.name)") != null)
+                                  ))
+                                | map(.name) ) as $covering
+                            | select(($covering | length) > 0)
+                            | { vol: $v.metadata.name,
+                                name: (if ($v.status.kubernetesStatus.pvcName // "") != ""
+                                       then "\($v.status.kubernetesStatus.namespace)/\($v.status.kubernetesStatus.pvcName)"
+                                       else $v.metadata.name end) }
+                          )
+                        | sort_by(.name) ) as $expected
+
+                    # ...against what happened. The Backup CRs are how Longhorn
+                    # represents the backup target contents, so a volume with no
+                    # matching object has nothing in the bucket — the line worth
+                    # waking up for, and the one a "latest backup" query alone
+                    # can never produce.
+                    | ( $expected
+                        | map(
+                            . as $e
+                            | ( $lhb
+                                | map(select((.status.volumeName // .metadata.labels["backup-volume"]) == $e.vol))
+                                | sort_by(.status.snapshotCreatedAt // .status.backupCreatedAt // .metadata.creationTimestamp)
+                                | last ) as $b
+                            | if $b == null then
+                                "❌ \($e.name) — no backup found"
+                              else
+                                ($now - (($b.status.snapshotCreatedAt // $b.status.backupCreatedAt // $b.metadata.creationTimestamp) | ts)) as $age
+                                | ( if   $b.status.state == "InProgress" then "🔄"
+                                    elif $b.status.state != "Completed"  then "❌"
+                                    elif $age > $stale                   then "⚠️"
+                                    else "✅" end ) as $icon
+                                | "\($icon) \($e.name) — \($b.status.state // "Pending"), \(human($age)) ago"
+                              end
+                          ) ) as $lhlines
+
+                    | [ "📦 Backup report — \($now | strftime("%Y-%m-%d %H:%M UTC"))",
+                        "",
+                        dbsection("Postgres (cnpg)"; $cnpg),
+                        "",
+                        dbsection("MySQL (cnmsql)"; $mysql),
+                        "",
+                        "Longhorn (\($expected | length) volume(s) in a backup group)",
+                        (if ($lhlines | length) == 0
+                         then "❌ no volume carries a backup group label"
+                         else ($lhlines | join("\n")) end)
+                      ]
+                    + (if $errors == "" then [] else ["", ($errors | rtrimstr("\n"))] end)
+                    | join("\n")')
+
+                  printf "%s\n" "$message"
+
+                  # jq builds the body too, so the message is JSON-escaped by
+                  # something that understands JSON. The version this replaces
+                  # hand-rolled the escaping with sed and would have produced an
+                  # invalid body the first time a backup name or an error
+                  # message contained a quote.
+                  jq -n --arg message "$message" --arg number "$PHONE" \
+                    '{ message: $message, number: $number }' >/tmp/payload.json
+
+                  echo "Sending report..."
+                  curl --fail-with-body -sS \
+                       -H "Content-Type: application/json" \
+                       -H "Authorization: $TOKEN" \
+                       -X POST --data @/tmp/payload.json \
+                       "$NOTIFY_URL"
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  memory: 256Mi
+              volumeMounts:
+                - mountPath: /tmp
+                  name: tmp
+          volumes:
+            # Holds the five API dumps, the payload and kubectl's discovery
+            # cache. This is emptyDir on EPHEMERAL, the same filesystem as
+            # container images and logs, hence the cap.
+            - name: tmp
+              emptyDir:
+                sizeLimit: 64Mi

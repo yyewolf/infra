@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(dirname "$0")"
 cd "$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)"
 
-SOPS_FILE="ng/wireguard/identities-sops.yaml"
+SOPS_FILE="wireguard/identities-sops.yaml"
 
 if [ $# -lt 1 ]; then
     echo "usage: $0 <identity-name> [address/cidr] [port] [endpoint]"

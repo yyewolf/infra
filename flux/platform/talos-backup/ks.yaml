@@ -7,7 +7,7 @@ spec:
   # s3-credentials-sops.yaml is reconciled from git, so Flux needs the PGP key
   # to decrypt it. Note what is deliberately *not* here: the age private key
   # that decrypts the snapshots themselves. That lives in
-  # ng/talos/etcd-backup-age-sops-all.yaml, outside ./flux, precisely so no
+  # talos/etcd-backup-age-sops-all.yaml, outside ./flux, precisely so no
   # Kustomization can reach it. Only the public recipient is in this directory.
   decryption:
     provider: sops

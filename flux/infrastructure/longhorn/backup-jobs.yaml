@@ -1,0 +1,72 @@
+# Nightly backup recurring jobs. Each app gets its own group so the schedule,
+# retention and concurrency are tunable independently, and a volume accidentally
+# tagged with the wrong group is obvious rather than silent.
+#
+# A volume joins a group by carrying the label
+# `recurring-job-group.longhorn.io/<group>: enabled` on its Longhorn Volume object.
+# The PVC manifests in the app directories set that label; for volumes that already
+# exist, label the Volume directly:
+#
+#   kubectl -n longhorn-system label volume/pvc-<uuid> recurring-job-group.longhorn.io/<group>=enabled
+#
+# Longhorn's backup task snapshots first, then uploads — the snapshot guarantees
+# consistency without the app needing to quiesce.
+#
+# Cron is at 04:00 UTC (05:00 / 06:00 local, between the MySQL 02:30 and
+# Postgres 03:30 backups, clear of the 00:00/06:00 etcd windows), retain 30,
+# concurrency 1 so one volume at a time.
+apiVersion: longhorn.io/v1beta2
+kind: RecurringJob
+metadata:
+  name: immich-backup
+  namespace: longhorn-system
+spec:
+  name: immich-backup
+  cron: "0 4 * * *"
+  task: backup
+  groups:
+  - immich-backup
+  retain: 30
+  concurrency: 1
+---
+apiVersion: longhorn.io/v1beta2
+kind: RecurringJob
+metadata:
+  name: home-assistant-backup
+  namespace: longhorn-system
+spec:
+  name: home-assistant-backup
+  cron: "0 4 * * *"
+  task: backup
+  groups:
+  - home-assistant-backup
+  retain: 30
+  concurrency: 1
+---
+apiVersion: longhorn.io/v1beta2
+kind: RecurringJob
+metadata:
+  name: paperless-backup
+  namespace: longhorn-system
+spec:
+  name: paperless-backup
+  cron: "0 4 * * *"
+  task: backup
+  groups:
+  - paperless-backup
+  retain: 30
+  concurrency: 1
+---
+apiVersion: longhorn.io/v1beta2
+kind: RecurringJob
+metadata:
+  name: stalwart-backup
+  namespace: longhorn-system
+spec:
+  name: stalwart-backup
+  cron: "0 4 * * *"
+  task: backup
+  groups:
+  - stalwart-backup
+  retain: 30
+  concurrency: 1

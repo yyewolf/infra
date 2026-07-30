@@ -6,6 +6,8 @@ resources:
   - namespace.yaml
   - repository.yaml
   - release.yaml
+  - backup-credentials-sops.yaml
+  - backup-jobs.yaml
   - storageclasses.yaml
   - network-policy.yaml
   - ingress.yaml

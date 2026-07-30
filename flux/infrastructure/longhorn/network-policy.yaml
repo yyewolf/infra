@@ -71,7 +71,17 @@ spec:
         protocol: UDP
       - port: "53"
         protocol: TCP
-  # No `world`: nothing here reaches off-cluster. `upgradeChecker` is off in
-  # release.yaml for that reason. Configuring a backup target later — S3, NFS
-  # off-cluster — is what would need an egress rule added here, and it is the
-  # manager and the backing-image manager that would need it, not the engines.
+      rules:
+        dns:
+        - matchPattern: "*"
+  # S3 backup target. The L7 DNS rule above is load-bearing — without it
+  # Cilium never observes the name resolution and this FQDN entry stays
+  # empty, so every upload is dropped while the name resolves fine inside
+  # the pod. The manager and backing-image manager pods are the ones that
+  # dial this endpoint; the engines never leave the cluster.
+  - toFQDNs:
+    - matchName: s3.swiss-backup02.infomaniak.com
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP

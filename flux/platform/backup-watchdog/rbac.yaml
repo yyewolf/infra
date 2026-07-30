@@ -1,0 +1,40 @@
+# Read-only, cluster-wide, and only over the three backup APIs plus the two
+# Longhorn objects needed to work out what *should* have been backed up. The
+# report is a watchdog: it must be able to see every namespace, and it must not
+# be able to change anything it sees.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: backup-watchdog
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: backup-watchdog
+rules:
+  # Longhorn. `volumes` and `recurringjobs` are what make the expected set
+  # derivable — the job resolves each backup RecurringJob's groups to the
+  # volumes carrying the matching label, rather than hardcoding a list here
+  # that would silently stop matching the day a PVC is added.
+  - apiGroups: ["longhorn.io"]
+    resources: ["backups", "volumes", "recurringjobs"]
+    verbs: ["get", "list"]
+  - apiGroups: ["postgresql.cnpg.io"]
+    resources: ["backups"]
+    verbs: ["get", "list"]
+  - apiGroups: ["mysql.cnmsql.co"]
+    resources: ["backups"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: backup-watchdog
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: backup-watchdog
+subjects:
+  - kind: ServiceAccount
+    name: backup-watchdog
+    namespace: backup-watchdog

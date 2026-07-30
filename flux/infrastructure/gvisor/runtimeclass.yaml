@@ -1,7 +1,7 @@
 # gVisor runtime class.
 #
 # The containerd runtime handler comes from the siderolabs/gvisor system
-# extension plus ng/talos/patches/gvisor.yaml, which registers 'runsc-netraw'
+# extension plus talos/patches/gvisor.yaml, which registers 'runsc-netraw'
 # — stock runsc with --net-raw and --allow-packet-socket-write. The extension's
 # own flagless 'runsc' handler is also present on the node but deliberately has
 # no RuntimeClass here: nothing should reach it by accident.
@@ -10,7 +10,7 @@
 # same as kata. edge-0 does not have the extension — a pod that landed there
 # would be admitted and then fail at the kubelet with an unknown runtime
 # handler, which is exactly what the selector prevents. Any node added to the
-# extension list in ng/talos/cluster.yaml is covered automatically as long as
+# extension list in talos/cluster.yaml is covered automatically as long as
 # it is a control-plane node; anything else needs this selector revisited.
 ---
 apiVersion: node.k8s.io/v1

@@ -6,6 +6,8 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: stalwart-data
+  labels:
+    recurring-job-group.longhorn.io/stalwart-backup: enabled
 spec:
   accessModes:
   - ReadWriteOnce

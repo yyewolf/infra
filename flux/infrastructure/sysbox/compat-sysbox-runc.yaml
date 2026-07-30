@@ -64,6 +64,6 @@ overhead:
     memory: 32Mi
 scheduling:
   nodeSelector:
-    # Set by ng/talos/patches/sysbox.yaml, so it is on exactly the nodes that
+    # Set by talos/patches/sysbox.yaml, so it is on exactly the nodes that
     # carry the extension. Must match the `sysbox` class, for the reason above.
     yewolf.fr/sysbox: "true"

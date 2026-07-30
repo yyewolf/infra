@@ -1,0 +1,19 @@
+# The consumer half of a cross-tailnet link: `lte` is a device on the tailnet,
+# not a workload in this cluster. The operator watches for this annotation,
+# creates an egress proxy for the named host and overwrites `externalName` with
+# the proxy's in-cluster address — so the placeholder below is never the value
+# that ends up served, and a pod dialling lte.tailscale.svc:8080 reaches the
+# tailnet device without knowing any of that.
+#
+# This is what backup-watchdog posts its report to. Until the operator has
+# registered the proxy, the name resolves to the placeholder and every POST
+# fails DNS — which is a first-reconcile symptom, not a misconfiguration.
+apiVersion: v1
+kind: Service
+metadata:
+  name: lte
+  annotations:
+    tailscale.com/tailnet-fqdn: lte.goby-beaufort.ts.net
+spec:
+  type: ExternalName
+  externalName: placeholder

@@ -3,7 +3,7 @@
 #
 # Unlike the physical nodes there is no maintenance-mode step to discover this:
 # the instance boots the Talos image with its machine config already supplied as
-# cloud user data (see ng/openstack), so the disk name has to be right the first
+# cloud user data (see openstack), so the disk name has to be right the first
 # time. /dev/vda is the virtio root disk every OpenStack flavour presents.
 #
 # This only matters for `talosctl upgrade`. The initial install is done by the

@@ -2,6 +2,8 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: paperless-storage
+  labels:
+    recurring-job-group.longhorn.io/paperless-backup: enabled
 spec:
   accessModes:
   - ReadWriteOnce

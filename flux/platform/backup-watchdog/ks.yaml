@@ -1,0 +1,26 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: backup-watchdog
+  namespace: flux-system
+spec:
+  # notify-sops.yaml is reconciled from git, so Flux needs the PGP key to
+  # decrypt it.
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-gpg
+  dependsOn:
+  - name: cilium
+  # Not because reconciliation would fail without it — the CronJob applies
+  # fine — but because the egress proxy for lte.goby-beaufort.ts.net is the
+  # only path the report has out of the cluster, and it is created by the
+  # operator that Kustomization installs.
+  - name: tailscale
+  interval: 10m
+  path: ./flux/platform/backup-watchdog
+  prune: true
+  retryInterval: 1m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

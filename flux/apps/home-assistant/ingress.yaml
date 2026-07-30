@@ -11,7 +11,7 @@
 # the proxies to reach either Service. Note esphome is hostNetwork, so its
 # endpoints are node addresses rather than pod IPs; the tailscale-proxies policy
 # still covers that, because Cilium's `cluster` entity subsumes `host` and
-# `remote-node` (same reason cnpg's policy is safe — see ng/AGENTS.md).
+# `remote-node` (same reason cnpg's policy is safe — see AGENTS.md).
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

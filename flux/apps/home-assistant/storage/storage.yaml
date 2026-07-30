@@ -21,8 +21,8 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: home-assistant
-  annotations:
-    k8up.io/backup: "true"
+  labels:
+    recurring-job-group.longhorn.io/home-assistant-backup: enabled
 spec:
   accessModes: [ ReadWriteOnce ]
   storageClassName: big-pool
@@ -34,8 +34,8 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: zigbee2mqtt-storage
-  annotations:
-    k8up.io/backup: "true"
+  labels:
+    recurring-job-group.longhorn.io/home-assistant-backup: enabled
 spec:
   accessModes: [ ReadWriteOnce ]
   storageClassName: big-pool
@@ -47,8 +47,8 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: esphome-config
-  annotations:
-    k8up.io/backup: "true"
+  labels:
+    recurring-job-group.longhorn.io/home-assistant-backup: enabled
 spec:
   accessModes: [ ReadWriteOnce ]
   storageClassName: big-pool
@@ -60,8 +60,8 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: snapcast-storage
-  annotations:
-    k8up.io/backup: "true"
+  labels:
+    recurring-job-group.longhorn.io/home-assistant-backup: enabled
 spec:
   accessModes: [ ReadWriteOnce ]
   storageClassName: big-pool

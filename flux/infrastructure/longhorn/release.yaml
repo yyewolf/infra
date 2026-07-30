@@ -26,7 +26,7 @@ spec:
       # Only register disks on nodes carrying the
       # node.longhorn.io/create-default-disk label, and take the disk list from
       # the node.longhorn.io/default-disks-config annotation. Both are set by
-      # ng/talos/patches/longhorn.yaml, which is also what mounts the two
+      # talos/patches/longhorn.yaml, which is also what mounts the two
       # volumes they name — so the disks a node offers and the disks Longhorn
       # registers are declared in one place, with the tags (`nvme`, `sata`)
       # that storageclasses.yaml selects on.
@@ -58,6 +58,15 @@ spec:
       # same volume. Default, spelled out because it is the whole reason three
       # replicas across three nodes is worth anything.
       replicaSoftAntiAffinity: false
+
+      # Nightly encrypted backups to Infomaniak Swiss Backup
+      # (tenant sb_project_SBI-TS068103, bucket default, prefix /longhorn/).
+      # The credential Secret lives in this namespace and is SOPS-encrypted
+      # (backup-credentials-sops.yaml). Once this target is set for the first
+      # time the manager polls it immediately; any existing backup data at
+      # this path is then visible in the UI.
+      backupTarget: s3://default@us-east-1/longhorn/
+      backupTargetCredentialSecret: longhorn-backup-s3
 
     persistence:
       # All three StorageClasses are declared in storageclasses.yaml instead.

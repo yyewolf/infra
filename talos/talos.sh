@@ -16,7 +16,7 @@ SECRETS="$DIR/secrets-sops-all.yaml"
 OUT="$DIR/out"
 FACTORY="https://factory.talos.dev"
 
-# Shared with ng/router, which builds its WireGuard peers from the same file.
+# Shared with router, which builds its WireGuard peers from the same file.
 # Off-LAN nodes take their tunnel key material from here rather than duplicating
 # it, so the two ends cannot drift apart.
 WG_REGISTRY="$DIR/../wireguard/identities-sops.yaml"
@@ -138,7 +138,7 @@ resolve_schematic() {
 }
 
 # The base schematic: what the ISO is built from, and what any node without
-# per-node extensions installs. ng/openstack reads out/schematic-id directly to
+# per-node extensions installs. openstack reads out/schematic-id directly to
 # build edge-0's Glance image, so this file's meaning is load-bearing outside
 # this script — it is the *base* ID, never a node's merged one.
 cmd_schematic() {
@@ -161,7 +161,7 @@ node_schematic_id() {
     # extensions here would have it install an image the cloud instance was
     # never booted from — silently, and only visible after a reboot.
     if [ -n "$(node_field "$n" wireguard.peer)" ]; then
-        die "node $n has per-node extensions, but off-LAN nodes are imaged by ng/openstack from the base schematic — put them in schematic.yaml instead"
+        die "node $n has per-node extensions, but off-LAN nodes are imaged by openstack from the base schematic — put them in schematic.yaml instead"
     fi
 
     local merged="$OUT/schematics/$n.yaml" list=""

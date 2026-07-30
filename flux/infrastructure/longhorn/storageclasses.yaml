@@ -5,7 +5,7 @@
 # which disk pool they land on differ.
 #
 # Every class carries a `diskSelector`, because there are two pools and they are
-# not interchangeable (see ng/talos/patches/longhorn.yaml):
+# not interchangeable (see talos/patches/longhorn.yaml):
 #
 #   nvme  100 GiB/node on the system disk — fast, but shares a device with
 #         etcd's write path
@@ -146,7 +146,7 @@ parameters:
 # What this does *not* change is the drain block itself. Longhorn's
 # node-drain-policy is block-if-contains-last-replica and there is exactly one
 # replica, so the node always holds the last one and the instance-manager
-# eviction is still refused — see the comment in ng/talos/talos.sh.
+# eviction is still refused — see the comment in talos/talos.sh.
 #
 # Only the locality is best-effort, not the redundancy: one replica still means
 # losing the node's disk loses the data.
@@ -224,7 +224,7 @@ parameters:
 #
 # The fourth pool, and the only one that is not on every storage node: `bigpool`
 # is a single 12 TiB-quota dataset on w-1's raidz1 (see
-# ng/talos/patches/zfs-tank.yaml). Everything above spreads across cp-0/1/2;
+# talos/patches/zfs-tank.yaml). Everything above spreads across cp-0/1/2;
 # this one exists on exactly one machine and is reachable from the others the
 # way any Longhorn v1 volume is — the engine runs on the node the pod landed
 # on and talks to the replica over TCP. Nothing here pins a workload to w-1.
@@ -257,7 +257,7 @@ parameters:
 #     node-drain-policy is block-if-contains-last-replica and with one replica
 #     w-1 always holds the last one, so `talos.sh upgrade w-1` hits the
 #     same instance-manager eviction refusal documented for longhorn-yolo in
-#     ng/talos/talos.sh — but for every volume on this class at once.
+#     talos/talos.sh — but for every volume on this class at once.
 #
 # What this class is NOT for, and both are load-bearing:
 #

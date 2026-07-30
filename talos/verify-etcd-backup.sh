@@ -43,7 +43,7 @@ info() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 die()  { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 
 for b in sops age zstd docker; do command -v "$b" >/dev/null || die "missing: $b"; done
-[ -f "$AGE_SOPS" ] || die "no $AGE_SOPS — run this from ng/talos/"
+[ -f "$AGE_SOPS" ] || die "no $AGE_SOPS — run this from talos/"
 [ -f "$S3_SOPS" ]  || die "no $S3_SOPS"
 
 KEEP=0; LIST=0; WANT=""
