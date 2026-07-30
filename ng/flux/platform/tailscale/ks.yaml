@@ -12,10 +12,10 @@ spec:
     secretRef:
       name: sops-gpg
   dependsOn:
-    - name: cilium
+  - name: cilium
   interval: 10m
   path: ./ng/flux/platform/tailscale
-  prune: true
+  prune: false
   retryInterval: 1m
   sourceRef:
     kind: GitRepository

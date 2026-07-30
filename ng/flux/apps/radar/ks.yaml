@@ -5,13 +5,13 @@ metadata:
   namespace: flux-system
 spec:
   dependsOn:
-    # The tailscale operator owns the `tailscale` IngressClass and the proxy
-    # that fronts this. Without it the Ingress is admitted and simply never
-    # gets an address.
-    - name: tailscale
+  # The tailscale operator owns the `tailscale` IngressClass and the proxy
+  # that fronts this. Without it the Ingress is admitted and simply never
+  # gets an address.
+  - name: tailscale
   interval: 10m
   path: ./ng/flux/apps/radar
-  prune: true
+  prune: false
   retryInterval: 1m
   sourceRef:
     kind: GitRepository

@@ -5,10 +5,10 @@ metadata:
   namespace: flux-system
 spec:
   dependsOn:
-    - name: cilium
+  - name: cilium
   interval: 10m
   path: ./ng/flux/platform/descheduler
-  prune: true
+  prune: false
   retryInterval: 1m
   sourceRef:
     kind: GitRepository

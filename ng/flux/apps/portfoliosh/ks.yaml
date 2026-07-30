@@ -11,12 +11,12 @@ spec:
     secretRef:
       name: sops-gpg
   dependsOn:
-    # envoy-proxy owns the Gateway this app's ListenerSet attaches to, and the
-    # `allowedListeners` entry that lets it.
-    - name: envoy-proxy
+  # envoy-proxy owns the Gateway this app's ListenerSet attaches to, and the
+  # `allowedListeners` entry that lets it.
+  - name: envoy-proxy
   interval: 10m
   path: ./ng/flux/apps/portfoliosh
-  prune: true
+  prune: false
   retryInterval: 1m
   sourceRef:
     kind: GitRepository

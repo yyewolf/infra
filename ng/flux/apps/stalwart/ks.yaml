@@ -20,7 +20,7 @@ spec:
   - name: certificates
   interval: 10m
   path: ./ng/flux/apps/stalwart
-  prune: true
+  prune: false
   retryInterval: 1m
   sourceRef:
     kind: GitRepository

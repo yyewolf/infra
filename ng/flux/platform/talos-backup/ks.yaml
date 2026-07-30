@@ -14,15 +14,15 @@ spec:
     secretRef:
       name: sops-gpg
   dependsOn:
-    # Only the CNI. The `serviceaccounts.talos.dev` CRD this directory depends
-    # on comes from Talos itself once kubernetesTalosAPIAccess is enabled in
-    # talos/patches/controlplane.yaml, not from another Kustomization — if that
-    # machine config has not been applied, this KS fails on an unknown kind and
-    # no dependsOn can fix it.
-    - name: cilium
+  # Only the CNI. The `serviceaccounts.talos.dev` CRD this directory depends
+  # on comes from Talos itself once kubernetesTalosAPIAccess is enabled in
+  # talos/patches/controlplane.yaml, not from another Kustomization — if that
+  # machine config has not been applied, this KS fails on an unknown kind and
+  # no dependsOn can fix it.
+  - name: cilium
   interval: 10m
   path: ./ng/flux/platform/talos-backup
-  prune: true
+  prune: false
   retryInterval: 1m
   sourceRef:
     kind: GitRepository

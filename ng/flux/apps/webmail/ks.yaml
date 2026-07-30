@@ -9,7 +9,7 @@ spec:
   - name: stalwart
   interval: 10m
   path: ./ng/flux/apps/webmail
-  prune: true
+  prune: false
   retryInterval: 1m
   sourceRef:
     kind: GitRepository

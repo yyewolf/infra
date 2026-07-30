@@ -18,7 +18,7 @@ spec:
   - name: longhorn
   interval: 10m
   path: ./ng/flux/apps/home-assistant/storage
-  prune: true
+  prune: false
   wait: true
   retryInterval: 1m
   sourceRef:

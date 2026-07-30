@@ -5,13 +5,13 @@ metadata:
   namespace: flux-system
 spec:
   dependsOn:
-    # Only Cilium: the network policy above is a CiliumNetworkPolicy, and
-    # Kyverno's own certificates are self-managed by its cert controller rather
-    # than issued by cert-manager, so there is nothing else to wait on.
-    - name: cilium
+  # Only Cilium: the network policy above is a CiliumNetworkPolicy, and
+  # Kyverno's own certificates are self-managed by its cert controller rather
+  # than issued by cert-manager, so there is nothing else to wait on.
+  - name: cilium
   interval: 10m
   path: ./ng/flux/platform/kyverno
-  prune: true
+  prune: false
   retryInterval: 1m
   sourceRef:
     kind: GitRepository

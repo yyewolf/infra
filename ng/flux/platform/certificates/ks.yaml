@@ -9,10 +9,10 @@ spec:
     secretRef:
       name: sops-gpg
   dependsOn:
-    - name: cert-manager
+  - name: cert-manager
   interval: 10m
   path: ./ng/flux/platform/certificates
-  prune: true
+  prune: false
   retryInterval: 1m
   sourceRef:
     kind: GitRepository

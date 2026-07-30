@@ -23,7 +23,7 @@ spec:
   - name: kyverno-policies
   interval: 10m
   path: ./ng/flux/apps/woodpecker
-  prune: true
+  prune: false
   retryInterval: 1m
   sourceRef:
     kind: GitRepository

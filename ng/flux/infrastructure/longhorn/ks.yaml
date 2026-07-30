@@ -5,10 +5,10 @@ metadata:
   namespace: flux-system
 spec:
   dependsOn:
-    - name: cilium
+  - name: cilium
   interval: 10m
   path: ./ng/flux/infrastructure/longhorn
-  prune: true
+  prune: false
   retryInterval: 1m
   # A StorageClass is immutable in every field that matters — `parameters`,
   # `provisioner`, `reclaimPolicy`, `volumeBindingMode` — so any edit to

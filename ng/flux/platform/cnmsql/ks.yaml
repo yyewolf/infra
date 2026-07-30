@@ -8,10 +8,10 @@ spec:
   # metrics endpoints, and relies on cainjector to fill in the webhook's
   # caBundle — so cert-manager has to be up first.
   dependsOn:
-    - name: cert-manager
+  - name: cert-manager
   interval: 10m
   path: ./ng/flux/platform/cnmsql
-  prune: true
+  prune: false
   retryInterval: 1m
   sourceRef:
     kind: GitRepository

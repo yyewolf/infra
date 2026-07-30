@@ -12,14 +12,14 @@ spec:
     secretRef:
       name: sops-gpg
   dependsOn:
-    # cnmsql itself dependsOn cert-manager — its webhook is certless until
-    # cainjector has run, and a certless webhook rejects every Cluster apply.
-    # Waiting on the operator's own KS inherits that ordering.
-    - name: cnmsql
-    - name: longhorn
+  # cnmsql itself dependsOn cert-manager — its webhook is certless until
+  # cainjector has run, and a certless webhook rejects every Cluster apply.
+  # Waiting on the operator's own KS inherits that ordering.
+  - name: cnmsql
+  - name: longhorn
   interval: 10m
   path: ./ng/flux/platform/mysql
-  prune: true
+  prune: false
   retryInterval: 1m
   sourceRef:
     kind: GitRepository
