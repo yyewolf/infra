@@ -46,6 +46,8 @@ resources:
 - apps/servarr/ks.yaml
 - apps/immich/storage/ks.yaml
 - apps/immich/ks.yaml
+- apps/paperless/storage/ks.yaml
+- apps/paperless/ks.yaml
 - apps/uctf/ks.yaml
 - apps/authentik/ks.yaml
 - apps/rustfs/ks.yaml
