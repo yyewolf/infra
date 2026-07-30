@@ -1,0 +1,20 @@
+{
+	admin off
+	auto_https off
+}
+
+# Static index only. On the root cluster this Caddy was also a reverse proxy
+# that gathered five apps onto one tailnet hostname under sub-paths; in ng each
+# app has its own Tailscale device and the dashboard just links to them.
+#
+# That is not merely a preference: sub-path proxying needs the app to know its
+# base path (scrutiny wanted SCRUTINY_WEB_LISTEN_BASEPATH) or to emit relative
+# asset paths, and two of the things worth linking to — rustatio/joal and radar
+# — are root-anchored SPAs that can never be sub-pathed at all. Adding a
+# reverse_proxy back means also opening egress in network-policy.yaml, which is
+# `[]` today precisely because nothing here dials anything.
+:80 {
+	encode gzip
+	root * /srv
+	file_server
+}

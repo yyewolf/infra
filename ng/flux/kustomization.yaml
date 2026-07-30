@@ -33,6 +33,7 @@ resources:
 - platform/postgres/applications/authentik/ks.yaml
 - platform/postgres/applications/immich/ks.yaml
 - apps/cyberchef/ks.yaml
+- apps/dashboard/ks.yaml
 - apps/radar/ks.yaml
 - apps/portfolio/ks.yaml
 - apps/portfoliosh/ks.yaml

@@ -12,4 +12,5 @@ resources:
 - smart-clock.yaml
 - snapcast.yaml
 - route.yaml
+- ingress.yaml
 - ./ai

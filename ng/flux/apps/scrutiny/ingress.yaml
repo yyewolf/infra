@@ -6,7 +6,7 @@ spec:
   ingressClassName: tailscale
   tls:
   - hosts:
-    - scrutiny-ng
+    - scrutiny
   rules:
   - http:
       paths:

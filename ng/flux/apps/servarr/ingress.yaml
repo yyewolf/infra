@@ -1,15 +1,13 @@
 # The two UIs that never go on the public gateway. On the root cluster both were
-# reached through the `dashboard` Caddy router on a single tailnet hostname; that
-# app has not been ported to ng, so each gets its own Tailscale device instead.
+# reached through the `dashboard` Caddy router on a single tailnet hostname; ng's
+# dashboard links out rather than proxying, so each keeps its own device.
 #
-# THE -ng SUFFIXES ARE NOT COSMETIC
-#
-# ng shares a tailnet with the root cluster, which still holds `joal` (its
-# Ingress and the ts-joal proxy are still running). A collision is not an error —
-# the operator silently appends `-1` — so the name has to differ here. Same
-# reasoning as apps/radar's `radar-ng`. When the root cluster's servarr is
-# retired, taking these suffixes off means deleting the old device from the
-# Tailscale admin console first; a rename alone gets `-1`.
+# These carried `-ng` suffixes while the root cluster still held `joal` and
+# `qbittorrent` on the shared tailnet — a collision is not an error, the operator
+# silently appends `-1`, so the names had to differ. The root cluster's servarr
+# is retired and those devices are deleted, so the suffixes are gone. Anything
+# renamed here in future needs the old device removed from the Tailscale admin
+# console first; a rename alone gets `-1`.
 #
 # A Tailscale Ingress takes its hostname from `tls.hosts`, not from a rule host.
 # There is no rule host below for that reason.
@@ -19,8 +17,8 @@ metadata:
   name: qbittorrent
 spec:
   # qbittorrent's migrated config has WebUI\HostHeaderValidation=true, and the
-  # Tailscale proxy passes the original Host through — so on first load this
-  # serves "Unauthorized" until `qbittorrent-ng.<tailnet>.ts.net` is added to
+  # Tailscale proxy passes the original Host through — so this serves
+  # "Unauthorized" until `qbittorrent.<tailnet>.ts.net` is added to
   # Options -> WebUI -> "Server domains" (or that list is set to `*`). It is a
   # runtime setting inside the app's own database; there is no env var for it and
   # nothing in this file can set it. On the root cluster the question never came
@@ -28,7 +26,7 @@ spec:
   ingressClassName: tailscale
   tls:
   - hosts:
-    - qbittorrent-ng
+    - qbittorrent
   rules:
   - http:
       paths:
@@ -52,7 +50,7 @@ spec:
   ingressClassName: tailscale
   tls:
   - hosts:
-    - joal-ng
+    - joal
   rules:
   - http:
       paths:

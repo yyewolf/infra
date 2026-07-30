@@ -3,6 +3,11 @@ kind: Ingress
 metadata:
   name: dashboard
 spec:
+  # A Tailscale Ingress takes its hostname from `tls.hosts`, not from a rule
+  # host — hence no rule host below. `dashboard` with no suffix: the root
+  # cluster's device of the same name was deleted along with this app, so
+  # there is nothing left to collide with and get silently renamed to
+  # `dashboard-1`.
   ingressClassName: tailscale
   tls:
   - hosts:

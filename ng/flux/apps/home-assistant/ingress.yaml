@@ -1,0 +1,53 @@
+# Tailnet entries for the two admin UIs in this namespace. Home Assistant
+# itself is public over the gateway (route.yaml); these two are not, and on the
+# root cluster they were only reachable as sub-paths of the `dashboard` Caddy
+# router. ng's dashboard links out instead of proxying, so each needs a device
+# of its own.
+#
+# A Tailscale Ingress takes its hostname from `tls.hosts`, not from a rule host
+# — there is no rule host below for that reason.
+#
+# No CiliumNetworkPolicy selects this namespace, so nothing has to be opened for
+# the proxies to reach either Service. Note esphome is hostNetwork, so its
+# endpoints are node addresses rather than pod IPs; the tailscale-proxies policy
+# still covers that, because Cilium's `cluster` entity subsumes `host` and
+# `remote-node` (same reason cnpg's policy is safe — see ng/AGENTS.md).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: esphome
+spec:
+  ingressClassName: tailscale
+  tls:
+  - hosts:
+    - esphome
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: esphome
+            port:
+              number: 6052
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: zigbee2mqtt
+spec:
+  ingressClassName: tailscale
+  tls:
+  - hosts:
+    - zigbee2mqtt
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: zigbee2mqtt
+            port:
+              number: 8080

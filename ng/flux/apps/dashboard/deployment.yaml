@@ -1,3 +1,7 @@
+# The root cluster's version carried a `PrivateNode=home1` toleration, which is
+# a root-cluster taint and means nothing here. No nodeSelector either: edge-0's
+# `edge-0=true:NoSchedule` taint keeps this on the LAN nodes by itself, which is
+# where every host it links to lives.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -12,10 +16,6 @@ spec:
       labels:
         app: caddy
     spec:
-      tolerations:
-        - key: PrivateNode
-          operator: Equal
-          value: home1
       containers:
         - name: caddy
           image: mirror.gcr.io/caddy@sha256:844f60b64e4724a5aa8245e019dace0d3f199f7433ce6c57676cb30a920dbad9

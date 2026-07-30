@@ -1,0 +1,25 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: dashboard
+spec:
+  endpointSelector:
+    matchLabels:
+      app: caddy
+  ingress:
+  # Only the Tailscale ingress proxy may reach it.
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: tailscale
+    toPorts:
+    - ports:
+      - port: "80"
+        protocol: TCP
+  # An empty egress list is not a no-op — it turns egress enforcement on for
+  # this endpoint and then permits nothing, which is exactly right for a Caddy
+  # serving one file from a ConfigMap: it resolves no names and dials no
+  # backends. The root cluster's copy needed `cluster`/`host`/`remote-node`
+  # because it proxied five apps; restoring a reverse_proxy block in the
+  # Caddyfile means restoring those rules and a DNS rule here too, or the proxy
+  # fails at name resolution with nothing in the Caddy log to explain it.
+  egress: []
