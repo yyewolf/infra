@@ -29,7 +29,7 @@ spec:
         kubernetes.io/hostname: w-1
       containers:
       - name: piper
-        image: lscr.io/linuxserver/piper:latest@sha256:b2b96bd4385a6e86feecced34b8af25ff30b6eb466f48426993871d005815006
+        image: lscr.io/linuxserver/piper:latest@sha256:ed8ec66714795afb0ffa16d41b823322314e2405e1134f8b0f3fc2dca2872e6c
         securityContext:
           allowPrivilegeEscalation: false
           seccompProfile: {type: RuntimeDefault}
