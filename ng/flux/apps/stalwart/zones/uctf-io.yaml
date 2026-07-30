@@ -1,0 +1,80 @@
+apiVersion: externaldns.k8s.io/v1alpha1
+kind: DNSEndpoint
+metadata:
+  name: zones-uctf-io
+  namespace: stalwart
+spec:
+  endpoints:
+  - dnsName: v1-ed25519-20260730._domainkey.uctf.io
+    recordType: TXT
+    targets:
+    - v=DKIM1; k=ed25519; h=sha256; p=yyt6JD/VkjJ1AzYu+zDebFm0k4eg0VoQQxV/vD0q2qY=
+  - dnsName: v1-rsa-20260730._domainkey.uctf.io
+    recordType: TXT
+    targets:
+    - v=DKIM1; k=rsa; h=sha256; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvIeyQfbO/PNJi9Q7r8PxgFmMln/lHaAzaOeZjcsZDYjruE9dowLFMWDaY07/XlMbemo4r0bUhKjk0gGYa4mpLcW6H85TQG9oyr6IgOzj0Ao/nJaokM2CJPBkg7Q/u8GiEwFo4aU2jvzjlj0ojkQdbDLySPnjX0AQZdI3Kpc+VADAUREja9awMdh
+    - CTo/u3L9Jlr+7wLd+NexwTY9HZ1UkrqQj0Al1MTuYvSUzOczm/TmbEBciG2tSro3SwokVIdjso6FRVXDMEOzWsW1dOcLxhxprRdSoDFnmBI3mhTfwVSouXudzNOM1Mob1AJA9KQc5YDNsdIEqzVk7TMM/O6dpiwIDAQAB
+  - dnsName: uctf.io
+    recordType: TXT
+    targets:
+    - v=spf1 mx -all
+  - dnsName: uctf.io
+    recordType: MX
+    targets:
+    - 10 mail.yewolf.fr
+  - dnsName: _dmarc.uctf.io
+    recordType: TXT
+    targets:
+    - v=DMARC1; p=reject; rua=mailto:[EMAIL]
+  - dnsName: _caldavs._tcp.uctf.io
+    recordType: SRV
+    targets:
+    - 0 1 443 mail.yewolf.fr.
+  - dnsName: _carddavs._tcp.uctf.io
+    recordType: SRV
+    targets:
+    - 0 1 443 mail.yewolf.fr.
+  - dnsName: _imaps._tcp.uctf.io
+    recordType: SRV
+    targets:
+    - 0 1 993 mail.yewolf.fr.
+  - dnsName: _jmap._tcp.uctf.io
+    recordType: SRV
+    targets:
+    - 0 1 443 mail.yewolf.fr.
+  - dnsName: _pop3s._tcp.uctf.io
+    recordType: SRV
+    targets:
+    - 0 1 995 mail.yewolf.fr.
+  - dnsName: _submissions._tcp.uctf.io
+    recordType: SRV
+    targets:
+    - 0 1 465 mail.yewolf.fr.
+  - dnsName: mta-sts.uctf.io
+    recordType: CNAME
+    targets:
+    - mail.yewolf.fr
+  - dnsName: _mta-sts.uctf.io
+    recordType: TXT
+    targets:
+    - v=STSv1; id=16876838626814041543
+  - dnsName: _smtp._tls.uctf.io
+    recordType: TXT
+    targets:
+    - v=TLSRPTv1; rua=mailto:[EMAIL]
+  - dnsName: ua-auto-config.uctf.io
+    recordType: CNAME
+    targets:
+    - mail.yewolf.fr
+  - dnsName: _ua-auto-config.uctf.io
+    recordType: TXT
+    targets:
+    - v=UAAC1; a=sha256; d=HrMnUXYdaimSXPa0nnbRkI5IZDQ4kyMuA99utsrMyyI=
+  - dnsName: autoconfig.uctf.io
+    recordType: CNAME
+    targets:
+    - mail.yewolf.fr
+  - dnsName: autodiscover.uctf.io
+    recordType: CNAME
+    targets:
+    - mail.yewolf.fr

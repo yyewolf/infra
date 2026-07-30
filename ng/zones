@@ -1,0 +1,89 @@
+DNS Zone File
+
+Current DNS zone data for the domain
+
+v1-ed25519-20260730._domainkey.uctf.io. IN TXT "v=DKIM1; k=ed25519; h=sha256; p=yyt6JD/VkjJ1AzYu+zDebFm0k4eg0VoQQxV/vD0q2qY="
+v1-rsa-20260730._domainkey.uctf.io. IN TXT (
+    "v=DKIM1; k=rsa; h=sha256; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvIeyQfbO/PNJi9Q7r8PxgFmMln/lHaAzaOeZjcsZDYjruE9dowLFMWDaY07/XlMbemo4r0bUhKjk0gGYa4mpLcW6H85TQG9oyr6IgOzj0Ao/nJaokM2CJPBkg7Q/u8GiEwFo4aU2jvzjlj0ojkQdbDLySPnjX0AQZdI3Kpc+VADAUREja9awMdh"
+    "CTo/u3L9Jlr+7wLd+NexwTY9HZ1UkrqQj0Al1MTuYvSUzOczm/TmbEBciG2tSro3SwokVIdjso6FRVXDMEOzWsW1dOcLxhxprRdSoDFnmBI3mhTfwVSouXudzNOM1Mob1AJA9KQc5YDNsdIEqzVk7TMM/O6dpiwIDAQAB"
+)
+uctf.io. IN TXT "v=spf1 mx -all"
+uctf.io. IN MX 10 mail.yewolf.fr.
+_dmarc.uctf.io. IN TXT "v=DMARC1; p=reject; rua=mailto:postmaster@uctf.io"
+_caldavs._tcp.uctf.io. IN SRV 0 1 443 mail.yewolf.fr.
+_carddavs._tcp.uctf.io. IN SRV 0 1 443 mail.yewolf.fr.
+_imaps._tcp.uctf.io. IN SRV 0 1 993 mail.yewolf.fr.
+_jmap._tcp.uctf.io. IN SRV 0 1 443 mail.yewolf.fr.
+_pop3s._tcp.uctf.io. IN SRV 0 1 995 mail.yewolf.fr.
+_submissions._tcp.uctf.io. IN SRV 0 1 465 mail.yewolf.fr.
+mta-sts.uctf.io. IN CNAME mail.yewolf.fr.
+_mta-sts.uctf.io. IN TXT "v=STSv1; id=16876838626814041543"
+_smtp._tls.uctf.io. IN TXT "v=TLSRPTv1; rua=mailto:postmaster@uctf.io"
+ua-auto-config.uctf.io. IN CNAME mail.yewolf.fr.
+_ua-auto-config.uctf.io. IN TXT "v=UAAC1; a=sha256; d=HrMnUXYdaimSXPa0nnbRkI5IZDQ4kyMuA99utsrMyyI="
+autoconfig.uctf.io. IN CNAME mail.yewolf.fr.
+autodiscover.uctf.io. IN CNAME mail.yewolf.fr.
+
+---
+
+v1-ed25519-20260730._domainkey.hackcorp.net. IN TXT "v=DKIM1; k=ed25519; h=sha256; p=Y7Wo24pwZIaq/YAvLWJAZgET2aWPOTq0gxDgJVdS88M="
+v1-rsa-20260730._domainkey.hackcorp.net. IN TXT (
+    "v=DKIM1; k=rsa; h=sha256; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4WZ1H9XXrEs+oMqrTlGsMYXiPEhbhO+Qzk3Btch5YWJLuZsGAPHNrL8AiRm8QdHOTZ1jWz/KgRiuWIx/+YZ8LPEEW0CJEFsjLnoipCbgKLax+BseKJPgwGzMI633bVmn5CxpdYAFFphVDGEWfXN+sS25qrhEy4gdPawHgRaz06xp7x9J8sIr/p4"
+    "wXEGxZX4sAx8ucr4B/5DCcVN966PuRrWDyFEarc/EZaBcub+X3edVOJhgp3UFPTop/rG3ayH8HzvCqlQ11KDflRPc7yLyrxnwAqvNlIl5vqoPUxOD2vUCgj8erAXfIR2pF2VuCrTfEagTKQJI43X1VMFglEFfWwIDAQAB"
+)
+hackcorp.net. IN TXT "v=spf1 mx -all"
+hackcorp.net. IN MX 10 mail.yewolf.fr.
+_dmarc.hackcorp.net. IN TXT "v=DMARC1; p=reject; rua=mailto:postmaster@hackcorp.net"
+_caldavs._tcp.hackcorp.net. IN SRV 0 1 443 mail.yewolf.fr.
+_carddavs._tcp.hackcorp.net. IN SRV 0 1 443 mail.yewolf.fr.
+_imaps._tcp.hackcorp.net. IN SRV 0 1 993 mail.yewolf.fr.
+_jmap._tcp.hackcorp.net. IN SRV 0 1 443 mail.yewolf.fr.
+_pop3s._tcp.hackcorp.net. IN SRV 0 1 995 mail.yewolf.fr.
+_submissions._tcp.hackcorp.net. IN SRV 0 1 465 mail.yewolf.fr.
+mta-sts.hackcorp.net. IN CNAME mail.yewolf.fr.
+_mta-sts.hackcorp.net. IN TXT "v=STSv1; id=16876838626814041543"
+_smtp._tls.hackcorp.net. IN TXT "v=TLSRPTv1; rua=mailto:postmaster@hackcorp.net"
+ua-auto-config.hackcorp.net. IN CNAME mail.yewolf.fr.
+_ua-auto-config.hackcorp.net. IN TXT "v=UAAC1; a=sha256; d=HrMnUXYdaimSXPa0nnbRkI5IZDQ4kyMuA99utsrMyyI="
+autoconfig.hackcorp.net. IN CNAME mail.yewolf.fr.
+autodiscover.hackcorp.net. IN CNAME mail.yewolf.fr.
+
+---
+
+v1-ed25519-20260730._domainkey.yewolf.fr. IN TXT "v=DKIM1; k=ed25519; h=sha256; p=/iICUyjCSWtk0le2CbHoQBJRf1CTppOU/QLVvCcmOPQ="
+v1-rsa-20260730._domainkey.yewolf.fr. IN TXT (
+    "v=DKIM1; k=rsa; h=sha256; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnbm0AWoRvje1ORIF7mWNz2XCRq+wZwN3cFU5F68C2UorCvkJosrrd5WMCj65xJdB/AEYx7aElJ58WZkKWumEpmwpg+nONTv6kXpP2m5e9l0Fc614wjxCOcaPy12nk27O8ioH7lHC3qFQNHwrKLb/2lgmzC6Xk1uAuCxtKdlg83CcsVVaTlXvyCH"
+    "v45wTyQdQAxawUCWXaFwYA1D8REv9MMQFUGruXGaZ/4uTYbXvVy/7H1ee98hKJYTjzhuIozQQhLpPHodh6zrApFTqI8zA+REhMTA5Syk2OjHs1Oeugc6V3tv7xQ61Qh7VFtMlsQ03wUhws0J2WZQxuup/WRkjvwIDAQAB"
+)
+_25._tcp.mail.yewolf.fr. IN TLSA 3 1 1 93b4e5bf9a44999eecd5ac5c0c5a8084ae773df35521a704aa68a9216fa11f8f
+_993._tcp.mail.yewolf.fr. IN TLSA 3 1 1 93b4e5bf9a44999eecd5ac5c0c5a8084ae773df35521a704aa68a9216fa11f8f
+_443._tcp.mail.yewolf.fr. IN TLSA 3 1 1 93b4e5bf9a44999eecd5ac5c0c5a8084ae773df35521a704aa68a9216fa11f8f
+_465._tcp.mail.yewolf.fr. IN TLSA 3 1 1 93b4e5bf9a44999eecd5ac5c0c5a8084ae773df35521a704aa68a9216fa11f8f
+_995._tcp.mail.yewolf.fr. IN TLSA 3 1 1 93b4e5bf9a44999eecd5ac5c0c5a8084ae773df35521a704aa68a9216fa11f8f
+_25._tcp.mail.yewolf.fr. IN TLSA 2 1 1 9d637b3d27a9e570d07607b9ccadb80a70915c7af72afce12841b1b1da825fd1
+_993._tcp.mail.yewolf.fr. IN TLSA 2 1 1 9d637b3d27a9e570d07607b9ccadb80a70915c7af72afce12841b1b1da825fd1
+_443._tcp.mail.yewolf.fr. IN TLSA 2 1 1 9d637b3d27a9e570d07607b9ccadb80a70915c7af72afce12841b1b1da825fd1
+_465._tcp.mail.yewolf.fr. IN TLSA 2 1 1 9d637b3d27a9e570d07607b9ccadb80a70915c7af72afce12841b1b1da825fd1
+_995._tcp.mail.yewolf.fr. IN TLSA 2 1 1 9d637b3d27a9e570d07607b9ccadb80a70915c7af72afce12841b1b1da825fd1
+_25._tcp.mail.yewolf.fr. IN TLSA 2 1 1 7e4e8838a8add6295de7ae3b047d3aba3488ab95db0a0aa56d897a00d8618bcf
+_993._tcp.mail.yewolf.fr. IN TLSA 2 1 1 7e4e8838a8add6295de7ae3b047d3aba3488ab95db0a0aa56d897a00d8618bcf
+_443._tcp.mail.yewolf.fr. IN TLSA 2 1 1 7e4e8838a8add6295de7ae3b047d3aba3488ab95db0a0aa56d897a00d8618bcf
+_465._tcp.mail.yewolf.fr. IN TLSA 2 1 1 7e4e8838a8add6295de7ae3b047d3aba3488ab95db0a0aa56d897a00d8618bcf
+_995._tcp.mail.yewolf.fr. IN TLSA 2 1 1 7e4e8838a8add6295de7ae3b047d3aba3488ab95db0a0aa56d897a00d8618bcf
+mail.yewolf.fr. IN TXT "v=spf1 a -all"
+yewolf.fr. IN TXT "v=spf1 mx -all"
+yewolf.fr. IN MX 10 mail.yewolf.fr.
+_dmarc.yewolf.fr. IN TXT "v=DMARC1; p=reject; rua=mailto:postmaster@yewolf.fr"
+_caldavs._tcp.yewolf.fr. IN SRV 0 1 443 mail.yewolf.fr.
+_carddavs._tcp.yewolf.fr. IN SRV 0 1 443 mail.yewolf.fr.
+_imaps._tcp.yewolf.fr. IN SRV 0 1 993 mail.yewolf.fr.
+_jmap._tcp.yewolf.fr. IN SRV 0 1 443 mail.yewolf.fr.
+_pop3s._tcp.yewolf.fr. IN SRV 0 1 995 mail.yewolf.fr.
+_submissions._tcp.yewolf.fr. IN SRV 0 1 465 mail.yewolf.fr.
+mta-sts.yewolf.fr. IN CNAME mail.yewolf.fr.
+_mta-sts.yewolf.fr. IN TXT "v=STSv1; id=16876838626814041543"
+_smtp._tls.yewolf.fr. IN TXT "v=TLSRPTv1; rua=mailto:postmaster@yewolf.fr"
+ua-auto-config.yewolf.fr. IN CNAME mail.yewolf.fr.
+_ua-auto-config.yewolf.fr. IN TXT "v=UAAC1; a=sha256; d=HrMnUXYdaimSXPa0nnbRkI5IZDQ4kyMuA99utsrMyyI="
+autoconfig.yewolf.fr. IN CNAME mail.yewolf.fr.
+autodiscover.yewolf.fr. IN CNAME mail.yewolf.fr.

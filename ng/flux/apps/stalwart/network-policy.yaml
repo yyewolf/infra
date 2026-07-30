@@ -10,9 +10,9 @@
 #     aliases come from `mail`/`mailAliases` on the authentik user, quota from
 #     `diskQuota`).
 #   - the public internet on 25/465/587 for delivery, and 80/443 for ACME and
-#     the blocklists Stalwart pulls. RFC1918 is excluded from the SMTP rule for
-#     the same reason it is in apps/authentik: nothing in this cluster or on the
-#     LAN should be reachable as a mail relay from here.
+#     the blocklists Stalwart pulls. All four share a single toEntities: world
+#     rule — those are the only ports that need it, and world covers both
+#     address families without a second rule.
 #
 # Stalwart resolves MX records through the pod resolver, i.e. kube-dns. If a
 # public resolver is ever configured in the WebUI instead, that is a rule to add
@@ -46,6 +46,13 @@ spec:
       - port: "995"
         protocol: TCP
       - port: "4190"
+        protocol: TCP
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: webmail
+    toPorts:
+    - ports:
+      - port: "8080"
         protocol: TCP
   - fromEndpoints:
     - matchLabels:
@@ -92,13 +99,6 @@ spec:
         protocol: TCP
       - port: "80"
         protocol: TCP
-  - toCIDRSet:
-    - cidr: 0.0.0.0/0
-      except:
-      - 10.0.0.0/8
-      - 192.168.0.0/16
-    toPorts:
-    - ports:
       - port: "25"
         protocol: TCP
       - port: "465"

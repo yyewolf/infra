@@ -259,6 +259,142 @@ resource "openstack_networking_secgroup_rule_v2" "ssh_v6" {
   description       = "Envoy Gateway TCP for portfoliosh over IPv6"
 }
 
+# Stalwart mail server — six ports forwarded by the ListenerSet in
+# ng/flux/apps/stalwart/listenersets.yaml. Three are implicit TLS
+# (465/993/995, TLS passthrough), three are STARTTLS (25/587/4190, plain TCP).
+# All arrive through the same envoy-proxy pod on edge-0.
+resource "openstack_networking_secgroup_rule_v2" "smtp_v4" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 25
+  port_range_max    = 25
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = openstack_networking_secgroup_v2.edge.id
+  description       = "Stalwart SMTP"
+}
+
+resource "openstack_networking_secgroup_rule_v2" "smtps_v4" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 465
+  port_range_max    = 465
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = openstack_networking_secgroup_v2.edge.id
+  description       = "Stalwart SMTPS"
+}
+
+resource "openstack_networking_secgroup_rule_v2" "submission_v4" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 587
+  port_range_max    = 587
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = openstack_networking_secgroup_v2.edge.id
+  description       = "Stalwart submission"
+}
+
+resource "openstack_networking_secgroup_rule_v2" "imaps_v4" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 993
+  port_range_max    = 993
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = openstack_networking_secgroup_v2.edge.id
+  description       = "Stalwart IMAPS"
+}
+
+resource "openstack_networking_secgroup_rule_v2" "pop3s_v4" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 995
+  port_range_max    = 995
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = openstack_networking_secgroup_v2.edge.id
+  description       = "Stalwart POP3S"
+}
+
+resource "openstack_networking_secgroup_rule_v2" "sieve_v4" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 4190
+  port_range_max    = 4190
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = openstack_networking_secgroup_v2.edge.id
+  description       = "Stalwart ManageSieve"
+}
+
+resource "openstack_networking_secgroup_rule_v2" "smtp_v6" {
+  direction         = "ingress"
+  ethertype         = "IPv6"
+  protocol          = "tcp"
+  port_range_min    = 25
+  port_range_max    = 25
+  remote_ip_prefix  = "::/0"
+  security_group_id = openstack_networking_secgroup_v2.edge.id
+  description       = "Stalwart SMTP over IPv6"
+}
+
+resource "openstack_networking_secgroup_rule_v2" "smtps_v6" {
+  direction         = "ingress"
+  ethertype         = "IPv6"
+  protocol          = "tcp"
+  port_range_min    = 465
+  port_range_max    = 465
+  remote_ip_prefix  = "::/0"
+  security_group_id = openstack_networking_secgroup_v2.edge.id
+  description       = "Stalwart SMTPS over IPv6"
+}
+
+resource "openstack_networking_secgroup_rule_v2" "submission_v6" {
+  direction         = "ingress"
+  ethertype         = "IPv6"
+  protocol          = "tcp"
+  port_range_min    = 587
+  port_range_max    = 587
+  remote_ip_prefix  = "::/0"
+  security_group_id = openstack_networking_secgroup_v2.edge.id
+  description       = "Stalwart submission over IPv6"
+}
+
+resource "openstack_networking_secgroup_rule_v2" "imaps_v6" {
+  direction         = "ingress"
+  ethertype         = "IPv6"
+  protocol          = "tcp"
+  port_range_min    = 993
+  port_range_max    = 993
+  remote_ip_prefix  = "::/0"
+  security_group_id = openstack_networking_secgroup_v2.edge.id
+  description       = "Stalwart IMAPS over IPv6"
+}
+
+resource "openstack_networking_secgroup_rule_v2" "pop3s_v6" {
+  direction         = "ingress"
+  ethertype         = "IPv6"
+  protocol          = "tcp"
+  port_range_min    = 995
+  port_range_max    = 995
+  remote_ip_prefix  = "::/0"
+  security_group_id = openstack_networking_secgroup_v2.edge.id
+  description       = "Stalwart POP3S over IPv6"
+}
+
+resource "openstack_networking_secgroup_rule_v2" "sieve_v6" {
+  direction         = "ingress"
+  ethertype         = "IPv6"
+  protocol          = "tcp"
+  port_range_min    = 4190
+  port_range_max    = 4190
+  remote_ip_prefix  = "::/0"
+  security_group_id = openstack_networking_secgroup_v2.edge.id
+  description       = "Stalwart ManageSieve over IPv6"
+}
+
 # An explicit port rather than letting Nova create one, so the addresses are a
 # first-class output and the security group is attached before the instance
 # ever boots.
