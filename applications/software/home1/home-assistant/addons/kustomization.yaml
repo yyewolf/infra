@@ -1,6 +1,0 @@
-resources:
-  - esphome-secret-sops.yaml
-  - esphome-builder.yaml
-  - music-assistant.yaml
-  - smart-clock.yaml
-  - snapserver.yaml
