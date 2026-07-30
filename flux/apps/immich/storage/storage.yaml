@@ -10,16 +10,3 @@ spec:
   resources:
     requests:
       storage: 200Gi
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: immich-ml-cache
-  annotations:
-    k8up.io/backup: "true"
-spec:
-  accessModes: [ ReadWriteOnce ]
-  storageClassName: big-pool
-  resources:
-    requests:
-      storage: 10Gi
