@@ -50,5 +50,6 @@ resources:
 - apps/authentik/ks.yaml
 - apps/rustfs/ks.yaml
 - apps/registry/ks.yaml
+- apps/scrutiny/ks.yaml
 - apps/stalwart/ks.yaml
 - apps/webmail/ks.yaml

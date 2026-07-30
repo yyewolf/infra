@@ -1,0 +1,37 @@
+# scrutiny runs the omnibus image — web, influxdb and collector in one
+# privileged container on w-1. It reads SMART data from the host's block
+# devices, serves the UI over tailscale, and downloads smartctl binaries
+# from the internet.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: scrutiny
+spec:
+  endpointSelector:
+    matchLabels:
+      app: scrutiny
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: tailscale
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
+  - fromEntities:
+    - host
+    - remote-node
+    - health
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+  - toEntities:
+    - world

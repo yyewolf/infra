@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scrutiny
+  labels:
+    app: scrutiny
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scrutiny
+  template:
+    metadata:
+      labels:
+        app: scrutiny
+    spec:
+      automountServiceAccountToken: false
+      nodeSelector:
+        kubernetes.io/hostname: w-1
+      containers:
+      - name: scrutiny
+        image: ghcr.io/analogj/scrutiny:v0.9.2-omnibus@sha256:f5bf4878381fcfe63bf61b96ff6f91de8b1b8c187ec0e86c65309946fa359e2e
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+          name: web
+        - containerPort: 8086
+          name: influxdb
+        securityContext:
+          privileged: true
+          capabilities:
+            add:
+            - SYS_RAWIO
+            - SYS_ADMIN
+        volumeMounts:
+        - name: scrutiny-config
+          mountPath: /opt/scrutiny/config/scrutiny.yaml
+          subPath: scrutiny.yaml
+        - name: scrutiny-config
+          mountPath: /opt/scrutiny/config/collector.yaml
+          subPath: collector.yaml
+        - name: config
+          mountPath: /opt/scrutiny/config
+        - name: influxdb
+          mountPath: /opt/scrutiny/influxdb
+        - name: udev
+          mountPath: /run/udev
+          readOnly: true
+        - name: dev
+          mountPath: /dev
+        resources:
+          requests:
+            cpu: 0m
+            memory: 0Mi
+          limits:
+            cpu: 1000m
+            memory: 512Mi
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+      volumes:
+      - name: scrutiny-config
+        secret:
+          secretName: scrutiny-config
+      - name: config
+        persistentVolumeClaim:
+          claimName: scrutiny
+      - name: influxdb
+        persistentVolumeClaim:
+          claimName: scrutiny-influxdb
+      - name: udev
+        hostPath:
+          path: /run/udev
+          type: Directory
+      - name: dev
+        hostPath:
+          path: /dev
+          type: Directory

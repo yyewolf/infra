@@ -87,6 +87,16 @@ spec:
           #
           # If the two above ever stop needing the device, remove this entry.
           - home-assistant
+          # scrutiny, and the argument for it — same shape as home-assistant
+          # above: the collector DaemonSet is privileged in order to read host
+          # block devices (/dev, /run/udev) for SMART data. kata would satisfy
+          # the rule, but it runs the workload in a VM that cannot reach the
+          # host's device nodes. gVisor has the same problem, and a char-device
+          # cannot be passed through any other way.
+          #
+          # Only the collector is privileged; the web pod runs unprivileged and
+          # is not affected by this rule at all.
+          - scrutiny
     validate:
       failureAction: Enforce
       message: >-

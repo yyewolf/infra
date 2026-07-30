@@ -2,19 +2,3 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: woodpecker
-  labels:
-    # Talos enforces the 'baseline' Pod Security profile on every namespace
-    # except kube-system, and baseline forbids `privileged: true`. CI steps here
-    # need it — the docker-buildx plugin runs a dockerd inside the step
-    # container — so this namespace opts out entirely.
-    #
-    # What makes that acceptable is not PSA, it is the sandbox: every step pod
-    # is mutated onto the `kata` RuntimeClass, so "privileged" means privileged
-    # inside a VM with its own kernel, not on the node. The two halves are
-    # enforced by the ClusterPolicies in platform/kyverno/policies —
-    # `woodpecker-kata` puts the pods there, and `require-kata-for-privileged`
-    # is what stops this label from being a way to get a privileged container on
-    # the host if the mutation ever stops matching.
-    pod-security.kubernetes.io/enforce: privileged
-    pod-security.kubernetes.io/audit: privileged
-    pod-security.kubernetes.io/warn: privileged
