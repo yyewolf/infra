@@ -11,7 +11,7 @@ spec:
   - name: tailscale
   interval: 10m
   path: ./flux/apps/radar
-  prune: false
+  prune: true
   retryInterval: 1m
   sourceRef:
     kind: GitRepository

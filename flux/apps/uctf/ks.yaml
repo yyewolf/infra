@@ -21,7 +21,7 @@ spec:
   - name: certificates
   interval: 10m
   path: ./flux/apps/uctf
-  prune: false
+  prune: true
   retryInterval: 1m
   sourceRef:
     kind: GitRepository

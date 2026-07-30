@@ -19,7 +19,7 @@ spec:
   - name: longhorn
   interval: 10m
   path: ./flux/platform/mysql
-  prune: false
+  prune: true
   retryInterval: 1m
   sourceRef:
     kind: GitRepository

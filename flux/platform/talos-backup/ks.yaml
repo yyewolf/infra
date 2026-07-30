@@ -22,7 +22,7 @@ spec:
   - name: cilium
   interval: 10m
   path: ./flux/platform/talos-backup
-  prune: false
+  prune: true
   retryInterval: 1m
   sourceRef:
     kind: GitRepository

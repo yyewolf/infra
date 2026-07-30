@@ -14,7 +14,7 @@ spec:
   - name: cert-manager
   interval: 10m
   path: ./flux/platform/barman-plugin
-  prune: false
+  prune: true
   retryInterval: 1m
   sourceRef:
     kind: GitRepository

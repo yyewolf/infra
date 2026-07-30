@@ -13,7 +13,7 @@ spec:
   - name: postgres
   interval: 10m
   path: ./flux/platform/postgres/applications/woodpecker
-  prune: false
+  prune: true
   retryInterval: 1m
   sourceRef:
     kind: GitRepository

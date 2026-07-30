@@ -8,7 +8,7 @@ spec:
   - name: cilium
   interval: 10m
   path: ./flux/infrastructure/longhorn
-  prune: false
+  prune: true
   retryInterval: 1m
   # A StorageClass is immutable in every field that matters — `parameters`,
   # `provisioner`, `reclaimPolicy`, `volumeBindingMode` — so any edit to

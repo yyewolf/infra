@@ -23,7 +23,7 @@ spec:
   - name: barman-plugin
   interval: 10m
   path: ./flux/platform/postgres
-  prune: false
+  prune: true
   retryInterval: 1m
   sourceRef:
     kind: GitRepository

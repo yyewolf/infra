@@ -10,7 +10,7 @@ spec:
     secretRef:
       name: sops-gpg
   path: ./flux/platform/external-dns
-  prune: false
+  prune: true
   retryInterval: 1m
   sourceRef:
     kind: GitRepository
