@@ -1,0 +1,84 @@
+# Same pattern as sonarr.yaml — see it for why this is a StatefulSet and why the
+# S6_* variables are required under runAsNonRoot.
+#
+# Prowlarr is the one *arr app that does not mount servarr-media: it manages
+# indexer definitions and proxies searches, and never touches a media file. The
+# nodeSelector is therefore not load-bearing the way it is elsewhere — it is here
+# because prowlarr-config is on big-pool and big-pool only exists on w-1, so
+# running anywhere else would put every sqlite write on the LAN.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: prowlarr
+spec:
+  replicas: 1
+  serviceName: prowlarr
+  selector:
+    matchLabels:
+      app: prowlarr
+  template:
+    metadata:
+      labels:
+        app: prowlarr
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      automountServiceAccountToken: false
+      nodeSelector:
+        kubernetes.io/hostname: w-1
+      containers:
+      - name: prowlarr
+        image: mirror.gcr.io/linuxserver/prowlarr:2.4.0@sha256:4fd7a166c8f46dd3370a871c250ee577d6c2ae97a0dbe0e3614b5ef736205620
+        securityContext:
+          seccompProfile:
+            type: RuntimeDefault
+        ports:
+        - containerPort: 9696
+        env:
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        - name: TZ
+          value: "Europe/Paris"
+        - name: S6_YES_I_WANT_A_WORLD_WRITABLE_RUN_BECAUSE_KUBERNETES
+          value: "1"
+        - name: S6_READ_ONLY_ROOT
+          value: "1"
+        - name: S6_VERBOSITY
+          value: "2"
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        - name: run
+          mountPath: /run
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+      volumes:
+      - name: config
+        persistentVolumeClaim:
+          claimName: prowlarr-config
+      - name: run
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prowlarr
+spec:
+  ports:
+  - port: 80
+    targetPort: 9696
+  selector:
+    app: prowlarr

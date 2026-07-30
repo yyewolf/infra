@@ -1,6 +1,23 @@
 # Authentik handles auth.yewolf.fr traffic from the edge, talks to the shared
 # CNPG Postgres, and serves ext-auth requests from envoy-gateway-system. Workers
 # also reach Postgres. Email is sent outbound to the LAN/tailnet SMTP server.
+#
+# THIS POLICY DOES NOT COVER THE OUTPOSTS, AND THE 9000 RULE BELOW IMPLIES IT
+# DOES. `app.kubernetes.io/instance: authentik` is a chart label, and the outpost
+# pods are not created by the chart — authentik's own Kubernetes outpost
+# controller reconciles them from the provider definitions in the database, with
+# `app.kubernetes.io/name: authentik-outpost-proxy` (and `-ldap`) and no instance
+# label at all. So `ak-outpost-proxy`, which is the backend every SecurityPolicy
+# in apps/servarr/routes.yaml calls for ext-auth on 9000, is selected by no
+# policy in this cluster and is therefore default-allow. Port 9000 is the
+# outpost's port, not the server's; the rule below grants nothing.
+#
+# Closing that means a second policy selecting `app.kubernetes.io/name:
+# authentik-outpost-proxy` — ingress from envoy-gateway-system on 9000, egress to
+# authentik-server and kube-dns. Deliberately not done in the same change as the
+# servarr SSO wiring: the LDAP outpost beside it has consumers outside this
+# repo, and a policy written blind for either one fails closed on a path that is
+# currently working.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:

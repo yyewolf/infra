@@ -1,0 +1,83 @@
+# A StatefulSet at one replica rather than a Deployment, for the reason every
+# workload in this directory is one: the volumes are RWO, so two pods must never
+# exist at once. A Deployment can only promise that with `strategy: Recreate`,
+# which is a rollout *policy* — one field away from a rolling update that
+# deadlocks on Multi-Attach. A StatefulSet deletes the old pod and waits for it
+# to actually go before creating its replacement, and there is no replicas > 1
+# to reach for later because Jellyfin's sqlite library database cannot be shared.
+#
+# NO HARDWARE TRANSCODING, unlike the root cluster. On home1 this pod ran with
+# `runtimeClassName: nvidia` and `nvidia.com/gpu: 1`. Same physical machine, but
+# w-1's Talos image carries zfs/kata/gvisor/sysbox and no NVIDIA extensions, so
+# there is no device plugin and no /dev/dri — every transcode is on the Ryzen
+# 5 3600's cores, which is what the 3-core limit is sized for. Getting the GPU
+# back means `siderolabs/nonfree-kmod-nvidia-production` plus
+# `siderolabs/nvidia-container-toolkit-production` in w-1's `extensions:` in
+# ng/talos/cluster.yaml, a `talos.sh upgrade w-1`, an `nvidia` RuntimeClass and
+# the device plugin DaemonSet — a deliberate piece of work, not a field here.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: jellyfin
+spec:
+  replicas: 1
+  serviceName: jellyfin
+  selector:
+    matchLabels:
+      app: jellyfin
+  template:
+    metadata:
+      labels:
+        app: jellyfin
+    spec:
+      automountServiceAccountToken: false
+      # Correctness, not preference — see storage/storage.yaml. servarr-media is
+      # RWO and attached to w-1; a pod elsewhere cannot mount it.
+      nodeSelector:
+        kubernetes.io/hostname: w-1
+      terminationGracePeriodSeconds: 1
+      containers:
+      - name: jellyfin
+        image: mirror.gcr.io/linuxserver/jellyfin:10.11.10@sha256:be2bd22d5e27451ebc14b326d8a6554e1f51c79f4431d6c71522565ed17f06ea
+        securityContext:
+          seccompProfile:
+            type: RuntimeDefault
+        ports:
+        - containerPort: 8096
+        env:
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        - name: TZ
+          value: "Europe/Paris"
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        - name: data
+          mountPath: /data
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 3000m
+            memory: 5Gi
+      volumes:
+      - name: config
+        persistentVolumeClaim:
+          claimName: jellyfin-config
+      - name: data
+        persistentVolumeClaim:
+          claimName: servarr-media
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jellyfin
+spec:
+  ports:
+  - port: 80
+    targetPort: 8096
+  selector:
+    app: jellyfin

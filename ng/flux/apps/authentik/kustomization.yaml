@@ -7,4 +7,5 @@ resources:
 - helmrepository.yaml
 - helmrelease.yaml
 - secret-sops.yaml
+- reference-grant.yaml
 - network-policy.yaml

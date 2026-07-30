@@ -1,0 +1,80 @@
+# One namespace-wide policy rather than eight per-workload ones, which is a
+# departure from how the rest of ng is written and needs the argument made.
+#
+# The eight workloads here are peers with the same needs: they resolve names,
+# they talk to each other constantly (prowlarr feeds sonarr and radarr, both
+# drive qbittorrent, bazarr follows both, jellyseerr drives all of them, and
+# every one of them reaches an indexer or a metadata API on the internet), and
+# they are reached from the same two places. Split per workload, that produces
+# eight files whose rules are identical, and the useful distinctions — which one
+# may reach the world, which one may be reached from the tailnet — would be
+# invisible in the duplication. Same reasoning as the Longhorn policy, for a
+# different reason: there, the workload set is unknowable; here, it is knowable
+# and uniform.
+#
+# THE ONE RULE THAT IS A SECURITY CONTROL, NOT TIDINESS
+#
+# Egress to the internet is `toCIDRSet: 0.0.0.0/0` with 10/8 and 192.168/16
+# excepted, not `toEntities: world`. Those are not the same thing: `world` in
+# Cilium means "not in the cluster", which includes the home LAN, the router, and
+# every other machine on it. This stack runs code that fetches and parses
+# attacker-supplied data from indexers and torrent peers, so the LAN is exactly
+# what it must not be able to reach. Carried over from the root cluster, where it
+# was written the same way for the same reason.
+#
+# The cost of that shape is that all ports are open outbound, not just 80/443.
+# That is not laziness either — private trackers listen on arbitrary ports, and
+# gluetun dials NordVPN OpenVPN endpoints on whatever port the server list gives
+# it. Narrowing it breaks indexers one at a time, months later.
+#
+# The exceptions to the RFC1918 block are the two rules above it: kube-dns by
+# endpoint, and the rest of the namespace by endpoint. Both are cluster-internal
+# and evaluated before the CIDR rule, so excluding 10/8 does not cut them.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: servarr
+spec:
+  endpointSelector: {}
+  ingress:
+  # The public gateway, for the HTTPRoutes in routes.yaml.
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: envoy-gateway-system
+  # The Tailscale proxies, for the two Ingresses in ingress.yaml. This is a
+  # security control: it is the only path to the qbittorrent WebUI and to
+  # rustatio, neither of which is behind the SSO wall.
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: tailscale
+  # Each other. The stack is a mesh of API calls between its own members.
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: servarr
+  # Kubelet probes and health checking. `host` covers the node the pod is on,
+  # `remote-node` the other two — see the note in ng/AGENTS.md about why naming
+  # both is necessary rather than defensive.
+  - fromEntities:
+    - host
+    - remote-node
+    - health
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: servarr
+  # The internet, minus the LAN and the cluster. See the header.
+  - toCIDRSet:
+    - cidr: 0.0.0.0/0
+      except:
+      - 10.0.0.0/8
+      - 192.168.0.0/16

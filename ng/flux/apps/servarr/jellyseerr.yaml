@@ -1,0 +1,73 @@
+# StatefulSet for the same at-most-one reason as the rest of the directory: the
+# config volume is RWO and holds a sqlite database.
+#
+# Not a linuxserver image, so none of the S6_* variables apply — seerr runs as
+# whatever uid the pod specifies and writes only to /app/config.
+#
+# It mounts no media volume: jellyseerr only ever talks to jellyfin, sonarr and
+# radarr over HTTP. The nodeSelector is here because jellyseerr-config is on
+# big-pool, which exists only on w-1.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: jellyseerr
+spec:
+  replicas: 1
+  serviceName: jellyseerr
+  selector:
+    matchLabels:
+      app: jellyseerr
+  template:
+    metadata:
+      labels:
+        app: jellyseerr
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      automountServiceAccountToken: false
+      nodeSelector:
+        kubernetes.io/hostname: w-1
+      containers:
+      - name: jellyseerr
+        image: ghcr.io/seerr-team/seerr:v3.3.0@sha256:c92d2dc117f62185e7bcb88cd56efd374ea79210eaf433275449e8d5988eb5a8
+        securityContext:
+          seccompProfile:
+            type: RuntimeDefault
+        ports:
+        - containerPort: 5055
+        env:
+        - name: LOG_LEVEL
+          value: "debug"
+        - name: TZ
+          value: "Europe/Paris"
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+      volumes:
+      - name: config
+        persistentVolumeClaim:
+          claimName: jellyseerr-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jellyseerr
+spec:
+  ports:
+  - port: 80
+    targetPort: 5055
+  selector:
+    app: jellyseerr

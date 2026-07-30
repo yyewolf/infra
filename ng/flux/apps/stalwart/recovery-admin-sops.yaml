@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: Secret
+metadata:
+    name: stalwart-recovery-admin
+type: Opaque
+stringData:
+    STALWART_RECOVERY_ADMIN: ENC[AES256_GCM,data:JbYatyRlsfVPCa6UUiROnFDT9/i9cq2Taw0cJjg6QcCXl4MEnao=,iv:QMafTDZK50Kz0ELpRg5vg5abPkLXvbszJRBUyDOo6HM=,tag:LblPOWDWSunalaQwtjkCyg==,type:str]
+sops:
+    encrypted_regex: ^(data|stringData|secrets)$
+    lastmodified: "2026-07-30T09:30:16Z"
+    mac: ENC[AES256_GCM,data:oWW468blih8AqrZt8BhFSssq0fpca8ym48QFz1DB8fW6kynuMho85YtGOnExaf4KeUmTJsqqkcBXrVKL1nFGdt7URA4mqgnCg22Nd2+rv7Dfc4FN+51+acTduYdDp8vqlztOd+rB/nXbnsHjzRiQXZncSPLGKmQxfCssLmh57gk=,iv:tfMLPUslCT4WK/kealmH/3PLkWTSW6+5uHey9gGQXSg=,tag:D8mbU+yyEzJsmmrjqWe0Ow==,type:str]
+    pgp:
+        - created_at: "2026-07-30T09:30:16Z"
+          enc: |-
+            -----BEGIN PGP MESSAGE-----
+
+            hF4DC4LUCsV/V+wSAQdAhM1TYw8bMuGyeuyhtCo/mSFbtPg4QO8abQ7DwU44OBIw
+            Q5uPDfkWwr8yFsRJopzMv3riJmhTrVplzMP038GQMYWmWdWT8hQgIiY0/f1L5xkI
+            0l4BgaRD2VObKWS69OUSuL+2vpu5MPv/I4mG/1D2UVTwj9+NrS4th/rwBjEuLXGx
+            CS6EPHliMqjYCGcLIpkqUs60O3E9+J1SqXMCpyvsknWPBPLk+8sCWeJ7YWUdROj5
+            =l8sZ
+            -----END PGP MESSAGE-----
+          fp: 459895EB0A5F446D3831E99F95F6A162E4A71B06
+        - created_at: "2026-07-30T09:30:16Z"
+          enc: |-
+            -----BEGIN PGP MESSAGE-----
+
+            hF4D8q6e3Tem1ZoSAQdAYxLD2rF67fNQr/2RPxaII94zltJ6FtRYN/6bvbB7WTsw
+            rAGfiDOwSZk2p+3QHSAsC33oXuoNWbhux/rwhICmRssbVnlME9EfoHOoRCN2mjEL
+            0l4BM+vwRp9rXJqgiGVli4TNZK8BclLdTIa4Y7XpsG/t24eO7W+FYmlBF+dG21dh
+            NF2kryUwpiVF/Gm8iERKOEucGJX6t/CPvinJxBcwXf8NWlmy7a8Ac0ePB4q03rgq
+            =Xawl
+            -----END PGP MESSAGE-----
+          fp: DF7F5D62376A57228F35FE4C665F8C5B8E0732E5
+    version: 3.13.1

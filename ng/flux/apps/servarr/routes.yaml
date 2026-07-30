@@ -1,0 +1,407 @@
+# Public hostnames, and the authentik SSO wall in front of the admin UIs.
+#
+# PORTING EXTAUTH FROM KGATEWAY TO ENVOY GATEWAY
+#
+# The root cluster expresses this as a `GatewayExtension` (type ExtAuth) plus one
+# `TrafficPolicy` per route. Envoy Gateway has no GatewayExtension: the backend
+# reference and the per-route attachment collapse into a single `SecurityPolicy`
+# per route, so the shared object disappears and the ak-outpost-proxy coordinates
+# are repeated below. That is the API, not a missed abstraction.
+#
+# The cross-namespace consent still exists and still lives with the namespace
+# being pointed at — apps/authentik/reference-grant.yaml. Without it the
+# SecurityPolicy is rejected with a ResolvedRefs=False status and the route
+# serves unauthenticated, which is the failure mode worth knowing about: the
+# route keeps working, it just stops asking who you are.
+#
+# WHAT CARRIED OVER EXACTLY
+#
+#   headersToExtAuth  — Envoy sends only Host, Method, Path, Content-Length and
+#     Authorization to an HTTP auth service by default. `cookie` is not in that
+#     list, and it is the one header the whole flow turns on, so this list is
+#     mandatory rather than belt-and-braces.
+#   path              — appended to the original request path, same as kgateway's
+#     pathPrefix. authentik's envoy handler reads the original URL from the
+#     X-Forwarded-* headers, so the suffix is ignored. If it ever 404s, the fix
+#     is `pathOverride` instead, which replaces the path rather than prefixing it.
+#   headersToBackend  — the x-authentik-* identity headers the apps can read.
+#
+# WHAT COULD NOT CARRY OVER
+#
+# kgateway's `authorizationResponse.headersToClient` and
+# `headersToClientOnSuccess` have no equivalent field in Envoy Gateway 1.8.3.
+# Only the first is actually needed and Envoy already does it: with
+# `allowed_client_headers` unset, a *denied* auth response is returned to the
+# client with all its headers, so the 302 to auth.yewolf.fr keeps its `location`
+# and `set-cookie`. The gap is on the success path —
+# `allowed_client_headers_on_success` is left unset, so a `set-cookie` that
+# authentik emits alongside a 200 (session refresh or rotation) never reaches the
+# browser. Login works; a session that would have been silently extended instead
+# expires and asks again. Verify against a long-lived session before assuming
+# this is nothing.
+#
+# NOTES ON WHAT IS *NOT* HERE
+#
+#   - No per-app /outpost.goauthentik.io HTTPRoute. The providers are in
+#     forward_domain mode with cookie_domain yewolf.fr, so the redirect goes to
+#     auth.yewolf.fr, which authentik-server already serves.
+#   - No route for qbittorrent or rustatio. They are tailnet-only; see ingress.yaml.
+#   - jellyfin and jellyseerr are deliberately unauthenticated at the gateway —
+#     both have their own user accounts and jellyfin has client apps that cannot
+#     complete an SSO redirect.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: jellyfin
+spec:
+  parentRefs:
+  - name: envoy-gateway
+    namespace: envoy-gateway-system
+    sectionName: https
+  hostnames:
+  - "jellyfin.yewolf.fr"
+  rules:
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: jellyfin
+      port: 80
+      weight: 1
+    # No timeout: streaming a film is a single long-lived response, and any
+    # finite budget here truncates it.
+    timeouts:
+      request: 0s
+      backendRequest: 0s
+    matches:
+    - path:
+        type: PathPrefix
+        value: /
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: jellyseerr
+spec:
+  parentRefs:
+  - name: envoy-gateway
+    namespace: envoy-gateway-system
+    sectionName: https
+  hostnames:
+  - "jellyseerr.yewolf.fr"
+  rules:
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: jellyseerr
+      port: 80
+      weight: 1
+    timeouts:
+      request: 0s
+      backendRequest: 0s
+    matches:
+    - path:
+        type: PathPrefix
+        value: /
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: sonarr
+spec:
+  parentRefs:
+  - name: envoy-gateway
+    namespace: envoy-gateway-system
+    sectionName: https
+  hostnames:
+  - "sonarr.yewolf.fr"
+  rules:
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: sonarr
+      port: 80
+      weight: 1
+    timeouts:
+      request: 0s
+      backendRequest: 0s
+    matches:
+    - path:
+        type: PathPrefix
+        value: /
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: sonarr-ext-auth
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: sonarr
+  extAuth:
+    headersToExtAuth:
+    - cookie
+    - authorization
+    - proxy-authorization
+    - accept
+    - x-forwarded-proto
+    - x-forwarded-for
+    - x-real-ip
+    http:
+      backendRefs:
+      - group: ""
+        kind: Service
+        name: ak-outpost-proxy
+        namespace: authentik
+        port: 9000
+      path: /outpost.goauthentik.io/auth/envoy
+      headersToBackend:
+      - x-authentik-uid
+      - x-authentik-username
+      - x-authentik-name
+      - x-authentik-email
+      - x-authentik-groups
+      - x-authentik-entitlements
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: radarr
+spec:
+  parentRefs:
+  - name: envoy-gateway
+    namespace: envoy-gateway-system
+    sectionName: https
+  hostnames:
+  - "radarr.yewolf.fr"
+  rules:
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: radarr
+      port: 80
+      weight: 1
+    timeouts:
+      request: 0s
+      backendRequest: 0s
+    matches:
+    - path:
+        type: PathPrefix
+        value: /
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: radarr-ext-auth
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: radarr
+  extAuth:
+    headersToExtAuth:
+    - cookie
+    - authorization
+    - proxy-authorization
+    - accept
+    - x-forwarded-proto
+    - x-forwarded-for
+    - x-real-ip
+    http:
+      backendRefs:
+      - group: ""
+        kind: Service
+        name: ak-outpost-proxy
+        namespace: authentik
+        port: 9000
+      path: /outpost.goauthentik.io/auth/envoy
+      headersToBackend:
+      - x-authentik-uid
+      - x-authentik-username
+      - x-authentik-name
+      - x-authentik-email
+      - x-authentik-groups
+      - x-authentik-entitlements
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: prowlarr
+spec:
+  parentRefs:
+  - name: envoy-gateway
+    namespace: envoy-gateway-system
+    sectionName: https
+  hostnames:
+  - "prowlarr.yewolf.fr"
+  rules:
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: prowlarr
+      port: 80
+      weight: 1
+    timeouts:
+      request: 0s
+      backendRequest: 0s
+    matches:
+    - path:
+        type: PathPrefix
+        value: /
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: prowlarr-ext-auth
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: prowlarr
+  extAuth:
+    headersToExtAuth:
+    - cookie
+    - authorization
+    - proxy-authorization
+    - accept
+    - x-forwarded-proto
+    - x-forwarded-for
+    - x-real-ip
+    http:
+      backendRefs:
+      - group: ""
+        kind: Service
+        name: ak-outpost-proxy
+        namespace: authentik
+        port: 9000
+      path: /outpost.goauthentik.io/auth/envoy
+      headersToBackend:
+      - x-authentik-uid
+      - x-authentik-username
+      - x-authentik-name
+      - x-authentik-email
+      - x-authentik-groups
+      - x-authentik-entitlements
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: bazarr
+spec:
+  parentRefs:
+  - name: envoy-gateway
+    namespace: envoy-gateway-system
+    sectionName: https
+  hostnames:
+  - "bazarr.yewolf.fr"
+  rules:
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: bazarr
+      port: 80
+      weight: 1
+    timeouts:
+      request: 0s
+      backendRequest: 0s
+    matches:
+    - path:
+        type: PathPrefix
+        value: /
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: bazarr-ext-auth
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: bazarr
+  extAuth:
+    headersToExtAuth:
+    - cookie
+    - authorization
+    - proxy-authorization
+    - accept
+    - x-forwarded-proto
+    - x-forwarded-for
+    - x-real-ip
+    http:
+      backendRefs:
+      - group: ""
+        kind: Service
+        name: ak-outpost-proxy
+        namespace: authentik
+        port: 9000
+      path: /outpost.goauthentik.io/auth/envoy
+      headersToBackend:
+      - x-authentik-uid
+      - x-authentik-username
+      - x-authentik-name
+      - x-authentik-email
+      - x-authentik-groups
+      - x-authentik-entitlements
+---
+# flaresolverr is exposed publicly *and* behind the SSO wall, which makes the
+# public hostname useless for the *arr apps calling it — they must use
+# http://flaresolverr, the ClusterIP. See flaresolverr.yaml.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: flaresolverr
+spec:
+  parentRefs:
+  - name: envoy-gateway
+    namespace: envoy-gateway-system
+    sectionName: https
+  hostnames:
+  - "flaresolverr.yewolf.fr"
+  rules:
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: flaresolverr
+      port: 80
+      weight: 1
+    timeouts:
+      request: 0s
+      backendRequest: 0s
+    matches:
+    - path:
+        type: PathPrefix
+        value: /
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: flaresolverr-ext-auth
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: flaresolverr
+  extAuth:
+    headersToExtAuth:
+    - cookie
+    - authorization
+    - proxy-authorization
+    - accept
+    - x-forwarded-proto
+    - x-forwarded-for
+    - x-real-ip
+    http:
+      backendRefs:
+      - group: ""
+        kind: Service
+        name: ak-outpost-proxy
+        namespace: authentik
+        port: 9000
+      path: /outpost.goauthentik.io/auth/envoy
+      headersToBackend:
+      - x-authentik-uid
+      - x-authentik-username
+      - x-authentik-name
+      - x-authentik-email
+      - x-authentik-groups
+      - x-authentik-entitlements

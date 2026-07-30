@@ -1,0 +1,96 @@
+# What this policy covers is an empty mail server that is only reachable through
+# the edge on its management port. It is deliberately not pre-loosened for the
+# mail ports: ingress on 25/465/587/993/4190 arrives from the Envoy pods once
+# the ListenerSet exists, and belongs in that change.
+#
+# Egress, on the other hand, is written for the configured server rather than the
+# empty one, because both destinations are needed the moment the directory and a
+# domain are set up and neither is worth debugging through a silent drop:
+#
+#   - authentik's LDAP outpost, which is the account directory (accounts and
+#     aliases come from `mail`/`mailAliases` on the authentik user, quota from
+#     `diskQuota`).
+#   - the public internet on 25/465/587 for delivery, and 80/443 for ACME and
+#     the blocklists Stalwart pulls. RFC1918 is excluded from the SMTP rule for
+#     the same reason it is in apps/authentik: nothing in this cluster or on the
+#     LAN should be reachable as a mail relay from here.
+#
+# Stalwart resolves MX records through the pod resolver, i.e. kube-dns. If a
+# public resolver is ever configured in the WebUI instead, that is a rule to add
+# here — it will fail closed.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: stalwart
+spec:
+  endpointSelector:
+    matchLabels:
+      app: stalwart
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: envoy-gateway-system
+        app.kubernetes.io/name: envoy
+        app.kubernetes.io/component: proxy
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: stalwart
+  - fromEntities:
+    - host
+    - remote-node
+    - health
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+  # 6636, not 636, and this is the one rule here that cannot be read off the
+  # Service. Cilium enforces egress after service translation, so the port it
+  # matches is the *backend* port — and authentik's LDAP outpost runs
+  # unprivileged, listening on 3389/6636 with the Service mapping 389→3389 and
+  # 636→6636. A rule written against the Service ports denies every connection
+  # with POLICY_DENIED on a port number that appears nowhere in the config.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: authentik
+        goauthentik.io/outpost-type: ldap
+    toPorts:
+    - ports:
+      - port: "6636"
+        protocol: TCP
+      - port: "3389"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: stalwart
+  - toEntities:
+    - world
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP
+      - port: "80"
+        protocol: TCP
+  - toCIDRSet:
+    - cidr: 0.0.0.0/0
+      except:
+      - 10.0.0.0/8
+      - 192.168.0.0/16
+    toPorts:
+    - ports:
+      - port: "25"
+        protocol: TCP
+      - port: "465"
+        protocol: TCP
+      - port: "587"
+        protocol: TCP

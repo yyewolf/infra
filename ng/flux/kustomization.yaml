@@ -42,9 +42,11 @@ resources:
 - apps/woodpecker/ks.yaml
 - apps/home-assistant/storage/ks.yaml
 - apps/home-assistant/ks.yaml
-# - apps/jellyfin/storage/ks.yaml
-# - apps/jellyfin/ks.yaml
+- apps/servarr/storage/ks.yaml
+- apps/servarr/migrate/ks.yaml
+- apps/servarr/ks.yaml
 - apps/immich/storage/ks.yaml
 - apps/immich/ks.yaml
 - apps/uctf/ks.yaml
 - apps/authentik/ks.yaml
+- apps/stalwart/ks.yaml

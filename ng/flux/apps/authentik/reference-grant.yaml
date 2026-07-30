@@ -1,0 +1,27 @@
+# Consent for the SSO-protected apps to point their SecurityPolicy at the proxy
+# outpost in this namespace. It lives here rather than in the app's directory for
+# the same reason platform/keda's grants and platform/certificates' do: a
+# cross-namespace reference is granted by the namespace being referenced, so the
+# list of who may reach ak-outpost-proxy belongs next to ak-outpost-proxy.
+#
+# Adding an SSO-protected app means adding its namespace to `from` here as well
+# as writing the SecurityPolicy. Miss this and the failure is quiet in the worst
+# way: the SecurityPolicy reports ResolvedRefs=False, Envoy Gateway drops the
+# ext_authz filter, and the HTTPRoute keeps serving — unauthenticated.
+#
+# The outpost itself is not declared anywhere in this repo. It is created by
+# authentik's own Kubernetes outpost controller from the provider definitions in
+# the database, which came across with the migration from the root cluster.
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: allow-ext-auth-to-outpost-proxy
+spec:
+  from:
+  - group: gateway.envoyproxy.io
+    kind: SecurityPolicy
+    namespace: servarr
+  to:
+  - group: ""
+    kind: Service
+    name: ak-outpost-proxy

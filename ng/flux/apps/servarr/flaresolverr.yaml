@@ -1,0 +1,71 @@
+# The one workload in this directory that is a Deployment rather than a
+# StatefulSet, because it is the one with no state: flaresolverr drives a
+# headless Firefox to solve a challenge and forgets everything afterwards. No
+# volume, so nothing to be at-most-one about.
+#
+# Also the one without a nodeSelector. Nothing pins it to w-1 — it mounts none of
+# the big-pool claims — so it is free to land on cp-0/1/2, which is where the
+# spare CPU is. Its callers reach it over the ClusterIP.
+#
+# Those callers are prowlarr, sonarr and radarr, and they must be configured with
+# `http://flaresolverr` — the in-cluster Service — not the public
+# flaresolverr.yewolf.fr. The public hostname is behind authentik ext-auth, so an
+# API call to it gets the login wall instead of a solved challenge.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flaresolverr
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flaresolverr
+  template:
+    metadata:
+      labels:
+        app: flaresolverr
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      automountServiceAccountToken: false
+      containers:
+      - name: flaresolverr
+        image: ghcr.io/flaresolverr/flaresolverr:v3.5.0@sha256:139dfee1c6f89249c8d665d1333a42e8ec74ec0a86bc6bb1c8461e10d3a66a47
+        securityContext:
+          seccompProfile:
+            type: RuntimeDefault
+        ports:
+        - containerPort: 8191
+        env:
+        - name: LOG_LEVEL
+          value: "info"
+        - name: LOG_HTML
+          value: "false"
+        - name: CAPTCHA_SOLVER
+          value: "none"
+        - name: TZ
+          value: "Europe/Paris"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 512Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flaresolverr
+spec:
+  ports:
+  - port: 80
+    targetPort: 8191
+  selector:
+    app: flaresolverr

@@ -1,0 +1,207 @@
+# The torrent stack is one pod with three containers, and that is the design
+# rather than an accident of packaging: qbittorrent and rustatio have to share
+# gluetun's network namespace so that every packet either goes through the VPN or
+# does not go at all. Split them into separate pods and the kill switch stops
+# being a kill switch — qbittorrent would fall back to the pod's own default
+# route the moment the tunnel dropped.
+#
+# StatefulSet at one replica, like the rest of this directory: qbittorrent-config
+# is RWO and holds BT_backup, the .torrent and .fastresume state for all ~170
+# active torrents. Two qbittorrents opening it would corrupt the resume data, so
+# the at-most-one guarantee is the point.
+#
+# WHAT IS DELIBERATELY NOT ON THE SERVICE
+#
+# The root cluster's Service published 6881/tcp and 6881/udp for incoming peers.
+# Both were dead: qbittorrent's listen port in the migrated config is 42575, and
+# in any case incoming connections arrive through the tunnel on gluetun's
+# interface, not through a ClusterIP. They are dropped here rather than carried
+# over with the wrong number.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: torrent-stack
+spec:
+  replicas: 1
+  serviceName: qbittorrent
+  selector:
+    matchLabels:
+      app: torrent-stack
+  template:
+    metadata:
+      labels:
+        app: torrent-stack
+    spec:
+      automountServiceAccountToken: false
+      # servarr-media is RWO and attached to w-1 — see storage/storage.yaml.
+      # qbittorrent writes into /data/downloads, which sonarr and radarr then
+      # hardlink out of, so it has to be the same filesystem they see.
+      nodeSelector:
+        kubernetes.io/hostname: w-1
+      containers:
+      - name: gluetun
+        image: qmcgaw/gluetun:v3@sha256:1a5bf4b4820a879cdf8d93d7ef0d2d963af56670c9ebff8981860b6804ebc8ab
+        # VPN sidecar: seccomp/no-new-privs left off deliberately — OpenVPN auth
+        # proved unreliable under them on the root cluster (see
+        # HARDENING-EXCEPTIONS.md there). Keep only NET_ADMIN, which is what
+        # holds the whole namespace above baseline PSA; see storage/namespace.yaml.
+        securityContext:
+          capabilities:
+            add:
+            - NET_ADMIN
+        env:
+        - name: NETWORK
+          value: container
+        # Ports gluetun's firewall lets *in* from the cluster: 8888 is its own
+        # HTTP proxy, 8080 the qbittorrent WebUI, 8090 rustatio. The control
+        # server on 8000 is deliberately absent — it is only dialled from inside
+        # this pod.
+        - name: FIREWALL_INPUT_PORTS
+          value: 8888,8080,8090
+        - name: DNS_ADDRESS
+          value: 1.1.1.1
+        - name: HTTPPROXY
+          value: "yes"
+        # Traffic allowed to bypass the tunnel: the LAN, the cluster, and the
+        # resolver. Everything else has no route until the VPN is up, which is
+        # the kill switch.
+        - name: FIREWALL_OUTBOUND_SUBNETS
+          value: 10.0.0.0/8,192.168.0.0/16,1.1.1.1/32
+        - name: HTTP_CONTROL_SERVER_ADDRESS
+          value: :8000
+        - name: VPN_INTERFACE_MTU
+          value: "1400"
+        - name: VPN_SERVICE_PROVIDER
+          value: nordvpn
+        - name: VPN_TYPE
+          # or wireguard
+          value: openvpn
+        - name: OPENVPN_USER
+          valueFrom:
+            secretKeyRef:
+              name: nordvpn-secret
+              key: username
+        - name: OPENVPN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: nordvpn-secret
+              key: password
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+      - name: qbittorrent
+        image: mirror.gcr.io/linuxserver/qbittorrent:5.2.3_v2.0.13-ls469@sha256:b024436f8ca665d16d9a997d26fd27fdf867ee5566ba09f32764e7b2976d3e02
+        securityContext:
+          allowPrivilegeEscalation: false
+          seccompProfile:
+            type: RuntimeDefault
+        env:
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        - name: TZ
+          value: Europe/Paris
+        - name: WEBUI_PORT
+          value: "8080"
+        volumeMounts:
+        - name: qbit-config
+          mountPath: /config
+        - name: media-data
+          mountPath: /data
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 2000m
+            memory: 2Gi
+      - name: rustatio
+        image: ghcr.io/takitsu21/rustatio:2.8.0@sha256:7c028e22c52e56540f4cc3b9baf2933eee238a68c2d46ba557d72b0ffb50539b
+        # PUID/gosu image: the entrypoint chowns /app and /data, so it needs
+        # CHOWN/SETUID. Keep the default capability set; harden with
+        # no-privilege-escalation and seccomp only.
+        securityContext:
+          allowPrivilegeEscalation: false
+          seccompProfile:
+            type: RuntimeDefault
+        env:
+        - name: PORT
+          value: "8090"
+        - name: RUST_LOG
+          value: info
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        ports:
+        - containerPort: 8090
+          name: rustatio-webui
+        volumeMounts:
+        - name: rustatio-data
+          mountPath: /data
+        # Reads the torrent list out of qbittorrent's own state. Same claim as
+        # the container above mounts at /config, just a subtree of it — which is
+        # only possible because they share a pod and therefore a node.
+        - name: qbit-config
+          mountPath: /torrents
+          subPath: qBittorrent/BT_backup
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+      volumes:
+      - name: qbit-config
+        persistentVolumeClaim:
+          claimName: qbittorrent-config
+      - name: media-data
+        persistentVolumeClaim:
+          claimName: servarr-media
+      - name: rustatio-data
+        persistentVolumeClaim:
+          claimName: rustatio-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qbittorrent
+spec:
+  ports:
+  - name: web
+    port: 80
+    targetPort: 8080
+  selector:
+    app: torrent-stack
+---
+# rustatio's UI, still called joal after the tool it replaced — the name is what
+# sonarr/radarr/prowlarr and the tailnet hostname already use.
+apiVersion: v1
+kind: Service
+metadata:
+  name: joal
+spec:
+  ports:
+  - port: 80
+    targetPort: 8090
+  selector:
+    app: torrent-stack
+---
+# gluetun's HTTP proxy, for anything in the cluster that wants to make a request
+# from the VPN's exit address instead of the home uplink.
+apiVersion: v1
+kind: Service
+metadata:
+  name: gluetun
+spec:
+  ports:
+  - port: 8888
+    targetPort: 8888
+  selector:
+    app: torrent-stack

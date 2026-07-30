@@ -1,0 +1,15 @@
+# `longhorn`, the three-replica class, and not longhorn-yolo: this single volume
+# holds the mail *and* the server's entire configuration (see configmap.yaml), so
+# losing the node that holds it loses both. 20Gi against ~100Mi of mail is
+# headroom for the full-text index and years of growth; the class expands.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: stalwart-data
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 20Gi

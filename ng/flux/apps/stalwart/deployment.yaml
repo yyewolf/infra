@@ -1,0 +1,125 @@
+# Empty v0.16 instance. No accounts, no domains, no mail — the migration of the
+# old cluster's mailboxes is a separate, later step.
+#
+# Deployment with `Recreate`, not RollingUpdate and not a StatefulSet. RocksDB
+# takes an exclusive lock on its directory, so two pods must never hold this
+# volume at once; Recreate is what guarantees the old pod is gone before the new
+# one starts, and the volume is RWO anyway. Upstream's chart uses a StatefulSet
+# because it is built for a multi-node cluster with a volume per replica — that
+# buys nothing at one replica.
+#
+# First sign-in uses STALWART_RECOVERY_ADMIN (recovery-admin-sops.yaml), the
+# documented bootstrap credential for an empty database. The alternative is a
+# temporary password generated on first boot — but this build logs nothing to
+# stdout (tracing is itself database state, so a fresh server has no stdout
+# tracer), which leaves no way to read it. It is the same role the old cluster's
+# `authentication.fallback-admin` played, and it is worth keeping afterwards as
+# break-glass for a server whose entire configuration lives in its own database.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stalwart
+  labels:
+    app: stalwart
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: stalwart
+  template:
+    metadata:
+      labels:
+        app: stalwart
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        # The image declares uid/gid 2000 (`stalwart`); naming it here is what
+        # makes the kubelet enforce it, and fsGroup is what makes the volume
+        # writable — without it RocksDB fails on its first append with
+        # "LOG: Permission denied" and the pod crashloops on an empty volume.
+        runAsUser: 2000
+        runAsGroup: 2000
+        fsGroup: 2000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: stalwart
+        image: mirror.gcr.io/stalwartlabs/stalwart:v0.16.15@sha256:4f926193e5dd9ceb1e24ba48160702310381b12e51972c2fb0cc9de020388136
+        args:
+        - --config
+        - /etc/stalwart/config.json
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+            # Nothing here binds a privileged port *yet*. It is granted now
+            # because listeners are database state, not manifest state: whoever
+            # adds the SMTP listener on 25 in the WebUI does so without touching
+            # this file, and would get a bind failure with nothing in the repo
+            # to explain it. This is the one capability that has to lead the
+            # configuration rather than follow it.
+            add:
+            - NET_BIND_SERVICE
+          seccompProfile:
+            type: RuntimeDefault
+        envFrom:
+        - secretRef:
+            name: stalwart-recovery-admin
+        env:
+        # Two jobs, and the second is the reason for the value. It is the
+        # cluster node id, which a Deployment would otherwise take from a pod
+        # name that changes on every restart — but it is also what the server
+        # advertises as its own hostname until one is set in the database: with
+        # this unset the JMAP session hands clients `https://stalwart-0/jmap/`.
+        # Keep it equal to the hostname in route.yaml.
+        - name: STALWART_HOSTNAME
+          value: mail-ng.yewolf.fr
+        volumeMounts:
+        - name: config
+          mountPath: /etc/stalwart/config.json
+          subPath: config.json
+          readOnly: true
+        - name: data
+          mountPath: /var/lib/stalwart
+        - name: tmp
+          mountPath: /tmp
+        # /healthz on the management port, which is the one listener that is not
+        # a database row — it answers on a fresh, unconfigured server. Probing a
+        # mail port instead would turn "not set up yet" into a crashloop.
+        readinessProbe:
+          httpGet:
+            path: /healthz/ready
+            port: 8080
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /healthz/live
+            port: 8080
+          periodSeconds: 30
+          # RocksDB recovery after an unclean stop is not instant and a restart
+          # here would repeat it.
+          failureThreshold: 6
+        resources:
+          requests:
+            cpu: 100m
+            memory: 512Mi
+          limits:
+            # Memory only. A CPU limit here throttles full-text indexing and
+            # spam filtering, which are bursty by nature and not a noisy
+            # neighbour risk at this size.
+            memory: 2Gi
+      volumes:
+      - name: config
+        configMap:
+          name: stalwart-config
+      - name: data
+        persistentVolumeClaim:
+          claimName: stalwart-data
+      - name: tmp
+        emptyDir: {}

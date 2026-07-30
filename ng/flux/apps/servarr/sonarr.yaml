@@ -1,0 +1,115 @@
+# The canonical shape for the four linuxserver *arr apps here (sonarr, radarr,
+# prowlarr, bazarr). The other three say "same pattern as sonarr.yaml" rather
+# than repeating this.
+#
+# WHY A STATEFULSET
+#
+# The config volume is RWO and holds a sqlite database. One replica, and the
+# guarantee that matters is at-most-one: a StatefulSet deletes the old pod and
+# waits for it to be gone before creating its replacement. A Deployment would
+# need `strategy: Recreate` to say the same thing, which is one edit away from a
+# rolling update that either deadlocks on Multi-Attach or, worse, succeeds
+# because both pods landed on w-1 and lets two processes open the same database.
+#
+# WHY THE S6 ENVIRONMENT VARIABLES
+#
+# These images normally start as root and drop to PUID/PGID via s6. This pod
+# runs `runAsNonRoot` from the start, so s6 has to be told it is allowed to
+# operate in that mode:
+#
+#   S6_YES_I_WANT_A_WORLD_WRITABLE_RUN_BECAUSE_KUBERNETES  — s6 wants /run mode
+#     0755 owned by root; as uid 1000 it cannot create that, hence the emptyDir
+#     mounted at /run and this acknowledgement.
+#   S6_READ_ONLY_ROOT — stops s6 trying to write outside /run and the volumes.
+#
+# Drop either and the container exits during s6 init, before the app logs
+# anything. PUID/PGID stay set because the app still reads them for file
+# ownership on the shared media volume.
+#
+# WHY fsGroup IS SAFE ON A 3.4 TiB VOLUME
+#
+# `fsGroupChangePolicy: OnRootMismatch` makes the kubelet check only the volume
+# root's ownership rather than walking the tree. servarr-media's root is already
+# 1000:1000 from the migration, so it matches and nothing is chowned. Without
+# that policy this pod would recursively chown 2.1 TiB on every start.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: sonarr
+spec:
+  replicas: 1
+  serviceName: sonarr
+  selector:
+    matchLabels:
+      app: sonarr
+  template:
+    metadata:
+      labels:
+        app: sonarr
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      automountServiceAccountToken: false
+      nodeSelector:
+        kubernetes.io/hostname: w-1
+      containers:
+      - name: sonarr
+        image: mirror.gcr.io/linuxserver/sonarr:4.0.19@sha256:24acea2956a0ccb11f103877d9f4f8576600fb34bff34820ed749c2256dab89f
+        securityContext:
+          seccompProfile:
+            type: RuntimeDefault
+        ports:
+        - containerPort: 8989
+        env:
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        - name: TZ
+          value: "Europe/Paris"
+        - name: S6_YES_I_WANT_A_WORLD_WRITABLE_RUN_BECAUSE_KUBERNETES
+          value: "1"
+        - name: S6_READ_ONLY_ROOT
+          value: "1"
+        - name: S6_VERBOSITY
+          value: "2"
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        - name: data
+          mountPath: /data
+        - name: run
+          mountPath: /run
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+      volumes:
+      - name: config
+        persistentVolumeClaim:
+          claimName: sonarr-config
+      - name: data
+        persistentVolumeClaim:
+          claimName: servarr-media
+      - name: run
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sonarr
+spec:
+  ports:
+  - port: 80
+    targetPort: 8989
+  selector:
+    app: sonarr

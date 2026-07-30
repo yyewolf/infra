@@ -1,0 +1,65 @@
+# The two UIs that never go on the public gateway. On the root cluster both were
+# reached through the `dashboard` Caddy router on a single tailnet hostname; that
+# app has not been ported to ng, so each gets its own Tailscale device instead.
+#
+# THE -ng SUFFIXES ARE NOT COSMETIC
+#
+# ng shares a tailnet with the root cluster, which still holds `joal` (its
+# Ingress and the ts-joal proxy are still running). A collision is not an error —
+# the operator silently appends `-1` — so the name has to differ here. Same
+# reasoning as apps/radar's `radar-ng`. When the root cluster's servarr is
+# retired, taking these suffixes off means deleting the old device from the
+# Tailscale admin console first; a rename alone gets `-1`.
+#
+# A Tailscale Ingress takes its hostname from `tls.hosts`, not from a rule host.
+# There is no rule host below for that reason.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: qbittorrent
+spec:
+  # qbittorrent's migrated config has WebUI\HostHeaderValidation=true, and the
+  # Tailscale proxy passes the original Host through — so on first load this
+  # serves "Unauthorized" until `qbittorrent-ng.<tailnet>.ts.net` is added to
+  # Options -> WebUI -> "Server domains" (or that list is set to `*`). It is a
+  # runtime setting inside the app's own database; there is no env var for it and
+  # nothing in this file can set it. On the root cluster the question never came
+  # up because Caddy rewrote the Host.
+  ingressClassName: tailscale
+  tls:
+  - hosts:
+    - qbittorrent-ng
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: qbittorrent
+            port:
+              number: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: joal
+spec:
+  # rustatio is a root-anchored SPA — absolute /assets and absolute API paths,
+  # with no base-path option — so it cannot live under a shared router's
+  # sub-path. Its own hostname is the only thing that works, which is why it was
+  # already separate from the dashboard on the root cluster.
+  ingressClassName: tailscale
+  tls:
+  - hosts:
+    - joal-ng
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: joal
+            port:
+              number: 80

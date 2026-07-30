@@ -1,0 +1,19 @@
+# servarr runs with privileged PSA for two reasons, and the second is the one
+# that keeps it here permanently:
+#
+#   - the migrate/ Jobs mount the tank as a hostPath, which baseline forbids.
+#     Those are one-shots and will eventually be deletable.
+#   - gluetun needs NET_ADMIN to bring up the VPN interface, and that capability
+#     is not in baseline's allow-list. So the namespace has to sit above
+#     baseline for as long as the torrent stack routes through a tunnel.
+#
+# Nothing in here is privileged in the `securityContext.privileged` sense, so
+# Kyverno's require-kata-for-privileged never fires and no exclusion is needed.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: servarr
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/warn: privileged

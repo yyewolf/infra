@@ -1,0 +1,166 @@
+# Every claim in this file is on `big-pool`, which means every one of them lives
+# on w-1's raidz1 and nowhere else. That is deliberate and it is not a fallback
+# from a better option:
+#
+#   - servarr-media has to be there. It is 2.1 TiB of media; no other pool in
+#     the cluster is even a tenth of that size.
+#   - the config claims could have gone on `longhorn` (3 replicas, on cp-0/1/2)
+#     and been genuinely more durable. They are here anyway because every pod
+#     that opens them also mounts servarr-media, which pins it to w-1 (see
+#     below) — so a config volume on the sata pool would turn every sqlite
+#     write into a round trip across the LAN, while a big-pool replica is
+#     local to the node the engine runs on. Latency beats a replica count that
+#     the workload cannot move to take advantage of.
+#
+# Two consequences, both already true of the class and neither introduced here:
+#
+#   - w-1 going down takes the whole stack with it, not just the pods on it.
+#   - w-1 cannot be drained while these exist. `talos.sh upgrade w-1` hits
+#     Longhorn's block-if-contains-last-replica for each of them.
+#
+# ACCESS MODES AND WHY EVERYTHING RUNS ON w-1
+#
+# servarr-media is RWO and shared by seven pods: jellyfin reads it, sonarr and
+# radarr import into it, bazarr writes sidecars next to the files, qbittorrent
+# downloads into it. RWO is a *node* restriction, not a pod one — Longhorn
+# attaches the volume to one node and every pod scheduled there can mount it —
+# so the stack works only as long as all of them are co-scheduled. That is what
+# the `kubernetes.io/hostname: w-1` nodeSelector on each workload is for; it is
+# a correctness requirement, not a placement preference. A pod without it that
+# lands elsewhere sits in ContainerCreating on a Multi-Attach error.
+#
+# RWX is not the answer: Longhorn implements it by spawning a share-manager pod
+# that re-exports the volume over NFS, which for this stack would mean NFS on
+# top of sparse files on top of ZFS to reach what used to be a plain directory.
+# See the note on the class in infrastructure/longhorn/storageclasses.yaml.
+#
+# The hardlink layout is the other reason /data is one volume rather than one
+# per media type: qbittorrent seeds from /data/downloads while sonarr and radarr
+# hardlink the same inodes into /data/media, so a completed torrent costs its
+# size once instead of twice. Hardlinks cannot cross a filesystem boundary, so
+# splitting downloads from media would silently turn every import into a copy.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: servarr-media
+  annotations:
+    # Deliberately not backed up: 2.1 TiB of re-downloadable media, and there
+    # is no S3 target on ng that would take it. The configs beside it are the
+    # part that is expensive to lose.
+    k8up.io/backup: "false"
+spec:
+  accessModes: [ ReadWriteOnce ]
+  storageClassName: big-pool
+  resources:
+    requests:
+      storage: 3500Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jellyfin-config
+  annotations:
+    k8up.io/backup: "true"
+spec:
+  accessModes: [ ReadWriteOnce ]
+  storageClassName: big-pool
+  resources:
+    requests:
+      # 4.1 GiB migrated. The headroom is for the metadata and image cache,
+      # which grows with the library rather than with usage.
+      storage: 50Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sonarr-config
+  annotations:
+    k8up.io/backup: "true"
+spec:
+  accessModes: [ ReadWriteOnce ]
+  storageClassName: big-pool
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: radarr-config
+  annotations:
+    k8up.io/backup: "true"
+spec:
+  accessModes: [ ReadWriteOnce ]
+  storageClassName: big-pool
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: prowlarr-config
+  annotations:
+    k8up.io/backup: "true"
+spec:
+  accessModes: [ ReadWriteOnce ]
+  storageClassName: big-pool
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bazarr-config
+  annotations:
+    k8up.io/backup: "true"
+spec:
+  accessModes: [ ReadWriteOnce ]
+  storageClassName: big-pool
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jellyseerr-config
+  annotations:
+    k8up.io/backup: "true"
+spec:
+  accessModes: [ ReadWriteOnce ]
+  storageClassName: big-pool
+  resources:
+    requests:
+      storage: 5Gi
+---
+# qbittorrent's config tree holds BT_backup — the .torrent and .fastresume files
+# for every active torrent. Losing it does not lose the data on disk but it does
+# lose every torrent's seeding state, so this is the one claim in the torrent
+# stack that matters. rustatio reads BT_backup out of it via a subPath.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: qbittorrent-config
+  annotations:
+    k8up.io/backup: "true"
+spec:
+  accessModes: [ ReadWriteOnce ]
+  storageClassName: big-pool
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rustatio-config
+  annotations:
+    k8up.io/backup: "true"
+spec:
+  accessModes: [ ReadWriteOnce ]
+  storageClassName: big-pool
+  resources:
+    requests:
+      storage: 1Gi

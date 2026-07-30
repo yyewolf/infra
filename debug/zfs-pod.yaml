@@ -1,0 +1,66 @@
+# A shell that can run `zfs` and `zpool` against w-1's tank.
+#
+# Talos has no shell and the ZFS userland ships inside the siderolabs/zfs
+# extension, so the binaries exist only in PID 1's mount namespace at
+# /usr/local/sbin. This pod is privileged with hostPID and installs shims that
+# nsenter into that namespace, so `kubectl exec` gets working commands:
+#
+#   kubectl --kubeconfig ng/talos/out/kubeconfig apply -f debug/zfs-pod.yaml
+#   kubectl -n kube-system exec -it zfs -- zfs list -o space
+#   kubectl -n kube-system exec -it zfs -- zpool status tank
+#
+# /host/var/mnt/tank is the pool's own mountpoint, for reading and deleting
+# files directly. rshared propagation on the kubelet mount (see
+# ng/talos/patches/zfs-tank.yaml) is what makes the datasets visible here rather
+# than an empty directory.
+#
+# Apply it when needed and delete it when done — this is a tool, not a workload,
+# which is why it lives here and not under ng/flux. It is unrestricted root on
+# the node that holds the only copy of most of this infrastructure's data.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: zfs
+  namespace: kube-system
+spec:
+  # The tank is w-1's alone. Anywhere else the shims resolve to nothing.
+  nodeSelector:
+    kubernetes.io/hostname: w-1
+  tolerations:
+  - operator: Exists
+  hostPID: true
+  automountServiceAccountToken: false
+  restartPolicy: Never
+  containers:
+  - name: zfs
+    image: mirror.gcr.io/library/alpine:3.21
+    securityContext:
+      privileged: true
+    command: [ "sh", "-c" ]
+    args:
+    - |
+      set -eu
+      # -p is deliberately absent: entering PID 1's namespace would make this
+      # container's own shell reparent, and the exec sessions are what we want
+      # to keep. -m -u -i -n is enough to see the host's filesystem and devices.
+      for b in zfs zpool zdb; do
+        cat > /usr/local/bin/$b <<EOF
+      #!/bin/sh
+      exec nsenter -t 1 -m -u -i -n -- /usr/local/sbin/$b "\$@"
+      EOF
+        chmod +x /usr/local/bin/$b
+      done
+      zfs list
+      exec sleep infinity
+    volumeMounts:
+    - name: host
+      mountPath: /host
+      mountPropagation: HostToContainer
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+  volumes:
+  - name: host
+    hostPath:
+      path: /

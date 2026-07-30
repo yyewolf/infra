@@ -1,0 +1,94 @@
+# Same pattern as sonarr.yaml — see it for why this is a StatefulSet and why the
+# S6_* variables are required under runAsNonRoot.
+#
+# Bazarr sees the library at /tv and /movies rather than at /data like everything
+# else, and that is deliberately preserved from the root cluster: its path
+# mappings against sonarr and radarr are stored in the config being migrated, so
+# changing the mount points here would mean reconfiguring them by hand in the
+# UI. Same volume either way — subPath just presents two subtrees of
+# servarr-media where bazarr already expects them.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: bazarr
+spec:
+  replicas: 1
+  serviceName: bazarr
+  selector:
+    matchLabels:
+      app: bazarr
+  template:
+    metadata:
+      labels:
+        app: bazarr
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      automountServiceAccountToken: false
+      nodeSelector:
+        kubernetes.io/hostname: w-1
+      containers:
+      - name: bazarr
+        image: mirror.gcr.io/linuxserver/bazarr:1.6.0@sha256:ab401a0f361cfad328e444838b13d5b334b189d0f556fc91a3623eb581df36df
+        securityContext:
+          seccompProfile:
+            type: RuntimeDefault
+        ports:
+        - containerPort: 6767
+        env:
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        - name: TZ
+          value: "Europe/Paris"
+        - name: S6_YES_I_WANT_A_WORLD_WRITABLE_RUN_BECAUSE_KUBERNETES
+          value: "1"
+        - name: S6_READ_ONLY_ROOT
+          value: "1"
+        - name: S6_VERBOSITY
+          value: "2"
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        - name: data
+          mountPath: /tv
+          subPath: media/tv
+        - name: data
+          mountPath: /movies
+          subPath: media/movies
+        - name: run
+          mountPath: /run
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+      volumes:
+      - name: config
+        persistentVolumeClaim:
+          claimName: bazarr-config
+      - name: data
+        persistentVolumeClaim:
+          claimName: servarr-media
+      - name: run
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bazarr
+spec:
+  ports:
+  - port: 80
+    targetPort: 6767
+  selector:
+    app: bazarr
