@@ -43,7 +43,6 @@ resources:
 - apps/home-assistant/storage/ks.yaml
 - apps/home-assistant/ks.yaml
 - apps/servarr/storage/ks.yaml
-- apps/servarr/migrate/ks.yaml
 - apps/servarr/ks.yaml
 - apps/immich/storage/ks.yaml
 - apps/immich/ks.yaml

@@ -4,9 +4,8 @@
 # appears to come from the edge proxy — spam filtering and auth failure counting
 # are blind.
 #
-# Targets the Service rather than individual TCPRoutes: the policy applies on
-# the upstream side regardless of which listener or route the connection came
-# through.
+# BackendTrafficPolicy only accepts route-level targets (not Services), so
+# every TCPRoute and TLSRoute is named explicitly.
 #
 # Stalwart's listener must also accept PROXY protocol. That is database state
 # set via the management API (listeners → advanced → proxy protocol), not
@@ -17,8 +16,23 @@ metadata:
   name: stalwart-proxy-protocol
 spec:
   targetRefs:
-  - group: ""
-    kind: Service
-    name: stalwart
+  - group: gateway.networking.k8s.io
+    kind: TCPRoute
+    name: smtp
+  - group: gateway.networking.k8s.io
+    kind: TCPRoute
+    name: submission
+  - group: gateway.networking.k8s.io
+    kind: TCPRoute
+    name: sieve
+  - group: gateway.networking.k8s.io
+    kind: TLSRoute
+    name: smtps
+  - group: gateway.networking.k8s.io
+    kind: TLSRoute
+    name: imaps
+  - group: gateway.networking.k8s.io
+    kind: TLSRoute
+    name: pop3s
   proxyProtocol:
     version: V2
