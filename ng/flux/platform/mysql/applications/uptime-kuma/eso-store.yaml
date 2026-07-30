@@ -1,0 +1,22 @@
+apiVersion: external-secrets.io/v1
+kind: SecretStore
+metadata:
+  name: uptime-kuma
+  namespace: mysql
+spec:
+  provider:
+    kubernetes:
+      remoteNamespace: nounoursdestavernes
+      server:
+        caProvider:
+          type: ConfigMap
+          name: kube-root-ca.crt
+          key: ca.crt
+      auth:
+        # Must match the ServiceAccount in eso-writer.yaml — the one the
+        # RoleBinding in the uptime-kuma namespace grants. Naming any other SA
+        # authenticates as an identity with no rights there, and the store
+        # fails validation with the unhelpful "client is not allowed to get
+        # secrets".
+        serviceAccount:
+          name: eso-push-writer-uptime-kuma

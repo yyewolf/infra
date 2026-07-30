@@ -1,0 +1,37 @@
+# The first tenant of platform/mysql — same arrangement as every tenant of
+# platform/postgres: a database on the shared cluster, declared from here, in
+# the `mysql` namespace rather than the app's. CNMSQL runs `rbac.namespaced:
+# false`, which is what lets a Database in one namespace name a Cluster in
+# another.
+apiVersion: mysql.cnmsql.co/v1alpha1
+kind: Database
+metadata:
+  name: uptime-kuma
+  namespace: mysql
+spec:
+  cluster:
+    name: mysql
+
+  # Named for the tenant, like the namespace the app runs in, and prefixed
+  # rather than called `nounoursdestavernes` outright so a second app of theirs
+  # can have its own database on this same cluster without a rename.
+  #
+  # Underscores, not the hyphen the root cluster's MariaDB used
+  # (`uptime-aurelien`). `DatabaseUser.spec.grants[].on` is interpolated into a
+  # GRANT statement, and a hyphenated database name there is a syntax error
+  # unless the operator quotes it — which is not something to find out at
+  # reconcile time. The dump is rewritten to match; see migrate/uptime-kuma.
+  name: nounoursdestavernes_uptime
+
+  # utf8mb4 to match the cluster's own bootstrap. The MariaDB dump carries
+  # `utf8mb4_uca1400_ai_ci` on every table, which is a MariaDB-only collation
+  # that MySQL 8.4 rejects outright; the restore rewrites it to this one, which
+  # is the closest equivalent MySQL has (also UCA, also accent- and
+  # case-insensitive).
+  characterSet: utf8mb4
+  collation: utf8mb4_0900_ai_ci
+
+  # Deleting this object must not drop a database holding a year of history.
+  # Stated rather than left to the operator's default, which is what `retain`
+  # already is — the cost of being wrong here is unrecoverable.
+  reclaimPolicy: retain

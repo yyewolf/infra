@@ -1,0 +1,142 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: uptime-kuma
+  labels:
+    app: uptime-kuma
+spec:
+  replicas: 1
+  # Recreate, not RollingUpdate. Uptime Kuma runs its knex migrations from the
+  # entrypoint and holds long-lived socket.io sessions; a rolling window would
+  # put two versions against one schema for no benefit at a single replica.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: uptime-kuma
+  template:
+    metadata:
+      labels:
+        app: uptime-kuma
+    spec:
+      securityContext:
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: uptime-kuma
+        # Same image and digest the root cluster runs, deliberately: the move
+        # is a dump/restore, so the schema on both ends has to be the one this
+        # exact build migrates to. Upgrade after the move has landed, not as
+        # part of it.
+        image: louislam/uptime-kuma:2.0.0-beta.4@sha256:128685b2fb6e6caa4765220edb4458e107bb2b26af7ba43c320df8e3c3ea8e92
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 1000
+          runAsGroup: 1000
+          # No NET_RAW, unlike the root cluster's copy. This is not a
+          # preference: ng runs PodSecurity with `enforce: baseline`
+          # cluster-wide (Talos `admissionControl`, exempting only
+          # kube-system), and baseline forbids adding any non-default
+          # capability. A pod asking for it is not warned about, it is refused
+          # — the Deployment reconciles fine and the ReplicaSet reports
+          # FailedCreate forever.
+          #
+          # What it costs: ICMP `ping` monitors. Nothing else — TCP port, HTTP,
+          # DNS and push monitors all use ordinary sockets, and none of the 24
+          # monitors that came across is a ping. If the tenant adds one and it
+          # fails, the fix is a PSA label on this namespace, not a capability
+          # on this container.
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        ports:
+        - containerPort: 3001
+          name: http
+        env:
+        - name: NODE_ENV
+          value: "production"
+
+        # The root cluster kept all of these inside the SOPS secret, including
+        # the four that are not secrets. Only the credentials need to be, and
+        # those two now arrive from platform/mysql/applications/uptime-kuma
+        # instead — see below.
+        #
+        # 'mariadb' is the knex dialect name (mysql2 under the hood), not a
+        # statement about the server: Uptime Kuma has no separate 'mysql' type,
+        # and this same value is what talks to the Percona Server 8.4 in
+        # platform/mysql.
+        - name: UPTIME_KUMA_DB_TYPE
+          value: "mariadb"
+        - name: UPTIME_KUMA_DB_HOSTNAME
+          value: "mysql-rw.mysql.svc.cluster.local"
+        - name: UPTIME_KUMA_DB_PORT
+          value: "3306"
+        # Named for the tenant and underscored, not the root cluster's
+        # `uptime-aurelien` — see the comment on Database.spec.name in
+        # platform/mysql/applications/uptime-kuma.
+        - name: UPTIME_KUMA_DB_NAME
+          value: "nounoursdestavernes_uptime"
+
+        # Written into this namespace by the PushSecret in
+        # platform/mysql/applications/uptime-kuma. It is not in git, and the
+        # pod stays in CreateContainerConfigError until that push has run.
+        - name: UPTIME_KUMA_DB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: uptime-kuma-db
+              key: UPTIME_KUMA_DB_USERNAME
+        - name: UPTIME_KUMA_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: uptime-kuma-db
+              key: UPTIME_KUMA_DB_PASSWORD
+
+        # Pods here are dual-stack, but the Service and therefore the kubelet's
+        # probes and Envoy's upstream both use the v4 address. Binding '::'
+        # would work too; 0.0.0.0 is stated so the listener family is not left
+        # to the image's default.
+        - name: UPTIME_KUMA_HOST
+          value: "0.0.0.0"
+
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3001
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3001
+            scheme: HTTP
+          initialDelaySeconds: 2
+          periodSeconds: 5
+          timeoutSeconds: 3
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        volumeMounts:
+        - name: data
+          mountPath: /app/data
+      volumes:
+      # emptyDir, as on the root cluster. With an external database this holds
+      # only the SQLite file the app never opens in this mode, its error log,
+      # and any status-page icons uploaded through the UI — the last of which
+      # do not survive a restart. That was already true before the move, so
+      # this is parity rather than a choice; a small Longhorn PVC is the fix if
+      # the tenant ever uploads one and notices it vanish.
+      - name: data
+        emptyDir: {}
+      terminationGracePeriodSeconds: 30

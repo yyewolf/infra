@@ -1,0 +1,37 @@
+# CNMSQL's equivalent of CNPG's DatabaseRole. Note the split: the Database
+# above owns the schema, this owns the login, and the two are only connected by
+# the grant below naming the database.
+apiVersion: mysql.cnmsql.co/v1alpha1
+kind: DatabaseUser
+metadata:
+  name: uptime-kuma
+  namespace: mysql
+spec:
+  cluster:
+    name: mysql
+  # 26 characters, comfortably inside MySQL's 32-character limit on user names
+  # — worth checking before mirroring a long database name onto a user.
+  name: nounoursdestavernes_uptime
+
+  # '%' — the app dials the cluster from a pod IP that changes on every
+  # reschedule, so there is no stable host to pin to. Access is gated by the
+  # password and by the two halves of the network policy (this namespace's
+  # `fromEntities: cluster` on 3306, and the app's own egress rule), not by
+  # MySQL's host matching.
+  host: "%"
+
+  passwordSecret:
+    name: uptime-kuma-db-credentials
+    key: password
+
+  # Its own database and nothing else. Uptime Kuma runs knex migrations at
+  # startup, so it needs DDL, not just DML — but only here.
+  grants:
+  # Quoted. `on` is a YAML 1.1 boolean, so an unquoted key here is parsed as
+  # `true` and the API server rejects the object with `unknown field
+  # "spec.grants[0].true"` — which does not obviously point at quoting.
+  - "on": nounoursdestavernes_uptime.*
+    privileges:
+    - ALL
+
+  reclaimPolicy: retain

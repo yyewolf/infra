@@ -32,6 +32,7 @@ resources:
 - platform/postgres/applications/uctf/ks.yaml
 - platform/postgres/applications/authentik/ks.yaml
 - platform/postgres/applications/immich/ks.yaml
+- platform/mysql/applications/uptime-kuma/ks.yaml
 - apps/cyberchef/ks.yaml
 - apps/dashboard/ks.yaml
 - apps/radar/ks.yaml
@@ -55,5 +56,6 @@ resources:
 - apps/registry/ks.yaml
 - apps/scrutiny/ks.yaml
 - apps/stalwart/ks.yaml
+- apps/uptime-kuma/ks.yaml
 - apps/webmail/ks.yaml
 - apps/ytdlp/ks.yaml

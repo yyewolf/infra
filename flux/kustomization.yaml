@@ -3,9 +3,6 @@ kind: Kustomization
 namespace: flux-system
 
 resources:
-# External (for other ppl) resources
-- infrastructure/external/nounoursdestavernes.yaml # uptime monitoring for @nounoursdestavernes
-
 # Running on home1 node
 - infrastructure/databases/home1/mariadb.yaml
 

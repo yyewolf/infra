@@ -1,0 +1,78 @@
+# Uptime Kuma is the one workload here whose whole job is to dial things it was
+# not told about at deploy time, so its egress cannot be an enumeration. The
+# shape carried over from the root cluster is the right one: allow the public
+# internet, and carve the private ranges back out.
+#
+# That carve-out is the security control, not tidiness. This instance is driven
+# through its UI by someone outside this cluster, and a monitor is an arbitrary
+# URL — without the exceptions below, "monitor http://10.244.0.5:8080" is a
+# working port scanner pointed at the pod network, the node LAN and the
+# tailnet.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: uptime-kuma
+spec:
+  endpointSelector:
+    matchLabels:
+      app: uptime-kuma
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: envoy-gateway-system
+    toPorts:
+    - ports:
+      - port: "3001"
+        protocol: TCP
+  # The kubelet runs the readiness and liveness probes.
+  - fromEntities:
+    - host
+    - remote-node
+    - health
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+  # The other half of platform/mysql/network-policy.yaml's `fromEntities:
+  # cluster` rule. Without this the app cannot reach the database no matter
+  # what the MySQL side allows.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: mysql
+    toPorts:
+    - ports:
+      - port: "3306"
+        protocol: TCP
+  # Monitor traffic. No `toPorts`: the tenant's monitors are HTTPS today, but
+  # they own the monitor list and a TCP-port check on 25 or 6379 is a normal
+  # thing to add.
+  #
+  # Both families, because pods here are dual-stack and Node's resolver returns
+  # AAAA first for a name that has one — a v4-only rule would drop exactly the
+  # monitors whose targets are best reachable.
+  - toCIDRSet:
+    - cidr: 0.0.0.0/0
+      except:
+      # Pod, Service and node networks — 10.244.0.0/16, 10.96.0.0/12 and
+      # 10.200.0.0/16 all sit inside this one /8.
+      - 10.0.0.0/8
+      - 172.16.0.0/12
+      - 192.168.0.0/16
+      # Tailscale's CGNAT range. Everything on the tailnet — including the
+      # root cluster's remaining services — lives here.
+      - 100.64.0.0/10
+      # Link-local, which is where a cloud instance metadata endpoint lives.
+      - 169.254.0.0/16
+    - cidr: ::/0
+      except:
+      # ULA. The cluster's own Service and pod v6 ranges (fdde:c64:7096::/48)
+      # are inside it.
+      - fc00::/7
+      - fe80::/10

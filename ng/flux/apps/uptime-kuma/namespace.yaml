@@ -1,0 +1,13 @@
+# Named for the tenant, not for the workload — the same call the root cluster
+# made when it put this under `applications/external/nounoursdestavernes/`.
+# This is the one namespace in the cluster whose contents are run on someone
+# else's behalf and driven from a UI nobody here controls, which is worth being
+# able to see at a glance in `kubectl get pods -A`, and is what lets a second
+# app of theirs land beside this one without another boundary to reason about.
+#
+# The directory stays flat (`apps/uptime-kuma`) like every other app; ng has no
+# per-tenant directory tier and one tenant does not justify inventing one.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nounoursdestavernes

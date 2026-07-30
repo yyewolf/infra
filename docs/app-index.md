@@ -26,7 +26,7 @@
 | roundcube | `mail.yewolf.fr`, `mail.hackcorp.net` | `roundcube:80` | Webmail |
 | grafana | `grafana.yewolf.fr`, `grafana.hackcorp.net` | `kube-prom-stack-grafana:80` | OIDC config in-app |
 | umami | `umami.yewolf.fr` | `umami:3000` | Analytics |
-| uptime-kuma | `uptime-aurelien.yewolf.fr` | `uptime-kuma:3001` | |
+| uptime-kuma | `uptime-aurelien.yewolf.fr` | `uptime-kuma:3001` | moved to `ng` (`apps/uptime-kuma`, ns `nounoursdestavernes`) |
 | flux-webhook | `flux-webhook.hackcorp.net`, `flux-webhook.yewolf.fr` | `notification-controller:80` | |
 | saubian | `saubian.yewolf.fr` | `saubian-tailscale-service:8080` | Tailscale subnet router |
 

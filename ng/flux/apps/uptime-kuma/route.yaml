@@ -1,0 +1,31 @@
+# Same hostname the root cluster served, so the tenant's bookmarks and their
+# own push monitors keep working. Covered by the `*.yewolf.fr` wildcard in
+# platform/certificates, so no new Certificate is needed.
+#
+# The DNS record is the one thing this file cannot deliver on its own: `A
+# uptime-aurelien.yewolf.fr` currently points at the root cluster and has no
+# `k8s-` TXT beside it, so ng's external-dns runs `policy: sync` against a
+# record it does not own and will leave it exactly where it is. The old record
+# has to be deleted at the registrar before this hostname moves.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: uptime-kuma
+spec:
+  parentRefs:
+  - name: envoy-gateway
+    namespace: envoy-gateway-system
+    sectionName: https
+  hostnames:
+  - "uptime-aurelien.yewolf.fr"
+  rules:
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: uptime-kuma
+      port: 3001
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /
