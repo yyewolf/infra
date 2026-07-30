@@ -1,0 +1,31 @@
+apiVersion: k8up.io/v1
+kind: Restore
+metadata:
+  name: restore-wordpress
+spec:
+  snapshot: f0dd5684
+  podSecurityContext:
+    runAsUser: 0
+  restoreMethod:
+    s3:
+      endpoint: http://minio:9000
+      bucket: backup2
+      accessKeyIDSecretRef:
+        name: minio-credentials
+        key: username
+      secretAccessKeySecretRef:
+        name: minio-credentials
+        key: password
+  backend:
+    repoPasswordSecretRef:
+      name: backup-repo
+      key: password
+    s3:
+      endpoint: http://minio:9000
+      bucket: backups
+      accessKeyIDSecretRef:
+        name: minio-credentials
+        key: username
+      secretAccessKeySecretRef:
+        name: minio-credentials
+        key: password

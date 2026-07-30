@@ -1,0 +1,13 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  annotations:
+    k8up.io/backup: 'true'
+  name: myclaim
+spec:
+  accessModes:
+    # So it works in KIND
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi

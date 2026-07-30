@@ -1,0 +1,127 @@
+= How to Upgrade K8up
+
+WARNING: Never remove the CRDs, as you might lose the respective resources!
+
+[#upgrade_1_to_2]
+== Upgrade K8up from 1.x to 2.x
+
+TIP: See also xref:explanations/what-has-changed-in-v2.adoc[].
+
+Because of the move of K8up to its own GitHub organization, and a cleanup of several namings, there are visible changes from a user's perspective in K8up 2.x, which require (manual) intervention for a successful upgrade.
+These changes require you to update your configuration of K8up.
+
+=== Move to our own GitHub organization
+
+We have moved K8up into its own https://github.com/k8up-io[GitHub organization].
+As a result, we also updated some names.
+
+- In the CRD definition, what was `backup.appuio.ch` is now `k8up.io`.
+  We've also updated the version from `v1alpha` to `v1`.
+  So, for example, `backups.backup.appuio.ch/v1alpha1` becomes `backups.k8up.io/v1`.
+- The default values for the annotations have been changed from `k8up.syn.tools/*` to `k8up.io/*`.
+  Internally used annotations will be handled transparently.
+  But annotations, which have been added to resources (such as `k8up.syn.tools/backupcommand`) need to be updated accordingly (in the previous example to `k8up.io/backupcommand`).
+  Alternatively, you can also change the annotations back in xref:references/operator-config-reference.adoc[the operator's configuration].
+  In the previous example, you could set `BACKUP_BACKUPCOMMANDANNOTATION` to `k8up.syn.tool/backupcommand` to overwrite the new default.
+- If you directly reference our Go code in your Go code, then you will need to update the imports.
+  The k8up Go module is now called https://github.com/k8up-io/k8up[`github.com/k8up-io/k8up`].
+
+Our docs are still at https://k8up.io.
+Our reference helm chart has moved to https://github.com/k8up-io/k8up/tree/master/charts/k8up and was updated accordingly.
+
+=== Wrestic Integration
+
+We have integrated the code previously known as `wrestic` into k8up.
+This may have several consequences for you:
+
+- If you reference any `vshn/wrestic` image in your K8up configuration, then you need to update the reference to `ghcr.io/k8up-io/k8up` or `quay.io/k8up-io/k8up`.
+This would usually be done in the configuration for the respective Helm chart.
+Our reference helm chart was updated accordingly.
+- If you changed the `command` (or `args`, respectively) of the `vshn/k8up` or `vshn/wrestic` Docker images, then you will need to update them.
+`k8up` becomes `k8up operator`, while `wrestic` becomes `k8up restic`.
+- If you relied on the `-nonroot` images of `vshn/wrestic`, then you need to update your configuration.
+Since version 2.0 you're able to specify a `podSecurityContext` on the `Schedule` level as well on each of the actions, like on `Backup`, `Restore` and the likes.
+
+[#upgrade_0_to_1]
+== Upgrade K8up from 0.x to 1.x
+
+TIP: See also xref:explanations/what-has-changed-in-v1.adoc[].
+
+The upgrade is generally done with the following steps:
+
+. Prepare new Helm release
+. Uninstall K8up `0.x`
+. Install K8up `1.x`
+. Verify your backups work
+
+=== Prerequisites
+
+. `kubectl` or `oc`
+. `helm` version 3, version 2 for deinstallation if you're still using Tiller
+. `yq` version 4 (alternatively, any editor works)
+
+NOTE: You might need to adapt the commands to your needs.
+      This guide does not provide a copy-paste upgrade script, but points you in the right direction. It also assumes that you know basic usage of Helm.
+
+=== Prepare new Helm release
+
+The https://github.com/k8up-io/k8up/tree/master/charts/k8up[Helm Chart] comes with a few new and changed properties.
+Please consult the README.
+
+Most notably, the Chart is targeted to recent Kubernetes versions.
+
+WARNING: Use `helm upgrade --reuse-values` only when you know what you're doing.
+         Some parameters have changed and are backwards incompatible.
+         Make sure you have the new CRDs installed beforehand.
+
+=== Uninstall 0.x
+
+[source,bash]
+----
+# Set the namespace
+ns=k8up-system
+# Shut down and uninstall K8up. This should not delete the CRDs
+helm -n ${ns} uninstall k8up
+----
+
+=== Install 1.x
+
+. Make sure to prepare any changed Helm values before installing the release.
+. Prepare all CRDs for 3-way-merge with `kubectl apply`
++
+[source,bash]
+----
+for crd in archives.k8up.io backups.k8up.io checks.k8up.io prebackuppods.k8up.io prunes.k8up.io restores.k8up.io schedules.k8up.io; do
+  # Get CRD definition in YAML
+  kubectl get crd "${crd}" -o yaml > "${crd}.yaml"
+  # Remove all metadata properties except `metadata.name`
+  yq -i eval 'del(.status) | del(.metadata) | .metadata.name += "'${crd}'"' "${crd}.yaml"
+  # Apply the CRD again (this shouldn't change anything, except adding the annotation "kubectl.kubernetes.io/last-applied-configuration")
+  # You will also see some warnings in the output mentioning the annotation.
+  # This is expected and actually required.
+  kubectl apply -f "${crd}.yaml"
+done
+----
+
+. Apply the new CRDs as documented in the Chart README.
+. Install the Helm Chart version 1.x.
+
+NOTE: For Kubernetes < 1.15 (OpenShift 3.11), please add `--set k8up.enableLeaderElection=false` to the `helm install` command.
+
+=== Install 2.x and 3.x
+
+Please consult the dedicated README in https://github.com/k8up-io/k8up/tree/master/charts/k8up[Helm Chart] to install or upgrade Helm charts.
+
+=== Verify your backups work
+
+[source,bash]
+----
+# See if the K8up pod came up
+kubectl -n ${ns} get pods
+
+# Check for errors in the logs
+kubectl -n ${ns} logs -l "app.kubernetes.io/name=k8up"
+
+# Trigger a new backup by creating a new Backup object
+kubectl create -f <your-backup-file-spec>
+----

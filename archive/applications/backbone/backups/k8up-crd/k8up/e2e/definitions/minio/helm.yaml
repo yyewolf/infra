@@ -1,0 +1,14 @@
+replicas: 1
+mode: standalone
+resources:
+  requests:
+    memory: 250M
+persistence:
+  size: 1Gi
+buckets:
+  - name: backup
+    policy: none
+    purge: false
+mode: standalone
+rootUser: minioadmin
+rootPassword: minioadmin

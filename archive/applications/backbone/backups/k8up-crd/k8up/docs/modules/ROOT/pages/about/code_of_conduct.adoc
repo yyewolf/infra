@@ -1,0 +1,4 @@
+
+= Code of Conduct
+
+Please consult the https://github.com/k8up-io/k8up/blob/master/CODE_OF_CONDUCT.md[CODE_OF_CONDUCT.md] file.

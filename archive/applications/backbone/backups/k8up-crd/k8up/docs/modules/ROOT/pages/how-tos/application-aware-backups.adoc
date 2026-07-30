@@ -1,0 +1,118 @@
+= How to create Application-Aware Backups
+
+It's possible to define annotations on Pods with backup commands.
+These backup commands should create an application-aware backup and stream it to stdout.
+
+Define an annotation on a Pod:
+
+[source,yaml]
+----
+template:
+  metadata:
+    labels:
+      app: mariadb
+    annotations:
+      k8up.io/backupcommand: mysqldump -uroot -psecure --all-databases
+----
+
+With this annotation the Operator will trigger that command inside the the container and capture the stdout to a backup.
+The command is only executed on one Pod, if there are multiple Pods with the same owner reference (for example Deployments, Statefulsets etc).
+
+Tested with:
+
+* MariaDB
+* MongoDB
+* PostgreSQL
+* tar to stdout
+
+But it should work with any command that has the ability to output the backup to stdout.
+
+TIP: By default, all PVCs are backed up automatically. If you are using Application-Aware Backups and want to skip backing up any related PVCs, adding the annotation `k8up.io/backup=false` to a PVC object will exclude it from all following backups. Alternatively, you can set the environment variable `BACKUP_SKIP_WITHOUT_ANNOTATION=true` if you want K8up to ignore objects without the annotation.
+
+== PostgreSQL
+
+Note that the PostgreSQL image used requires the utility `pg_dump`.
+It is able to dump the database content into an SQL stream in a consistent state.
+The parameter `-- clean` ensures all tables including data are purged before, so a restore to an already populated DB does work.
+
+[source,yaml]
+----
+template:
+  metadata:
+    labels:
+      app: postgresql
+    annotations:
+      k8up.io/backupcommand: sh -c 'PGDATABASE="$POSTGRES_DB" PGUSER="$POSTGRES_USER" PGPASSWORD="$POSTGRES_PASSWORD" pg_dump --clean'
+      k8up.io/file-extension: .sql
+  spec:
+    containers:
+      - name: postgres
+        image: docker.io/bitnami/postgresql:11
+        ...
+----
+
+== MongoDB
+
+Note that the MongoDB image used requires the utility `mongodump`.
+It's able to dump all the database contents into a https://www.mongodb.com/blog/post/archiving-and-compression-in-mongodb-tools[proprietary binary archive] in a consistent state.
+
+[source,yaml]
+----
+template:
+  metadata:
+    labels:
+      app.kubernetes.io/name: mongodb
+    annotations:
+      k8up.io/backupcommand: sh -c 'mongodump --username=$MONGODB_ROOT_USER --password=$MONGODB_ROOT_PASSWORD --archive'
+      k8up.io/file-extension: .archive
+  spec:
+    containers:
+      - name: mongodb
+        image: quay.io/bitnami/mongodb:4.4.11-debian-10-r12
+        ...
+----
+
+The proprietary binary archive can only be read by the https://www.mongodb.com/try/download/database-tools[MongoDB Database Tools].
+Use them to to recover a database.
+
+.MongoDB restore using Port-Forward
+[example]
+====
+[source,bash]
+----
+$ kubectl port-forward po/mongodb-0 27017:27017
+$ ./mongorestore -u root -p <root-pw> mongodb://localhost:27017 --archive=mydatabase.archive
+2022-02-14T18:05:28.879+0100	preparing collections to restore from
+2022-02-14T18:05:28.908+0100	reading metadata for mydatabase.mydatabase_apps_scheduler from archive 'mydatabase.archive'
+...
+2022-02-14T18:07:17.252+0100	finished restoring mydatabase.mydatabase_federation_dns_cache (0 documents, 0 failures)
+2022-02-14T18:07:17.252+0100	restoring users from archive 'mydatabase.archive'
+2022-02-14T18:07:17.310+0100	restoring indexes for collection mydatabase.mydatabase_user_data_files from metadata
+2022-02-14T18:07:17.310+0100	restoring indexes for collection mydatabase.mydatabase_livechat_unit_monitors from metadata
+...
+2022-02-14T18:07:21.711+0100	79020 document(s) restored successfully. 0 document(s) failed to restore.
+----
+====
+
+== Pick a specific container
+
+Using `k8up.io/backupcommand-container` annotation You can specify the container name inside the pod where the command will get executed. 
+
+[source,yaml]
+----
+template:
+  metadata:
+    labels:
+      app: my-db
+    annotations:
+      k8up.io/backupcommand: sh -c 'PGDATABASE="$POSTGRES_DB" PGUSER="$POSTGRES_USER" PGPASSWORD="$POSTGRES_PASSWORD" pg_dump --clean'
+      k8up.io/file-extension: .sql
+      k8up.io/backupcommand-container: postgres
+
+  spec:
+    containers:
+      - name: pgbouncer
+      - name: postgres
+      - name: prometheus-exporter
+        ...
+----

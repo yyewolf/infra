@@ -1,0 +1,24 @@
+= Operator Configuration Reference
+
+The `k8up operator` can be configured in two ways:
+
+. Per namespace backups. Optimal for shared clusters.
+. Global settings with namespaced schedules. Optimal for private clusters.
+
+== Arguments and Environment Variables
+
+You need to define `BACKUP_OPERATOR_NAMESPACE` (or `--operator-namespace` respectively), but everything else can be left to their default values.
+
+See `k8up operator --help` for all the options:
+
+[source,txt]
+----
+include::example$usage/operator.txt[]
+----
+
+== Global Settings
+
+Each variable starting with `BACKUP_GLOBAL*` can be used to declare a global default for all namespaces.
+For example, if you configure the S3 bucket and credentials here, you won’t have to specify them in the Schedule or Backup resource definitions.
+
+NOTE: It is always possible to overwrite the global settings. Simply declare the specific setting in the relevant resource definition and it will be applied instead of the global default.

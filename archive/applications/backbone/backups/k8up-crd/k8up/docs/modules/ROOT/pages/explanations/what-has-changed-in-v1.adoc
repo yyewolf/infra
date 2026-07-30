@@ -1,0 +1,18 @@
+= Changes in K8up v1.0
+
+TIP: See xref:how-tos/upgrade.adoc#upgrade_0_to_1[the upgrade instructions] for detailed instructions about how to upgrade from version `0.x` to `1.x`.
+
+https://github.com/k8up-io/k8up/releases/tag/v1.0.0[K8up v1.0] is a big milestone for K8up.
+Although K8up `1.x` itself is backwards compatible with `0.x` resources, the installation method has changed greatly.
+
+K8up sprang to life before Operators "exploded" in the Kubernetes ecosystem.
+There weren't many frameworks available then.
+It was initially built with https://github.com/spotahome/kooper[Kooper], but for v1.0 it was rewritten and migrated the Operator to https://github.com/operator-framework/operator-sdk[Operator SDK] and https://github.com/kubernetes-sigs/kubebuilder[Kubebuilder].
+
+The resources should stay the same and are backwards compatible.
+But the CRDs feature new properties and thus should be upgraded.
+
+Additionally, K8up comes with a new CRD `EffectiveSchedule`.
+This resource is needed for the xref:references/schedule-specification.adoc[K8up specific schedules].
+Related to this, a new environment variable `BACKUP_OPERATOR_NAMESPACE` is required.
+However this defaults to the installation namespace when using Kustomize or Helm.

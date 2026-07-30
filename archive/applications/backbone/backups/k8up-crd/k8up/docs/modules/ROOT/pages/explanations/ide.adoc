@@ -1,0 +1,64 @@
+= IDE Integration
+
+We don't require or recommend any specific IDE to develop for K8up.
+Here's just some documentation to help you setting-up K8up in some specific IDEs that are in use by the K8up developers.
+
+== JetBrains GoLand
+
+You can basically just open the root directory in GoLand and you'll be mostly ready.
+Just in order to run the integration tests you will need to do some extra configuration:
+
+. Before you can run an integration test from GoLand, you need to run `make integration-test`.
+. You need to tell GoLand to consider the _integration_ build tag when building:
+.. Go to _Preferences_ → _Go_ → _Build Tags & Vendoring_
+.. Put `integration` into _Custom tags_
+. Now try to run a specific integration test.
+
+You can use all the usual shortcuts to quickly run a test (for example kbd:[Ctrl+Shift+D] to debug a specific test method).
+If it doesn't work, check the following:
+
+. Check that the _Custom tags_ field in _Preferences_ → _Go_ → _Build Tags & Vendoring_ contains to term `integration`.
+. Make sure the _Working directory_ of your test's _Run Configuration_ points to the directory where your test lies, for example `/home/your_user/projects/k8up/controllers`.
+. Try to tick _Use all custom build tags_ checkbox in your test's _Run Configuration_.
+
+[IMPORTANT]
+====
+Remember that you need to re-run `make integration-test` when you ran `make clean` or when you deleted the `./integration-test` directory.
+====
+
+[NOTE]
+====
+If you're in doubt about your configuration, check whether `make clean integration-test` succeeds.
+If it does, the trouble is probably within your IDE configuration.
+Otherwise, you've likely broken the tests or something else.
+Check your `git diff` for a start.
+====
+
+== Visual Studio Code
+
+Example VSCode run configuration:
+
+[source,json]
+----
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/cmd/operator/main.go",
+      "env": {
+        "BACKUP_IMAGE": "ghcr.io/k8up-io/k8up:latest",
+        "BACKUP_GLOBALS3ENDPOINT": "http://somewhere.example.org",
+        "BACKUP_GLOBALS3BUCKET": "somebucket",
+        "BACKUP_GLOBALSECRETACCESSKEY": "replacewithaccesskey",
+        "BACKUP_GLOBALACCESSKEYID": "replacewithkeyid",
+        "BACKUP_GLOBALREPOPASSWORD": "somepassword"
+      },
+      "args": []
+    }
+  ]
+}
+----

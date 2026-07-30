@@ -1,0 +1,28 @@
+apiVersion: k8up.io/v1
+kind: Archive
+metadata:
+  name: archive-test
+spec:
+  repoPasswordSecretRef:
+    name: backup-repo
+    key: password
+  restoreMethod:
+    s3:
+      endpoint: http://minio.minio:9000
+      bucket: restoremini
+      accessKeyIDSecretRef:
+        name: backup-credentials
+        key: username
+      secretAccessKeySecretRef:
+        name: backup-credentials
+        key: password
+  backend:
+    s3:
+      endpoint: http://minio.minio:9000
+      bucket: k8up
+      accessKeyIDSecretRef:
+        name: backup-credentials
+        key: username
+      secretAccessKeySecretRef:
+        name: backup-credentials
+        key: password

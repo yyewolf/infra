@@ -1,0 +1,38 @@
+{
+  "extends": [
+    "config:base",
+    ":gitSignOff",
+    ":disableDependencyDashboard"
+  ],
+  "labels": [
+    "dependency"
+  ],
+  "postUpdateOptions": [
+    "gomodTidy"
+  ],
+  "packageRules": [
+    {
+      "matchPackagePatterns": [
+        "k8s.io/utils",
+        "sigs.k8s.io/controller-runtime/tools/setup-envtest",
+        "github.com/minio/minio-go/v7"
+      ],
+      "schedule": [
+        "on the first day of the month"
+      ],
+      "automerge": true
+    },
+    {
+      "matchPackagePatterns": [
+        "github.com/urfave/cli/v2"
+      ],
+      "groupName": "urfave/cli/v2",
+      "schedule": [
+        "on the first day of the month"
+      ]
+    }
+  ],
+  "prBodyNotes": [
+    "- [ ] PR contains the label that identifies the area, one of: `area:operator`, `area:chart`\n- [ ] If the PR is targeting a Helm chart, add the chart label, e.g. `chart:k8up`"
+  ]
+}

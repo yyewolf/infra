@@ -1,0 +1,48 @@
+* xref:index.adoc[Home]
+* https://github.com/k8up-io/k8up/releases[Changelog,window=_blank]
+
+.Tutorials
+* xref:tutorials/tutorial.adoc[Introduction]
+* xref:tutorials/presentations.adoc[Presentations]
+
+.How-to guides
+* xref:how-tos/installation.adoc[Installation]
+* xref:how-tos/upgrade.adoc[Upgrade K8up]
+* xref:how-tos/backup.adoc[Backup]
+* xref:how-tos/generic-env-vars.adoc[Generic Environment Variables]
+* xref:how-tos/application-aware-backups.adoc[Application-Aware Backups]
+* xref:how-tos/prebackuppod.adoc[Pre-Backup Pods]
+* xref:how-tos/schedules.adoc[Schedules]
+* xref:how-tos/restore.adoc[Restore]
+* xref:how-tos/archive.adoc[Archive]
+* xref:how-tos/check-status.adoc[Check Status]
+* xref:how-tos/optimize-schedules.adoc[Optimize Schedules]
+* xref:how-tos/manage-pod-resources.adoc[Manage Pod Resources]
+
+.Technical reference
+* xref:references/annotations.adoc[Annotations Reference]
+* xref:references/api-reference.adoc[API Reference]
+* xref:references/operator-config-reference.adoc[Operator Configuration]
+* xref:references/restic-config-reference.adoc[Restic Configuration]
+* xref:references/object-specifications.adoc[Object Specifications]
+* xref:references/schedule-specification.adoc[Schedule Specifications]
+* xref:references/status.adoc[Status and Conditions]
+
+.Explanation
+* xref:explanations/backup.adoc[Backup Methods]
+* xref:explanations/architecture.adoc[Architecture]
+* xref:explanations/ide.adoc[IDE Integration]
+* xref:explanations/release.adoc[Releasing K8up]
+* xref:explanations/missing-docs.adoc[Missing Documentation]
+* xref:explanations/system-requirements.adoc[System Requirements]
+* xref:explanations/what-has-changed-in-v1.adoc[Changes in K8up v1.0]
+* xref:explanations/what-has-changed-in-v2.adoc[Changes in K8up v2.0]
+* xref:explanations/rwo.adoc[]
+
+.About
+* xref:about/roadmap.adoc[Roadmap]
+* xref:about/community.adoc[Community]
+* xref:about/contribution_guide.adoc[Contribution Guide]
+* xref:about/vulnerability_reporting.adoc[Vulnerability Reporting]
+* xref:about/code_of_conduct.adoc[Code of Conduct]
+* xref:about/visual_design.adoc[Visual Design]
