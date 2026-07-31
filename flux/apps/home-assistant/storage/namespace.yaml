@@ -9,12 +9,11 @@
 #
 #   hostPath      the USB char device for the Zigbee radio, /run/udev, and
 #                 migrate/'s read-only mount of the old local-path data
-#   hostNetwork   home-assistant, esphome, music-assistant and snapcast all use
-#                 it — for SSDP/mDNS discovery, OTA flashing, and snapcast's
-#                 fixed broadcast ports respectively
+#   hostNetwork   home-assistant and esphome both use it — for SSDP/mDNS
+#                 discovery and OTA flashing respectively
 #   privileged    home-assistant and zigbee2mqtt, for /dev/ttyUSB0
 #
-# So four of the six workloads here would be rejected at `baseline` even with
+# So three of the seven workloads here would be rejected at `baseline` even with
 # the Kyverno exclusion in place.
 #
 # The two admission systems are independent and a pod must satisfy BOTH.

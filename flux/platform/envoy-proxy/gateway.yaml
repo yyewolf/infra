@@ -27,9 +27,15 @@ spec:
   - protocol: HTTP
     port: 80
     name: http
+    # `Same`, not `All`: the only thing that belongs on the plaintext listener
+    # is the redirect in redirect.yaml, which lives in this namespace. With
+    # `All` any app could attach a route here and serve itself in the clear —
+    # the listener would accept it, and nothing else in the repo would object.
+    # An app that wants public traffic attaches to `https` and gets the
+    # redirect for free.
     allowedRoutes:
       namespaces:
-        from: All
+        from: Same
   - protocol: HTTPS
     port: 443
     name: https

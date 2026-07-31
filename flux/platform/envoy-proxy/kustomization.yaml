@@ -6,4 +6,5 @@ resources:
 - envoyproxy.yaml
 - gatewayclass.yaml
 - gateway.yaml
+- redirect.yaml
 - http3.yaml

@@ -10,7 +10,7 @@ resources:
 - mqtt.yaml
 - mqtt-passwords-sops.yaml
 - smart-clock.yaml
-- snapcast.yaml
 - route.yaml
 - ingress.yaml
+- network-policy.yaml
 - ./ai

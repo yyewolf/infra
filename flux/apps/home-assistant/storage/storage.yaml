@@ -1,4 +1,10 @@
-# The six volumes Home Assistant and its addons need, all on `big-pool`.
+# The three volumes Home Assistant and its addons need, all on `big-pool`.
+#
+# There was a fourth, `snapcast-storage`. Snapcast is gone and the claim went
+# with it — `big-pool` is `reclaimPolicy: Retain`, so its PV and Longhorn volume
+# are still there in Released state rather than deleted, and the pre-migration
+# copy is still in /var/mnt/tank/others/pvcs on w-1. Clean both up by hand once
+# you are sure nothing wants that audio back.
 #
 # WHY BIG-POOL AND NOT A hostPath PV
 #
@@ -55,16 +61,3 @@ spec:
   resources:
     requests:
       storage: 15Gi
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: snapcast-storage
-  labels:
-    recurring-job-group.longhorn.io/home-assistant-backup: enabled
-spec:
-  accessModes: [ ReadWriteOnce ]
-  storageClassName: big-pool
-  resources:
-    requests:
-      storage: 5Gi

@@ -5,3 +5,4 @@ namespace: kube-system
 resources:
   - repository.yaml
   - release.yaml
+  - network-policy.yaml

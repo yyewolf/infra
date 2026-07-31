@@ -64,12 +64,66 @@ module "wan" {
   hostname       = var.wan_hostname
 }
 
+# Maps the upstream broadcast address to the all-ones MAC, which is what turns a
+# routed packet aimed at it into an actual layer-2 broadcast on the WAN segment.
+# Without it RouterOS cannot resolve the next hop for a directed broadcast and
+# drops the packet.
+#
+# This is a script plus a startup schedule rather than a declared entry because
+# the provider has no resource for `/ip/arp` — only a read-only data source, and
+# there is no generic escape hatch to reach an unmodelled path. So Terraform
+# owns the *script*, not the ARP table: `terraform apply` will not converge a
+# hand-edited or missing entry, and drift here is invisible to `plan`. The
+# script is written to be idempotent and the schedule re-runs it on every boot,
+# which covers the case that actually happens (the entry is in RAM and does not
+# survive a reboot).
+#
+# After an apply that creates or changes this, run it once to install the entry
+# without waiting for a reboot:
+#
+#     /system script run wol-relay-arp
+#
+# The interface is the WAN interface, not the LAN bridge: the frame has to go out
+# onto the segment the address belongs to, which is the one upstream of us.
+#
+# Behaviour varies between RouterOS versions — some drop directed broadcasts to a
+# connected subnet before ARP is ever consulted, in which case this is inert and
+# waking the host needs `/tool wol` driven from Home Assistant instead. Send a
+# magic packet and confirm before assuming it works.
+resource "routeros_system_script" "wol_relay_arp" {
+  count = var.wol_relay == null ? 0 : 1
+
+  name    = "wol-relay-arp"
+  comment = "WoL relay: broadcast to the upstream segment"
+  # `write` to add the entry, `read` for the `find` that makes it idempotent,
+  # `test` because /ip/arp is grouped under it. Nothing wider.
+  policy = ["read", "write", "test"]
+
+  source = <<-EOT
+    :local addr "${var.wol_relay.address}"
+    :local iface "${var.wan_interface}"
+    /ip arp remove [find where address=$addr and interface=$iface]
+    /ip arp add address=$addr mac-address=FF:FF:FF:FF:FF:FF interface=$iface comment="WoL relay"
+  EOT
+}
+
+resource "routeros_system_scheduler" "wol_relay_arp" {
+  count = var.wol_relay == null ? 0 : 1
+
+  name       = "wol-relay-arp"
+  comment    = "Reinstall the WoL relay ARP entry, which does not survive a reboot"
+  on_event   = routeros_system_script.wol_relay_arp[0].name
+  start_time = "startup"
+  policy     = ["read", "write", "test"]
+}
+
 module "ip_firewall" {
   source = "./modules/ip-firewall"
 
   lan_interface_list       = var.lan_interface_list
   wan_interface_list       = var.wan_interface_list
   blocked_lan_destinations = var.lan_blocked_destinations
+  directed_broadcast_relay = var.wol_relay
 }
 
 module "ipv6_firewall" {

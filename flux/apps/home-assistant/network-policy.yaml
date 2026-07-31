@@ -1,0 +1,233 @@
+# home-assistant is the one namespace where a policy per namespace is not
+# possible, so this is a policy per workload and it deliberately covers only
+# five of the seven.
+#
+# `home-assistant` and `esphome` run `hostNetwork: true`. A host-networked pod
+# is not a Cilium endpoint — it shares the node's network namespace and carries
+# the `host` identity — so no `endpointSelector` here can select it and no
+# CiliumNetworkPolicy can constrain it. Policing those two
+# needs Cilium's host firewall (`hostFirewall.enabled` in the Helm values, plus
+# CiliumClusterwideNetworkPolicy with a `nodeSelector`), which is a cluster-wide
+# change affecting every node and is not in scope here. Until then their network
+# reach is unrestricted, which is the same exception HARDENING-EXCEPTIONS.md
+# already records for their pod-level privileges.
+#
+# That also explains why so many rules below reach for `host`/`remote-node`
+# rather than naming a peer: when Home Assistant itself calls mosquitto, piper
+# or the speech-to-text service, the traffic arrives from the node identity.
+# There is no way to distinguish it from any other host-network process on the
+# node, and tightening these rules further is only possible once the host
+# firewall covers the callers.
+
+# ---------------------------------------------------------------- mosquitto
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: mqtt
+spec:
+  endpointSelector:
+    matchLabels:
+      app: mqtt
+  ingress:
+  # zigbee2mqtt publishing device state. The only in-cluster pod client.
+  - fromEndpoints:
+    - matchLabels:
+        app: zigbee2mqtt
+    toPorts:
+    - ports:
+      - port: "1883"
+        protocol: TCP
+  # Home Assistant subscribing (host-networked, so it arrives as the node), and
+  # LAN devices coming in through the `mosquitto` NodePort on 31883 — Cilium
+  # rewrites that to 1883 before policy is evaluated, so 31883 never appears
+  # here. Authentication is mosquitto's own, from the mosquitto-passwords
+  # Secret; this rule is not what keeps strangers out.
+  - fromEntities:
+    - host
+    - remote-node
+    toPorts:
+    - ports:
+      - port: "1883"
+        protocol: TCP
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+
+# --------------------------------------------------------------- zigbee2mqtt
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: zigbee2mqtt
+spec:
+  endpointSelector:
+    matchLabels:
+      app: zigbee2mqtt
+  ingress:
+  # The UI is tailnet-only: ingress.yaml gives it an `ingressClassName:
+  # tailscale` Ingress and no public HTTPRoute, so the operator's proxy pod is
+  # the only thing that should reach it. Same shape as apps/scrutiny.
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: tailscale
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
+  # kubelet probes.
+  - fromEntities:
+    - host
+    - remote-node
+    - health
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+  # Publishing to mosquitto. The Zigbee radio is a USB dongle on the node, not
+  # something reached over the network, so this is its only peer — no egress to
+  # `world` at all.
+  - toEndpoints:
+    - matchLabels:
+        app: mqtt
+    toPorts:
+    - ports:
+      - port: "1883"
+        protocol: TCP
+
+# ------------------------------------------------------------- piper (TTS)
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: piper
+spec:
+  endpointSelector:
+    matchLabels:
+      app: piper
+  ingress:
+  # Home Assistant's Wyoming integration, arriving as the node because it is
+  # host-networked. Plus kubelet probes on the same rule.
+  - fromEntities:
+    - host
+    - remote-node
+    - health
+    toPorts:
+    - ports:
+      - port: "10200"
+        protocol: TCP
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+  # Voice download on first run — the LSIO image fetches the model from GitHub
+  # releases if the data volume is empty. Restricted to 443 rather than the
+  # unrestricted `world` this namespace had before, and it stays because
+  # wiping the PVC would otherwise leave the pod hanging at startup with no
+  # obvious cause.
+  - toEntities:
+    - world
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP
+
+# --------------------------------------------------------------- stt (ASR)
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: stt
+spec:
+  endpointSelector:
+    matchLabels:
+      app: stt
+  ingress:
+  - fromEntities:
+    - host
+    - remote-node
+    - health
+    toPorts:
+    - ports:
+      - port: "10300"
+        protocol: TCP
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+  # Same reasoning as piper: the parakeet ONNX model is pulled from Hugging
+  # Face on first start, not baked into the image.
+  - toEntities:
+    - world
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP
+
+# -------------------------------------------------------------- smart clock
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: smartclock
+spec:
+  endpointSelector:
+    matchLabels:
+      app: smartclock
+  ingress:
+  # Wall display on the LAN hitting the `smartclock` NodePort 30080, which
+  # Cilium rewrites to 8080 before policy runs. `world` is the honest identity
+  # for an arbitrary LAN client here; it is not an internet exposure, because
+  # the router's forward chain drops anything from WAN that was not DSTNATed
+  # and nothing DSTNATs 30080.
+  - fromEntities:
+    - world
+    - host
+    - remote-node
+    - health
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+  # No egress beyond DNS. It used to reach a snapcast server on 192.168.1.95 for
+  # audio sync; snapcast is gone and that rule went with it, so serving the page
+  # is all this pod does now.

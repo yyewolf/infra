@@ -51,3 +51,34 @@ variable "lan_interfaces" {
   type        = list(string)
   default     = ["ether2", "ether3", "ether4", "ether5", "sfp1"]
 }
+
+# Wake-on-LAN across the WAN boundary. Home Assistant runs host-networked on
+# w-1, which has one NIC on the LAN and no leg on the upstream network, so a
+# magic packet aimed at the upstream broadcast address leaves w-1 as an
+# ordinary routed packet. Routers drop directed broadcasts by default
+# (RFC 2644) and RouterOS is no exception, so without the static ARP entry in
+# main.tf the packet dies here and the target never wakes.
+#
+# `allowed_sources` is not decoration. The ARP entry turns the upstream
+# broadcast address into something any LAN host can reach, which is a standing
+# amplification and host-discovery surface; the firewall rule in the ip-firewall
+# module narrows it back down to the machines that actually need it. Widening
+# this list widens that surface — it is not a list to grow casually.
+#
+# Set to null to remove the ARP entry, the address list and the guard rule
+# together.
+variable "wol_relay" {
+  description = "Relay directed broadcasts to the upstream network so LAN hosts can send Wake-on-LAN magic packets to it. The interface is always the WAN interface, since that is the segment the upstream broadcast address belongs to."
+  type = object({
+    address         = string
+    allowed_sources = list(string)
+  })
+  default = {
+    # Broadcast address of the upstream network on the far side of the WAN
+    # interface, where the router itself holds 192.168.1.49.
+    address = "192.168.1.255"
+    # w-1, the node Home Assistant is pinned to. It is host-networked, so the
+    # magic packet leaves with the node's own address as its source.
+    allowed_sources = ["10.200.0.14"]
+  }
+}

@@ -1,0 +1,63 @@
+# metrics-server installs into kube-system, not a namespace of its own, so
+# this selects the chart's own labels rather than the whole namespace the way
+# platform/kyverno does. Cilium's default-deny is per-endpoint, so naming the
+# deployment here leaves the rest of kube-system exactly as it was.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: metrics-server
+  namespace: kube-system
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: metrics-server
+  ingress:
+  # The aggregation layer calling v1beta1.metrics.k8s.io. The Service publishes
+  # 443 and targets the container's `https` port, which is 10250 — the Service
+  # port is not what the policy sees.
+  #
+  # As in platform/kyverno, `host` and `remote-node` carry this rather than
+  # `kube-apiserver`: the API server is host-networked, so its connection
+  # enters the pod network via the calling node's router address and Cilium
+  # evaluates the node identity. Unlike kyverno's, this is not redundant —
+  # there is no port-unrestricted probe rule below to catch it by accident, so
+  # dropping these two entities breaks `kubectl top` and every HPA.
+  - fromEntities:
+    - kube-apiserver
+    - host
+    - remote-node
+    toPorts:
+    - ports:
+      - port: "10250"
+        protocol: TCP
+  egress:
+  # Scraping the kubelet's summary API. Same port number as the ingress rule
+  # above and that is a coincidence: 10250 there is metrics-server's own
+  # container port, 10250 here is the kubelet's on each node. The kubelets are
+  # host-networked, which is why this is an entity rule — a toCIDR of the node
+  # subnet would not match, because Cilium gives node addresses the
+  # `remote-node` identity and CIDR rules do not select it.
+  - toEntities:
+    - host
+    - remote-node
+    toPorts:
+    - ports:
+      - port: "10250"
+        protocol: TCP
+  # Reading the Node list to know what to scrape, and the leader-election lease.
+  - toEntities:
+    - kube-apiserver
+    toPorts:
+    - ports:
+      - port: "6443"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
