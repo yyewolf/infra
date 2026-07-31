@@ -176,6 +176,26 @@ spec:
     - matchExpressions:
       - key: woodpecker-ci.org/task-uuid
         operator: Exists
+  # The gateway hairpin — a pipeline calling one of this cluster's own public
+  # hostnames (a smoke test against the deployed app). The name resolves to the
+  # Gateway's LoadBalancer address, which Cilium translates to the envoy pod, so
+  # the CIDR rule below never sees it and the step lands on POLICY_DENIED.
+  # 10443/10080, not 443/80: Envoy Gateway offsets every listener by 10000 so
+  # the proxy can run unprivileged, and Cilium enforces at the endpoint, after
+  # the translation.
+  #
+  # Note the cost: this is a route into *everything* the Gateway serves, not
+  # just the one hostname a pipeline names — a step can reach any route on the
+  # ingress (radar, cyberchef, servarr, ...) by setting the Host header.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: envoy-gateway-system
+    toPorts:
+    - ports:
+      - port: "10443"
+        protocol: TCP
+      - port: "10080"
+        protocol: TCP
   # Cloning, pulling dependencies, pushing images — on whatever port the
   # registry or forge in a pipeline happens to use, so this one is not port
   # restricted. The excepted ranges are the control: a pipeline may reach the
