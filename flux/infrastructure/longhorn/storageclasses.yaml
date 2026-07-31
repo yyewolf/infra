@@ -210,7 +210,7 @@ reclaimPolicy: Delete
 volumeBindingMode: WaitForFirstConsumer
 parameters:
   numberOfReplicas: "1"
-  dataLocality: "strict-local"
+  dataLocality: "best-effort"
   diskSelector: "sata"
   staleReplicaTimeout: "30"
   fromBackup: ""
