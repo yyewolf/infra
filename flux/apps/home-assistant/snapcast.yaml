@@ -34,7 +34,7 @@ spec:
       dnsPolicy: ClusterFirstWithHostNet
       containers:
       - name: snapcast
-        image: docker.io/sweisgerber/snapcast:latest@sha256:1927ab0166cb2d4a02531e3b0fba93403fdeb0b776bb232daeefe6df0100fcbd
+        image: docker.io/sweisgerber/snapcast:latest@sha256:ac58877236afc2e71e7f0e833bf4843dcb62fd6266441ecc0aefc9e2c746baa6
         securityContext:
           allowPrivilegeEscalation: false
           seccompProfile: {type: RuntimeDefault}
