@@ -16,6 +16,14 @@ locals {
   lan_subnet        = var.lan_subnet
   lan_prefix_length = tonumber(split("/", var.lan_subnet)[1])
   lan_gateway       = cidrhost(var.lan_subnet, 1)
+
+  # Same secret, two consumers: this account is created here and authenticated
+  # against by Home Assistant, so the value has to exist in router-sops.yaml
+  # (for the router) and in the cluster's router-wol-secret-sops.yaml (for HA).
+  # They are separate files because they are decrypted by different things at
+  # different times — Terraform at apply, Flux at reconcile — not because the
+  # secret is different. Change one and you must change the other.
+  wol_password = try(data.sops_file.router_credentials.data["secrets.wol_password"], null)
 }
 
 resource "routeros_system_identity" "router" {
@@ -64,57 +72,57 @@ module "wan" {
   hostname       = var.wan_hostname
 }
 
-# Maps the upstream broadcast address to the all-ones MAC, which is what turns a
-# routed packet aimed at it into an actual layer-2 broadcast on the WAN segment.
-# Without it RouterOS cannot resolve the next hop for a directed broadcast and
-# drops the packet.
+# Wake-on-LAN, driven by Home Assistant calling the router.
 #
-# This is a script plus a startup schedule rather than a declared entry because
-# the provider has no resource for `/ip/arp` — only a read-only data source, and
-# there is no generic escape hatch to reach an unmodelled path. So Terraform
-# owns the *script*, not the ARP table: `terraform apply` will not converge a
-# hand-edited or missing entry, and drift here is invisible to `plan`. The
-# script is written to be idempotent and the schedule re-runs it on every boot,
-# which covers the case that actually happens (the entry is in RAM and does not
-# survive a reboot).
+# The previous approach — a static ARP entry mapping the upstream broadcast
+# address to the all-ones MAC, so a magic packet aimed at it would be forwarded
+# and re-broadcast — does not work on this router, and the failure is structural
+# rather than a misconfiguration. `192.168.1.255` is the subnet broadcast of a
+# directly-connected interface, so the kernel treats it as a local address and
+# consumes the packet: mangle counters showed prerouting 2, forward 0,
+# postrouting 0. It is never a forwarding decision, so ARP is never consulted and
+# no firewall rule can change that. RFC 2644 behaviour, working as intended.
 #
-# After an apply that creates or changes this, run it once to install the entry
-# without waiting for a reboot:
+# `/tool wol` sidesteps the whole question by emitting the magic packet directly
+# onto the interface as a real broadcast frame. Nothing is routed, so there is no
+# directed broadcast to relay, no ARP entry to keep alive across reboots, and no
+# scheduler — which also means device-mode's `scheduler` flag can go back to
+# whatever it was before, since this needs none of it.
 #
-#     /system script run wol-relay-arp
-#
-# The interface is the WAN interface, not the LAN bridge: the frame has to go out
-# onto the segment the address belongs to, which is the one upstream of us.
-#
-# Behaviour varies between RouterOS versions — some drop directed broadcasts to a
-# connected subnet before ARP is ever consulted, in which case this is inert and
-# waking the host needs `/tool wol` driven from Home Assistant instead. Send a
-# magic packet and confirm before assuming it works.
-resource "routeros_system_script" "wol_relay_arp" {
-  count = var.wol_relay == null ? 0 : 1
+# What is declared here is only the account HA authenticates as. The wake itself
+# is a command, not configuration, so it is not Terraform's to hold: HA POSTs to
+# /rest/tool/wol when it wants a machine woken.
+resource "routeros_system_user_group" "wol" {
+  count = var.wol_user == null ? 0 : 1
 
-  name    = "wol-relay-arp"
-  comment = "WoL relay: broadcast to the upstream segment"
-  # `write` to add the entry, `read` for the `find` that makes it idempotent,
-  # `test` because /ip/arp is grouped under it. Nothing wider.
-  policy = ["read", "write", "test"]
+  name    = "wol"
+  comment = "Home Assistant: send Wake-on-LAN magic packets, nothing else"
 
-  source = <<-EOT
-    :local addr "${var.wol_relay.address}"
-    :local iface "${var.wan_interface}"
-    /ip arp remove [find where address=$addr and interface=$iface]
-    /ip arp add address=$addr mac-address=FF:FF:FF:FF:FF:FF interface=$iface comment="WoL relay"
-  EOT
+  # `rest-api` is its own policy, separate from `api` — the latter is the older
+  # binary API on 8728/8729 and is deliberately not granted. `test` is what
+  # covers the /tool commands, and `read` is needed alongside it because RouterOS
+  # policies do not imply one another.
+  #
+  # No `write`, no `policy`, no `ssh`/`ftp`/`winbox`/`web`. If the REST call comes
+  # back with a permission error, add `write` before widening anything else —
+  # MikroTik documents `test` as covering "ping, traceroute, bandwidth-test [...]
+  # and other test commands" without naming wol specifically, so that one edge is
+  # worth confirming against your version rather than assuming.
+  policy = ["read", "test", "rest-api"]
 }
 
-resource "routeros_system_scheduler" "wol_relay_arp" {
-  count = var.wol_relay == null ? 0 : 1
+resource "routeros_system_user" "wol" {
+  count = var.wol_user == null ? 0 : 1
 
-  name       = "wol-relay-arp"
-  comment    = "Reinstall the WoL relay ARP entry, which does not survive a reboot"
-  on_event   = routeros_system_script.wol_relay_arp[0].name
-  start_time = "startup"
-  policy     = ["read", "write", "test"]
+  name     = var.wol_user.name
+  group    = routeros_system_user_group.wol[0].name
+  password = local.wol_password
+  comment  = "Home Assistant WoL — see flux/apps/home-assistant/router-wol-secret-sops.yaml"
+
+  # Scoped to the one host that uses it. w-1 is host-networked, so Home Assistant
+  # reaches the router as the node's own address; a credential leaked out of the
+  # cluster is not usable from anywhere else on the LAN.
+  address = var.wol_user.allowed_source
 }
 
 module "ip_firewall" {
@@ -123,7 +131,7 @@ module "ip_firewall" {
   lan_interface_list       = var.lan_interface_list
   wan_interface_list       = var.wan_interface_list
   blocked_lan_destinations = var.lan_blocked_destinations
-  directed_broadcast_relay = var.wol_relay
+  wan_port_forwards        = var.wan_port_forwards
 }
 
 module "ipv6_firewall" {

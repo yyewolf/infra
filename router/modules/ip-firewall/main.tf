@@ -78,42 +78,6 @@ resource "routeros_ip_firewall_filter" "input_drop_not_lan" {
 
 # -------------------------------------------------------------- forward chain
 
-# The other half of the WoL relay. The root module's ARP entry makes the
-# upstream broadcast address resolvable, which by itself lets any LAN host
-# broadcast onto the upstream segment — this drops that traffic from everything
-# except the named sources.
-#
-# Negating an address list rather than `src_address = "!x.x.x.x"` so more than
-# one source can be permitted without the rule turning into a pile of rules.
-#
-# Anchored on forward_ipsec_in for the same reason the blocked-destinations
-# rules below are, and it must stay ahead of the fasttrack and established
-# rules: fasttrack in particular would let an already-seen flow bypass this
-# entirely. Everything from here to forward_drop_wan_new is drops and accepts
-# for traffic this rule has already had its say on.
-resource "routeros_ip_firewall_addr_list" "directed_broadcast_sources" {
-  for_each = toset(try(var.directed_broadcast_relay.allowed_sources, []))
-
-  address = each.key
-  list    = "wol-relay-sources"
-  comment = "may broadcast to ${var.directed_broadcast_relay.address}"
-}
-
-resource "routeros_ip_firewall_filter" "forward_drop_directed_broadcast" {
-  count = var.directed_broadcast_relay == null ? 0 : 1
-
-  action           = "drop"
-  chain            = "forward"
-  comment          = "drop directed broadcasts to ${var.directed_broadcast_relay.address} except from wol-relay-sources"
-  dst_address      = var.directed_broadcast_relay.address
-  src_address_list = "!wol-relay-sources"
-  place_before     = routeros_ip_firewall_filter.forward_ipsec_in.id
-
-  # The list has to exist before a rule can reference it, and Terraform cannot
-  # see that dependency through a string literal.
-  depends_on = [routeros_ip_firewall_addr_list.directed_broadcast_sources]
-}
-
 # Anchored on forward_ipsec_in like input_drop_not_lan is, because place_before
 # takes a single id and this block expands to any number of rules. That leaves
 # their position relative to input_drop_not_lan unpinned, which is harmless:
@@ -180,6 +144,30 @@ resource "routeros_ip_firewall_filter" "forward_drop_wan_new" {
 }
 
 # ------------------------------------------------------------------------ nat
+
+# Reaching a LAN service from the upstream network. No matching filter rule is
+# needed: forward_drop_wan_new drops new inbound-from-WAN connections only when
+# `connection_nat_state` is not dstnat, so these are already let through, and
+# the chain has no other drop that applies. Adding an accept here would be
+# decoration.
+#
+# Replies do not need a srcnat counterpart either. The router is the gateway for
+# the LAN subnet, so the return path comes back through it and conntrack undoes
+# the translation; srcnat_masquerade below only fires for connections opened
+# from the LAN side.
+resource "routeros_ip_firewall_nat" "dstnat_port_forwards" {
+  for_each = var.wan_port_forwards
+
+  action            = "dst-nat"
+  chain             = "dstnat"
+  comment           = "${each.key}: ${each.value.source} -> ${each.value.to_address}:${each.value.to_port}"
+  in_interface_list = var.wan_interface_list
+  protocol          = each.value.protocol
+  dst_port          = tostring(each.value.port)
+  src_address       = each.value.source
+  to_addresses      = each.value.to_address
+  to_ports          = tostring(each.value.to_port)
+}
 
 resource "routeros_ip_firewall_nat" "srcnat_masquerade" {
   action             = "masquerade"

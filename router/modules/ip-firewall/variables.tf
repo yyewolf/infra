@@ -28,15 +28,15 @@ variable "wan_interface_list" {
   default     = "WAN"
 }
 
-# Paired with the routeros_ip_arp entry in the root module — that entry is what
-# makes the address reachable, this is what stops everything else on the LAN
-# from using it. Null in both places or neither; a relay without the guard rule
-# is an open directed-broadcast path.
-variable "directed_broadcast_relay" {
-  description = "Broadcast address reachable through the router for Wake-on-LAN, and the LAN sources permitted to reach it. Everything else is dropped."
-  type = object({
-    address         = string
-    allowed_sources = list(string)
-  })
-  default = null
+variable "wan_port_forwards" {
+  description = "Destination NAT entries making a LAN service reachable from the upstream network, keyed by service name. See the root module's variable for why these exist."
+  type = map(object({
+    protocol   = string
+    port       = number
+    source     = string
+    to_address = string
+    to_port    = number
+  }))
+  default = {}
 }
+

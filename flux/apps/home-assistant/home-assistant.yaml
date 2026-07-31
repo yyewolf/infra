@@ -64,6 +64,17 @@ spec:
         - {containerPort: 8123, name: http}
         env:
         - {name: TZ, value: "Europe/Paris"}
+        # Credential for the router's `ha-wol` account, used by the rest_command
+        # in configuration.yaml to call /tool wol. Passed as environment rather
+        # than mounted, so HA references it with `!env_var` and the value never
+        # lands in the config PVC — where it would sit unencrypted and outside
+        # git. The router half of this account is in router/main.tf.
+        - name: ROUTER_WOL_USERNAME
+          valueFrom:
+            secretKeyRef: {name: router-wol, key: username}
+        - name: ROUTER_WOL_PASSWORD
+          valueFrom:
+            secretKeyRef: {name: router-wol, key: password}
         volumeMounts:
         - {name: config, mountPath: /config}
         - {name: usb, mountPath: /dev/ttyUSB0}

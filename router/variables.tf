@@ -52,33 +52,65 @@ variable "lan_interfaces" {
   default     = ["ether2", "ether3", "ether4", "ether5", "sfp1"]
 }
 
-# Wake-on-LAN across the WAN boundary. Home Assistant runs host-networked on
-# w-1, which has one NIC on the LAN and no leg on the upstream network, so a
-# magic packet aimed at the upstream broadcast address leaves w-1 as an
-# ordinary routed packet. Routers drop directed broadcasts by default
-# (RFC 2644) and RouterOS is no exception, so without the static ARP entry in
-# main.tf the packet dies here and the target never wakes.
+# Services on the LAN reachable from the upstream network. The cluster sits on
+# 10.200.0.0/24 behind this router and the upstream network has no route to it,
+# so a host on 192.168.1.0/24 cannot address a node directly no matter what the
+# firewall says — the packet has nowhere to go. A destination NAT on the router
+# is what bridges that, and it also satisfies `forward_drop_wan_new`, which
+# drops new inbound-from-WAN connections unless they are DSTNATed.
 #
-# `allowed_sources` is not decoration. The ARP entry turns the upstream
-# broadcast address into something any LAN host can reach, which is a standing
-# amplification and host-discovery surface; the firewall rule in the ip-firewall
-# module narrows it back down to the machines that actually need it. Widening
-# this list widens that surface — it is not a list to grow casually.
+# `source` is what keeps this off the public internet. The WAN interface here
+# faces the home LAN, not the internet — anything from outside would have to be
+# forwarded again by the upstream router at 192.168.1.1 to arrive at all — but
+# pinning the source range means that even if someone forwards a port up there
+# later, this rule still only answers the local segment.
 #
-# Set to null to remove the ARP entry, the address list and the guard rule
-# together.
-variable "wol_relay" {
-  description = "Relay directed broadcasts to the upstream network so LAN hosts can send Wake-on-LAN magic packets to it. The interface is always the WAN interface, since that is the segment the upstream broadcast address belongs to."
+# Matched on the WAN interface list rather than a `dst_address`, because the
+# router takes its WAN address by DHCP and 192.168.1.49 is a lease, not a
+# fixture.
+variable "wan_port_forwards" {
+  description = "Destination NAT entries making a LAN service reachable from the upstream network. Keyed by service name."
+  type = map(object({
+    protocol   = string
+    port       = number
+    source     = string
+    to_address = string
+    to_port    = number
+  }))
+  default = {
+    # The wall-mounted smart clock display lives on the upstream segment and
+    # loads its page from the cluster. 30080 is the `smartclock` Service's
+    # NodePort and 10.200.0.14 is w-1, the node its StatefulSet is pinned to.
+    smartclock = {
+      protocol   = "tcp"
+      port       = 8080
+      source     = "192.168.1.0/24"
+      to_address = "10.200.0.14"
+      to_port    = 30080
+    }
+  }
+}
+
+# The account Home Assistant authenticates as to ask the router to send a
+# Wake-on-LAN magic packet. See the resources in main.tf for why HA asks the
+# router rather than sending the packet itself.
+#
+# The password is deliberately not here. It lives under `secrets.wol_password`
+# in router-sops.yaml, and the same value has to exist in the cluster's
+# flux/apps/home-assistant/router-wol-secret-sops.yaml for HA to authenticate.
+#
+# Set to null to remove the user and its group.
+variable "wol_user" {
+  description = "RouterOS account Home Assistant authenticates as to call /tool wol."
   type = object({
-    address         = string
-    allowed_sources = list(string)
+    name           = string
+    allowed_source = string
   })
   default = {
-    # Broadcast address of the upstream network on the far side of the WAN
-    # interface, where the router itself holds 192.168.1.49.
-    address = "192.168.1.255"
-    # w-1, the node Home Assistant is pinned to. It is host-networked, so the
-    # magic packet leaves with the node's own address as its source.
-    allowed_sources = ["10.200.0.14"]
+    name = "ha-wol"
+    # w-1. Home Assistant is host-networked and pinned there, so it reaches the
+    # router as the node's own address; RouterOS refuses this login from
+    # anywhere else, so a leaked credential is not usable off that node.
+    allowed_source = "10.200.0.14"
   }
 }

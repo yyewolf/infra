@@ -7,6 +7,7 @@ resources:
 - zigbee2mqtt.yaml
 - esphome.yaml
 - esphome-secret-sops.yaml
+- router-wol-secret-sops.yaml
 - mqtt.yaml
 - mqtt-passwords-sops.yaml
 - smart-clock.yaml

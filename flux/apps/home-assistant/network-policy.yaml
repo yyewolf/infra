@@ -203,11 +203,21 @@ spec:
     matchLabels:
       app: smartclock
   ingress:
-  # Wall display on the LAN hitting the `smartclock` NodePort 30080, which
-  # Cilium rewrites to 8080 before policy runs. `world` is the honest identity
-  # for an arbitrary LAN client here; it is not an internet exposure, because
-  # the router's forward chain drops anything from WAN that was not DSTNATed
-  # and nothing DSTNATs 30080.
+  # The wall display reaching the `smartclock` NodePort 30080, which Cilium
+  # rewrites to 8080 before policy runs.
+  #
+  # The display sits on the upstream 192.168.1.0/24 segment and arrives through
+  # the router's `smartclock` port forward (see router/variables.tf,
+  # wan_port_forwards). Both `world` and the node entities are listed because
+  # which one Cilium sees depends on whether it SNATs the NodePort connection to
+  # the node address: unSNATted the client is 192.168.1.x and reads as `world`,
+  # SNATted it reads as `host`. The Service leaves externalTrafficPolicy at the
+  # default, so do not assume either.
+  #
+  # Still not an internet exposure. That port forward is scoped to a source of
+  # 192.168.1.0/24, and the router's WAN faces the home LAN rather than the
+  # internet — reaching this from outside would need the upstream router to
+  # forward a port as well.
   - fromEntities:
     - world
     - host

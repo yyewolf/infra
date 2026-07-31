@@ -1,10 +1,11 @@
 secrets:
     username: ENC[AES256_GCM,data:ug44wGE=,iv:hDYXCeIGyVMDKTeeoj9jJWaj44z3hVkyQEL8MAhTlr8=,tag:kT6vJuZ0VNzOWG2sagzuwg==,type:str]
     password: ENC[AES256_GCM,data:5FlPGRMfxqdHUpqH9wMcUCX75gGG6/rF0idoTMDXletbUhMoZpEfYegGVH9Bfi+ecFKg9qhJAq6NGHf4vxf6hQ==,iv:EsbCMLDQi8YuGLsEJWMuVpb2UoFMCPBi+Vi5hM3XL3o=,tag:DEaknGiv4SVDzlbsOJI1jQ==,type:str]
+    wol_password: ENC[AES256_GCM,data:D7KaUXTY8/glGdMC3EE6Tgyq8GpVnj1e8FDi55B/YUo=,iv:6xW4B7GuOQFjcI1nPNigj+B0Det47vagqotLt8qdOJ4=,tag:aidvnVzJ0BUH3E/Dod6ndQ==,type:str]
 sops:
     encrypted_regex: ^(data|stringData|secrets)$
-    lastmodified: "2026-07-23T16:57:03Z"
-    mac: ENC[AES256_GCM,data:C2GpqeimygQSLrTU3tyEJfYb2wZD3el5CBrwZf/FRWNY1ogYPa3rUhPSyQWQGpxkSuQREbdcaw30dF+gV+IuxSRwHpBikHQV6qHIJhDV5YgmHN75WtEr9UKkNklmFtBpN7dfbqoN6MN1/70ebESm3fvPMXbodL4Vs+BjVCT6wtI=,iv:ZlHjvFalY3ChRkIVsLb1Tcd0PcYp55hIMiBbQ3zVg+E=,tag:XWKU2ESuaHp92aFjq5UN+w==,type:str]
+    lastmodified: "2026-07-31T21:00:56Z"
+    mac: ENC[AES256_GCM,data:/HiXP01iKuNc68ZlRRIttTy6ZmmNOY+6IhJrZrkg2I4A2T5gwHGvltpYsPg8t4vccu3P5RnAMYUCSbrmK0AvAGNCMQcDD2drNQl0/La9MbGkCH8K0DVWoAkZ0bQaImJdtSPZKLyA3FAXkDnddhzBcOiqyhlZ2Bjkw2g/eU07niI=,iv:eSPt8/uAyik6T7wIZihAkvJg426ogAVwxu/+IkSvR7s=,tag:7joltyu6R8rqQOCpTWomVQ==,type:str]
     pgp:
         - created_at: "2026-07-23T16:56:23Z"
           enc: |-
