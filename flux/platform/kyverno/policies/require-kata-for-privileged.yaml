@@ -97,6 +97,24 @@ spec:
           # Only the collector is privileged; the web pod runs unprivileged and
           # is not affected by this rule at all.
           - scrutiny
+          # tailscale, and the argument for it — the operator creates a
+          # StatefulSet per proxy, and each proxy pod runs privileged in
+          # order to create a TUN interface and manipulate the host's
+          # netfilter (iptables/nftables) rules. These are the exact
+          # operations that route tailnet traffic into and out of the pod,
+          # and none of them exist from inside a VM or a gVisor sandbox
+          # — a kata guest has its own network namespace, its own TUN, and
+          # its own netfilter, all disconnected from the node's. gVisor
+          # has the same problem. The proxies also need `NET_ADMIN` and
+          # `NET_RAW` which kata could technically grant, but without the
+          # host net namespace the device a proxy creates carries nothing
+          # and the rules it writes apply to traffic that never reaches it.
+          #
+          # Both the operator and the proxies carry a network policy that
+          # permits world egress on 443/tcp and all UDP, and the proxies
+          # additionally accept world UDP ingress — so the exposure is
+          # calibrated and deliberate.
+          - tailscale
     validate:
       failureAction: Enforce
       message: >-
