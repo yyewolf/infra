@@ -47,6 +47,10 @@
       "pinDigests": false
     },
     {
+      "matchDepNames": ["immich", "woodpecker"],
+      "pinDigests": false
+    },
+    {
       "matchCategories": [
         "docker"
       ],
