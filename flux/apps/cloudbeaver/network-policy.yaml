@@ -1,0 +1,77 @@
+# CloudBeaver holds root on both shared databases, so the two directions matter
+# for different reasons: ingress is what keeps the SSO gate from being
+# optional, and egress is what keeps a session that got past it from becoming a
+# way to reach the rest of the cluster.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: cloudbeaver
+spec:
+  endpointSelector:
+    matchLabels:
+      app: cloudbeaver
+  ingress:
+  # The KEDA interceptor, and nothing else. The chain in front of it is
+  # tailscale proxy → ak-outpost-proxy → interceptor → here, so every request
+  # that arrives has been through authentik. A rule admitting the `tailscale`
+  # namespace as well — which is what the other tailnet apps in this repo have
+  # — would let anyone on the tailnet reach an anonymous-access CloudBeaver
+  # holding both root passwords, and the SSO gate would still look like it was
+  # working.
+  #
+  # This is a wider selector than the outpost it replaced, and the reasoning
+  # deserves stating because the interceptor is shared with three publicly
+  # routed apps. It cannot be used to bypass authentik: the interceptor picks
+  # its backend off the Host header, and reaching this one means presenting
+  # `cloudbeaver.goby-beaufort.ts.net`. No HTTPRoute anywhere carries that
+  # hostname, so a request for it to the public Gateway is a 404 at Envoy and
+  # never reaches the interceptor at all. Giving CloudBeaver a public HTTPRoute
+  # later would collapse that argument.
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: keda
+        app.kubernetes.io/part-of: keda-add-ons-http
+        app.kubernetes.io/component: interceptor
+    toPorts:
+    - ports:
+      - port: "8978"
+        protocol: TCP
+  # The kubelet runs the readiness and liveness probes.
+  - fromEntities:
+    - host
+    - remote-node
+    - health
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+  # The other half of platform/postgres/network-policy.yaml's `fromEntities:
+  # cluster` rule, and of platform/mysql's. Without these the databases would
+  # accept the connection and this pod could never open it.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: postgres
+    toPorts:
+    - ports:
+      - port: "5432"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: mysql
+    toPorts:
+    - ports:
+      - port: "3306"
+        protocol: TCP
+  # No `world` and no other in-cluster destination. CloudBeaver would happily
+  # dial anything it is pointed at, which is precisely why this is an
+  # enumeration and not a carve-out: the drivers are bundled in the image so
+  # nothing is downloaded at runtime, and
+  # CLOUDBEAVER_APP_SUPPORTS_CUSTOM_CONNECTIONS is off so nothing new can be
+  # pointed at. Adding a third database here means adding a rule, on purpose.

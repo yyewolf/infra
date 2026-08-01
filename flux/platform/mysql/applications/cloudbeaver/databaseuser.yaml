@@ -1,0 +1,57 @@
+# The remote root that CNMSQL does not provide.
+#
+# `mysql.user` in this cluster holds exactly one root row and its host is
+# `localhost`, so the account the operator generates `mysql-root` for can only
+# be used over the unix socket inside an instance pod. A client anywhere else —
+# CloudBeaver included — gets `Access denied for user 'root'@'<pod-dns-name>'`
+# with the correct password, because MySQL matched a different (nonexistent)
+# account, not because the credential was wrong. Adding `root@'%'` by hand would
+# fix that and would also be invisible to git and unowned by the operator, so it
+# would not survive a rebuild or a restore.
+#
+# This is the declarative equivalent: a distinct account with the same reach.
+apiVersion: mysql.cnmsql.co/v1alpha1
+kind: DatabaseUser
+metadata:
+  name: cloudbeaver
+  namespace: mysql
+spec:
+  cluster:
+    name: mysql
+  name: cloudbeaver
+
+  # '%'. CloudBeaver dials from a pod IP that changes on every reschedule, so
+  # there is no stable host to pin to — the same reasoning as every other
+  # DatabaseUser here. What actually gates this is the password, plus the two
+  # halves of the network policy: this namespace's `fromEntities: cluster` on
+  # 3306, and apps/cloudbeaver's egress rule.
+  host: "%"
+
+  passwordSecret:
+    name: cloudbeaver-db-credentials
+    key: password
+
+  # `ALL PRIVILEGES ON *.* WITH GRANT OPTION`, which is root exactly.
+  #
+  # Not a `grants` entry, and the difference is not stylistic: the two fields
+  # are mutually exclusive, and the admission webhook *accepts* `grants: [{on:
+  # "*.*", privileges: [ALL]}]` and then refuses it at reconcile — "ALL on *.*
+  # is not allowed: it grants every dynamic admin privilege ... or set
+  # superuser=true". The DatabaseUser simply sits with `APPLIED` blank and
+  # `Ready=False`, and the only symptom anywhere else is that the account does
+  # not exist, which reads as an authentication failure at the client. Check
+  # `kubectl -n mysql get databaseuser` before believing a password is wrong.
+  #
+  # `WITH GRANT OPTION` is also the one thing a grants entry cannot express at
+  # all: MySQL takes it only as a trailing clause, never as a privilege name, so
+  # `privileges: [ALL, GRANT OPTION]` emits `GRANT ALL, GRANT OPTION ON *.*` and
+  # is a syntax error.
+  #
+  # The field's own documentation calls this unsafe for multi-tenant use, and it
+  # is right: this account can read and rewrite every tenant database on the
+  # shared cluster, and grant that to someone else. It is scoped by the fact
+  # that exactly one workload holds the password, and that workload is reachable
+  # only through the authentik outpost.
+  superuser: true
+
+  reclaimPolicy: retain

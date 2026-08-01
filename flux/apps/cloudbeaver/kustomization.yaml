@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: cloudbeaver
+
+resources:
+- namespace.yaml
+- admin-sops.yaml
+- pvc.yaml
+- deployment.yaml
+- service.yaml
+- fallback-service.yaml
+- interceptorroute.yaml
+- scaledobject.yaml
+- network-policy.yaml
+
+# The tailscale Ingress that fronts this is deliberately not here — it points
+# at ak-outpost-proxy, so it has to live in the authentik namespace, and it is
+# in apps/authentik/cloudbeaver-ingress.yaml for the same reason the
+# ReferenceGrant beside it is.
+
+configMapGenerator:
+- name: cloudbeaver-scripts
+  files:
+  - cm/render-datasources.sh

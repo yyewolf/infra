@@ -1,0 +1,26 @@
+# Scaling half of the pair. `interceptorRoute` must equal the InterceptorRoute's
+# metadata.name: if the route is missing when KEDA reconciles this, the scaler
+# returns an empty metric spec and the HPA silently falls back to a CPU metric,
+# which never scales up from zero.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: cloudbeaver
+spec:
+  scaleTargetRef:
+    name: cloudbeaver
+  minReplicaCount: 0
+  maxReplicaCount: 1
+  # 30 minutes, an order of magnitude above cyberchef's 5. Scaling this to zero
+  # is not free the way it is for a static bundle: it drops every open SQL
+  # editor session and every pooled JDBC connection, and the way back costs a
+  # JVM start plus a Longhorn detach/attach cycle on the workspace volume. The
+  # concurrency metric counts in-flight requests, so an idle tab that is only
+  # polling still holds this above zero — this timer is what governs the gap
+  # after someone actually walks away.
+  cooldownPeriod: 1800
+  triggers:
+    - type: external-push
+      metadata:
+        scalerAddress: keda-add-ons-http-external-scaler.keda:9090
+        interceptorRoute: cloudbeaver

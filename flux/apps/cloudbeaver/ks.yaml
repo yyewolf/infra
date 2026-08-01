@@ -1,0 +1,33 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: cloudbeaver
+  namespace: flux-system
+spec:
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-gpg
+  dependsOn:
+  # The workspace PVC.
+  - name: longhorn
+  # keda for the InterceptorRoute/ScaledObject CRDs, booting-up for the
+  # placeholder the cold-start fallback aliases. No ReferenceGrant in
+  # platform/keda/reference-grants.yaml for this one, unlike every other
+  # scale-to-zero app here: those grants exist for an HTTPRoute pointing at the
+  # interceptor across namespaces, and this app has no HTTPRoute — the outpost
+  # dials the interceptor directly.
+  - name: keda
+  - name: booting-up
+  # Not cloudbeaver-postgres-creds / cloudbeaver-mysql-creds: those two write a
+  # Role into this namespace, so they are the ones that wait on nothing here
+  # and the pod simply stays in CreateContainerConfigError until their pushes
+  # land. Not tailscale either — the Ingress that needs it belongs to the
+  # authentik Kustomization.
+  interval: 10m
+  path: ./flux/apps/cloudbeaver
+  prune: true
+  retryInterval: 1m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

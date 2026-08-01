@@ -1,0 +1,57 @@
+# CloudBeaver's front door, and the only one it has.
+#
+# It is in this namespace rather than in apps/cloudbeaver because an Ingress
+# backend must be a Service in the Ingress's own namespace, and the backend
+# here is deliberately not CloudBeaver — it is the authentik proxy outpost.
+# That is what makes "on the tailnet AND behind SSO" a single path instead of
+# two: the tailnet device terminates TLS and hands every request to the
+# outpost, and the outpost authenticates it against auth.yewolf.fr before
+# anything reaches the app.
+#
+# Its internal host is the KEDA interceptor
+# (http://keda-add-ons-http-interceptor-proxy.keda.svc.cluster.local:8080), not
+# CloudBeaver's own Service — CloudBeaver scales to zero, and routing past the
+# interceptor would serve nothing at zero replicas. The interceptor picks the
+# real backend off the Host header, which survives this hop unchanged. See
+# apps/cloudbeaver/interceptorroute.yaml.
+#
+# This is a different shape from the SSO-protected *public* apps in this repo
+# (servarr, ytdlp), which stay in front of the Envoy Gateway and call the same
+# outpost as an ext-auth service via a SecurityPolicy. That form needs a
+# Gateway listener, which is exactly what a tailnet-only app must not have.
+# Here the outpost is the proxy, not the authorizer, so the provider in
+# authentik must be `mode: proxy` — not the `forward_domain` the ext-auth
+# providers use.
+#
+# The outpost picks the provider off the Host header, so the provider's
+# external host must be exactly https://cloudbeaver.goby-beaufort.ts.net. Get
+# that wrong and the outpost answers every request with its "application not
+# found" page, which looks like a routing bug rather than a configuration one.
+#
+# authentik's own Kubernetes outpost controller also maintains an Ingress named
+# ak-outpost-proxy in this namespace, listing every proxy provider's external
+# host. It has no ingressClassName and nothing serves it; this file does not
+# touch it, and adding a provider will add a host to it harmlessly.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cloudbeaver
+spec:
+  ingressClassName: tailscale
+  # The tailscale operator reads the device name from tls.hosts, not from a
+  # rule host — hence no host below. `cloudbeaver` with no suffix: the root
+  # cluster holds no device by that name on the shared tailnet, so there is
+  # nothing to collide with and get silently renamed to `cloudbeaver-1`.
+  tls:
+  - hosts:
+    - cloudbeaver
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ak-outpost-proxy
+            port:
+              number: 9000

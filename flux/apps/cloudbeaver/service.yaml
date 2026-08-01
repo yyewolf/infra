@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudbeaver
+  labels:
+    app: cloudbeaver
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8978
+    targetPort: 8978
+    protocol: TCP
+    name: http
+  selector:
+    app: cloudbeaver

@@ -35,6 +35,24 @@ spec:
   primaryUpdateStrategy: unsupervised
   primaryUpdateMethod: switchover
 
+  # CNPG defaults this to false, which does not merely leave the password
+  # unset — it actively disables the `postgres` role's password login (`ALTER
+  # ROLE postgres WITH PASSWORD NULL`) and deletes the generated secret. Turning
+  # it on generates `postgres-superuser` and re-enables the login.
+  #
+  # It is on for exactly one consumer: the CloudBeaver connection seeded by
+  # platform/postgres/applications/cloudbeaver, which exists so the databases in
+  # this shared cluster can be inspected without a per-app role for each. Apps
+  # do not use it — every one of them gets its own role and its own database via
+  # a `Database` CR, and none of them should ever reference this secret.
+  #
+  # What it costs: a password that grants superuser on every database here now
+  # exists in the cluster, so the two things that keep it contained are the
+  # network policy in this directory (never `world`, only 5432) and the RBAC on
+  # the secret. Turning this back off is a one-line revert plus deleting the
+  # CloudBeaver connection, and it takes effect on the next reconcile.
+  enableSuperuserAccess: true
+
   postgresql:
     # VectorChord's background workers have to be loaded at startup; CREATE
     # EXTENSION alone is not enough and the extension fails at query time

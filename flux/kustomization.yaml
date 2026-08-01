@@ -33,7 +33,10 @@ resources:
 - platform/postgres/applications/uctf/ks.yaml
 - platform/postgres/applications/authentik/ks.yaml
 - platform/postgres/applications/immich/ks.yaml
+- platform/postgres/applications/cloudbeaver/ks.yaml
 - platform/mysql/applications/uptime-kuma/ks.yaml
+- platform/mysql/applications/cloudbeaver/ks.yaml
+- apps/cloudbeaver/ks.yaml
 - apps/cyberchef/ks.yaml
 - apps/dashboard/ks.yaml
 - apps/radar/ks.yaml

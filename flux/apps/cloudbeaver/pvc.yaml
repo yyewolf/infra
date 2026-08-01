@@ -1,0 +1,20 @@
+# CloudBeaver keeps everything it knows in this one directory: the H2 database
+# holding users, teams and permissions, the encrypted connection credentials,
+# and any saved SQL scripts. It is small and it is not a cache — losing it
+# means the server comes back in configuration mode and the connections have to
+# be seeded again.
+#
+# `longhorn`, not `longhorn-yolo`: the yolo class is one replica pinned to the
+# node, which is the right trade for a database that keeps a second copy of
+# itself on another instance. Nothing keeps a second copy of this.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cloudbeaver-workspace
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 2Gi

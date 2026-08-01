@@ -13,6 +13,9 @@
       --fg: #e6edf3;
       --muted: #8b949e;
       --accent: #58a6ff;
+      --tile: #1f2530;
+      --sheen: rgba(255, 255, 255, .05);
+      --shadow: rgba(0, 0, 0, .45);
     }
 
     @media (prefers-color-scheme: light) {
@@ -23,6 +26,9 @@
         --fg: #1f2328;
         --muted: #656d76;
         --accent: #0969da;
+        --tile: #eef1f5;
+        --sheen: rgba(9, 105, 218, .05);
+        --shadow: rgba(31, 35, 40, .12);
       }
     }
 
@@ -45,6 +51,7 @@
     header {
       text-align: center;
       margin-bottom: 2.5rem;
+      animation: rise .5s cubic-bezier(.2, .7, .3, 1) both;
     }
 
     h1 {
@@ -68,6 +75,8 @@
       text-transform: uppercase;
       letter-spacing: .08em;
       color: var(--muted);
+      animation: rise .5s cubic-bezier(.2, .7, .3, 1) both;
+      animation-delay: .04s;
     }
 
     .section:first-of-type {
@@ -83,21 +92,92 @@
     }
 
     a.card {
+      position: relative;
+      overflow: hidden;
       display: flex;
-      flex-direction: column;
-      gap: .25rem;
-      padding: 1rem 1.1rem;
+      align-items: center;
+      gap: .8rem;
+      padding: .95rem 1.05rem;
       border-radius: 12px;
       background: var(--card);
       border: 1px solid var(--border);
       color: var(--fg);
       text-decoration: none;
-      transition: border-color .15s ease, transform .15s ease;
+      transition: border-color .2s ease, transform .2s cubic-bezier(.2, .7, .3, 1), box-shadow .2s ease;
+      /* Staggered by --i below. `both` holds the pre-animation state, so the
+         cards are invisible until their turn rather than flashing in at full
+         opacity and then animating. */
+      animation: rise .5s cubic-bezier(.2, .7, .3, 1) both;
+      animation-delay: calc(.06s + var(--i, 0) * .035s);
     }
 
-    a.card:hover {
+    /* The sheen. A single wide, very faint highlight parked off the left edge
+       that crosses the card once on hover. Pointer-events off so it never
+       intercepts the click. */
+    a.card::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(105deg, transparent 30%, var(--sheen) 50%, transparent 70%);
+      transform: translateX(-100%);
+      transition: transform .7s ease;
+    }
+
+    a.card:hover,
+    a.card:focus-visible {
       border-color: var(--accent);
-      transform: translateY(-2px);
+      transform: translateY(-3px);
+      box-shadow: 0 8px 22px -12px var(--shadow);
+    }
+
+    a.card:hover::after,
+    a.card:focus-visible::after {
+      transform: translateX(100%);
+    }
+
+    a.card:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    a.card:active {
+      transform: translateY(-1px);
+    }
+
+    .tile {
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 9px;
+      background: var(--tile);
+      color: var(--muted);
+      transition: color .2s ease, background-color .2s ease, transform .3s cubic-bezier(.2, .7, .3, 1);
+    }
+
+    a.card:hover .tile,
+    a.card:focus-visible .tile {
+      color: var(--accent);
+      transform: scale(1.06);
+    }
+
+    .icon {
+      width: 20px;
+      height: 20px;
+      stroke: currentColor;
+      stroke-width: 1.6;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+    }
+
+    .text {
+      display: flex;
+      flex-direction: column;
+      gap: .1rem;
+      min-width: 0;
     }
 
     .name {
@@ -108,6 +188,9 @@
       color: var(--muted);
       font-size: .8rem;
       font-family: ui-monospace, SFMono-Regular, monospace;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     footer {
@@ -115,11 +198,110 @@
       color: var(--muted);
       font-size: .8rem;
       text-align: center;
+      animation: rise .5s cubic-bezier(.2, .7, .3, 1) both;
+      animation-delay: .34s;
+    }
+
+    @keyframes rise {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    /* Not decoration. Everything above is either an entrance animation or a
+       transform, which is exactly the class of motion this setting exists to
+       switch off — so all of it goes, rather than being merely shortened. The
+       colour and border feedback on hover stays. */
+    @media (prefers-reduced-motion: reduce) {
+
+      header,
+      .section,
+      a.card,
+      footer {
+        animation: none;
+      }
+
+      a.card,
+      a.card::after,
+      .tile {
+        transition: border-color .2s ease, color .2s ease;
+        transform: none;
+      }
+
+      a.card:hover,
+      a.card:focus-visible,
+      a.card:active {
+        transform: none;
+        box-shadow: none;
+      }
+
+      a.card:hover::after,
+      a.card:focus-visible::after {
+        transform: translateX(-100%);
+      }
+
+      a.card:hover .tile,
+      a.card:focus-visible .tile {
+        transform: none;
+      }
     }
   </style>
 </head>
 
 <body>
+  <!-- Icon sprite. Inline rather than linked: this pod's network policy is
+       `egress: []`, so it resolves no names and fetches nothing — an icon font
+       or a CDN sprite would simply never load. -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <symbol id="i-chip" viewBox="0 0 24 24">
+      <rect x="7" y="7" width="10" height="10" rx="1.5" />
+      <rect x="3.5" y="3.5" width="17" height="17" rx="3" />
+      <path d="M9 1.8v1.7M15 1.8v1.7M9 20.5v1.7M15 20.5v1.7M1.8 9h1.7M1.8 15h1.7M20.5 9h1.7M20.5 15h1.7" />
+    </symbol>
+    <symbol id="i-waves" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="1.6" />
+      <path d="M8.4 15.6a5 5 0 0 1 0-7.2M15.6 8.4a5 5 0 0 1 0 7.2" />
+      <path d="M5.6 18.4a9 9 0 0 1 0-12.8M18.4 5.6a9 9 0 0 1 0 12.8" />
+    </symbol>
+    <symbol id="i-download" viewBox="0 0 24 24">
+      <path d="M12 3.5v11M7.5 10.5 12 15l4.5-4.5" />
+      <path d="M4 17v1.5A2.5 2.5 0 0 0 6.5 21h11a2.5 2.5 0 0 0 2.5-2.5V17" />
+    </symbol>
+    <symbol id="i-gauge" viewBox="0 0 24 24">
+      <path d="M3.5 17a9 9 0 1 1 17 0" />
+      <path d="M12 17l4-5" />
+      <circle cx="12" cy="17" r="1.2" />
+    </symbol>
+    <symbol id="i-disk" viewBox="0 0 24 24">
+      <rect x="2.5" y="5" width="19" height="14" rx="2.5" />
+      <circle cx="9" cy="12" r="3.2" />
+      <circle cx="9" cy="12" r=".8" />
+      <path d="M14.5 15.5h3.5" />
+    </symbol>
+    <symbol id="i-radar" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="8.8" />
+      <circle cx="12" cy="12" r="5" />
+      <circle cx="12" cy="12" r="1.4" />
+      <path d="M12 12 18.2 5.8" />
+    </symbol>
+    <symbol id="i-stack" viewBox="0 0 24 24">
+      <path d="M12 2.8 21 7l-9 4.2L3 7z" />
+      <path d="M3 12l9 4.2L21 12" />
+      <path d="M3 17l9 4.2L21 17" />
+    </symbol>
+    <symbol id="i-database" viewBox="0 0 24 24">
+      <ellipse cx="12" cy="5.8" rx="7.5" ry="3" />
+      <path d="M4.5 5.8v12.4c0 1.66 3.36 3 7.5 3s7.5-1.34 7.5-3V5.8" />
+      <path d="M4.5 12c0 1.66 3.36 3 7.5 3s7.5-1.34 7.5-3" />
+    </symbol>
+  </svg>
+
   <header>
     <h1>Internal Dashboard</h1>
     <p>Tailscale-only services &middot; ng</p>
@@ -127,28 +309,38 @@
 
   <h2 class="section">ng cluster</h2>
   <nav class="grid">
-    <a class="card" href="https://esphome.goby-beaufort.ts.net/"><span class="name">ESPHome</span><span
-        class="path">esphome &middot; device builder</span></a>
-    <a class="card" href="https://zigbee2mqtt.goby-beaufort.ts.net/"><span class="name">Zigbee2MQTT</span><span
-        class="path">zigbee2mqtt</span></a>
-    <a class="card" href="https://qbittorrent.goby-beaufort.ts.net/"><span class="name">qBittorrent</span><span
-        class="path">qbittorrent</span></a>
-    <a class="card" href="https://joal.goby-beaufort.ts.net/"><span class="name">Joal / Ratio</span><span
-        class="path">joal</span></a>
-    <a class="card" href="https://scrutiny.goby-beaufort.ts.net/"><span class="name">Scrutiny</span><span
-        class="path">scrutiny &middot; disk SMART</span></a>
-    <a class="card" href="https://radar.goby-beaufort.ts.net/"><span class="name">Radar</span><span
-        class="path">radar</span></a>
-    <a class="card" href="https://longhorn.goby-beaufort.ts.net/"><span class="name">Longhorn</span><span
-        class="path">longhorn &middot; storage</span></a>
-  </nav>
-
-  <h2 class="section">Root cluster</h2>
-  <nav class="grid">
-    <a class="card" href="https://pgadmin.goby-beaufort.ts.net/"><span class="name">pgAdmin</span><span
-        class="path">pgadmin &middot; scale-to-zero</span></a>
-    <a class="card" href="https://phpmyadmin.goby-beaufort.ts.net/"><span class="name">phpMyAdmin</span><span
-        class="path">phpmyadmin &middot; scale-to-zero</span></a>
+    <a class="card" style="--i:0" href="https://esphome.goby-beaufort.ts.net/">
+      <span class="tile"><svg class="icon" aria-hidden="true"><use href="#i-chip" /></svg></span>
+      <span class="text"><span class="name">ESPHome</span><span class="path">esphome &middot; devices</span></span>
+    </a>
+    <a class="card" style="--i:1" href="https://zigbee2mqtt.goby-beaufort.ts.net/">
+      <span class="tile"><svg class="icon" aria-hidden="true"><use href="#i-waves" /></svg></span>
+      <span class="text"><span class="name">Zigbee2MQTT</span><span class="path">zigbee2mqtt</span></span>
+    </a>
+    <a class="card" style="--i:2" href="https://qbittorrent.goby-beaufort.ts.net/">
+      <span class="tile"><svg class="icon" aria-hidden="true"><use href="#i-download" /></svg></span>
+      <span class="text"><span class="name">qBittorrent</span><span class="path">qbittorrent</span></span>
+    </a>
+    <a class="card" style="--i:3" href="https://joal.goby-beaufort.ts.net/">
+      <span class="tile"><svg class="icon" aria-hidden="true"><use href="#i-gauge" /></svg></span>
+      <span class="text"><span class="name">Joal / Ratio</span><span class="path">joal</span></span>
+    </a>
+    <a class="card" style="--i:4" href="https://scrutiny.goby-beaufort.ts.net/">
+      <span class="tile"><svg class="icon" aria-hidden="true"><use href="#i-disk" /></svg></span>
+      <span class="text"><span class="name">Scrutiny</span><span class="path">scrutiny &middot; SMART</span></span>
+    </a>
+    <a class="card" style="--i:5" href="https://radar.goby-beaufort.ts.net/">
+      <span class="tile"><svg class="icon" aria-hidden="true"><use href="#i-radar" /></svg></span>
+      <span class="text"><span class="name">Radar</span><span class="path">radar</span></span>
+    </a>
+    <a class="card" style="--i:6" href="https://longhorn.goby-beaufort.ts.net/">
+      <span class="tile"><svg class="icon" aria-hidden="true"><use href="#i-stack" /></svg></span>
+      <span class="text"><span class="name">Longhorn</span><span class="path">longhorn &middot; storage</span></span>
+    </a>
+    <a class="card" style="--i:7" href="https://cloudbeaver.goby-beaufort.ts.net/">
+      <span class="tile"><svg class="icon" aria-hidden="true"><use href="#i-database" /></svg></span>
+      <span class="text"><span class="name">CloudBeaver</span><span class="path">cloudbeaver &middot; SSO</span></span>
+    </a>
   </nav>
 
   <footer>Reachable only over the tailnet.</footer>

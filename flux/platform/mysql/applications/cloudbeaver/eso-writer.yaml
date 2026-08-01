@@ -1,0 +1,40 @@
+# The identity the SecretStore authenticates as when it writes the root
+# credentials into the cloudbeaver namespace. Its own ServiceAccount rather
+# than sharing one with another directory, for the same reason every other
+# application directory here has its own.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: eso-push-writer-cloudbeaver
+  namespace: mysql
+---
+# In the cloudbeaver namespace, not this one. Named `-mysql` because
+# platform/postgres/applications/cloudbeaver puts its own Role beside this one
+# in the same namespace — two Kustomizations must not both claim a single
+# object, or each reconcile fights the other.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: eso-push-writer-mysql
+  namespace: cloudbeaver
+rules:
+- apiGroups: [""]
+  resources: [secrets]
+  verbs: [get, list, watch, create, update, patch]
+- apiGroups: [authorization.k8s.io]
+  resources: [selfsubjectrulesreviews]
+  verbs: [create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: eso-push-writer-mysql
+  namespace: cloudbeaver
+subjects:
+- kind: ServiceAccount
+  name: eso-push-writer-cloudbeaver
+  namespace: mysql
+roleRef:
+  kind: Role
+  name: eso-push-writer-mysql
+  apiGroup: rbac.authorization.k8s.io

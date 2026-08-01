@@ -1,0 +1,195 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudbeaver
+  labels:
+    app: cloudbeaver
+spec:
+  replicas: 1
+  # Recreate, not RollingUpdate. The workspace is a ReadWriteOnce Longhorn
+  # volume holding an embedded H2 database — a rolling window would need two
+  # pods holding the same PVC, which cannot happen, so the rollout would simply
+  # stall on a Pending replacement.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: cloudbeaver
+  template:
+    metadata:
+      labels:
+        app: cloudbeaver
+    spec:
+      securityContext:
+        # The image runs as root by default and nothing here needs to. It
+        # writes to exactly one place — /opt/cloudbeaver/workspace — so fsGroup
+        # on the PVC is the whole of what non-root costs. conf/ and drivers/
+        # are read at startup and never written.
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+      # See cm/render-datasources.sh for what this writes and why it is not a
+      # plain ConfigMap. It runs on every start; whether the result is used is
+      # upstream's first-boot check, not ours.
+      - name: render-datasources
+        image: mirror.gcr.io/library/alpine:3.21@sha256:48b0309ca019d89d40f670aa1bc06e426dc0931948452e8491e3d65087abc07d
+        command: [/bin/sh, /scripts/render-datasources.sh]
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 1000
+          runAsGroup: 1000
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        env:
+        # Written into this namespace by the PushSecret in
+        # platform/postgres/applications/cloudbeaver. Not in git — the pod
+        # stays in CreateContainerConfigError until that push has run.
+        - name: POSTGRES_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: cloudbeaver-postgres
+              key: username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: cloudbeaver-postgres
+              key: password
+        # Same, from platform/mysql/applications/cloudbeaver.
+        - name: MYSQL_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: cloudbeaver-mysql
+              key: username
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: cloudbeaver-mysql
+              key: password
+        volumeMounts:
+        - name: scripts
+          mountPath: /scripts
+        - name: render
+          mountPath: /render
+        resources:
+          requests:
+            cpu: "10m"
+            memory: "16Mi"
+          limits:
+            memory: "32Mi"
+      containers:
+      - name: cloudbeaver
+        image: mirror.gcr.io/dbeaver/cloudbeaver:26.1.3@sha256:a4b7286a88b9b7c05013b624654a7c5997fbbe8f974604a1274a8246cc57c026
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 1000
+          runAsGroup: 1000
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        ports:
+        - containerPort: 8978
+          name: http
+        env:
+        # These four are what put the server past its first-run setup wizard
+        # without anyone touching it. Leave them out and CloudBeaver starts in
+        # configuration mode and serves the wizard to whoever arrives first —
+        # which, behind an SSO gate that admits every authorised user, is not a
+        # gate at all.
+        - name: CB_SERVER_NAME
+          value: "cloudbeaver"
+        # The address the browser actually uses. CloudBeaver only records it;
+        # the redirect that matters for login is authentik's, and the outpost
+        # takes that from the provider's external host, not from here.
+        - name: CB_SERVER_URL
+          value: "https://cloudbeaver.goby-beaufort.ts.net"
+        - name: CB_ADMIN_NAME
+          valueFrom:
+            secretKeyRef:
+              name: cloudbeaver-admin
+              key: username
+        - name: CB_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: cloudbeaver-admin
+              key: password
+
+        # Anonymous access is the deliberate half of the design: authentik in
+        # front is the only thing deciding who gets in, so a second login here
+        # would be a password to share rather than a second factor. The admin
+        # account above still exists and can still be logged into from the same
+        # UI — it is what administers CloudBeaver itself, not what gates it.
+        - name: CLOUDBEAVER_APP_ANONYMOUS_ACCESS_ENABLED
+          value: "true"
+        # Without this the anonymous user sees no connections at all: a
+        # preconfigured connection is granted to teams, and the anonymous
+        # user's team is not one of them by default. This is the setting that
+        # makes "predefined access" actually predefined.
+        - name: CLOUDBEAVER_APP_GRANT_CONNECTIONS_ACCESS_TO_ANONYMOUS_TEAM
+          value: "true"
+        # Left at the image default (false), stated because it is load-bearing:
+        # an anonymous user cannot define a connection of their own, so the two
+        # seeded ones are the entire reachable surface. Turning it on would let
+        # anyone past the SSO gate point CloudBeaver at any host in the cluster
+        # the network policy below permits.
+        - name: CLOUDBEAVER_APP_SUPPORTS_CUSTOM_CONNECTIONS
+          value: "false"
+        # Sessions on the tailnet, behind SSO, on a tool people leave open
+        # while they work. 8h rather than the 30m default.
+        - name: CLOUDBEAVER_EXPIRE_SESSION_AFTER_PERIOD
+          value: "28800000"
+
+        livenessProbe:
+          httpGet:
+            path: /status
+            port: 8978
+          initialDelaySeconds: 60
+          periodSeconds: 20
+          timeoutSeconds: 5
+          failureThreshold: 3
+        # Tight, because this is the pod the interceptor is waiting on during a
+        # cold start and every second here is a second of placeholder page.
+        readinessProbe:
+          httpGet:
+            path: /status
+            port: 8978
+          initialDelaySeconds: 5
+          periodSeconds: 2
+          timeoutSeconds: 3
+        # A JVM with an embedded H2 and a JDBC driver per open connection.
+        # Memory request == limit for Guaranteed QoS; no CPU limit, because a
+        # throttled JVM makes a slow query look like a broken database.
+        resources:
+          requests:
+            cpu: "200m"
+            memory: "1Gi"
+          limits:
+            memory: "1Gi"
+        volumeMounts:
+        - name: workspace
+          mountPath: /opt/cloudbeaver/workspace
+        # subPath, so this lands as one file inside the image's own conf/
+        # directory instead of replacing it — cloudbeaver.conf, initial-data.conf
+        # and logback.xml all live beside it and are needed.
+        - name: render
+          mountPath: /opt/cloudbeaver/conf/initial-data-sources.conf
+          subPath: initial-data-sources.conf
+      volumes:
+      - name: workspace
+        persistentVolumeClaim:
+          claimName: cloudbeaver-workspace
+      - name: scripts
+        configMap:
+          name: cloudbeaver-scripts
+      - name: render
+        emptyDir: {}
+      terminationGracePeriodSeconds: 60

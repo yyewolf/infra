@@ -8,4 +8,5 @@ resources:
 - helmrelease.yaml
 - secret-sops.yaml
 - reference-grant.yaml
+- cloudbeaver-ingress.yaml
 - network-policy.yaml

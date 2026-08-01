@@ -191,6 +191,18 @@ spec:
     - ports:
       - port: "8080"
         protocol: TCP
+  # apps/cloudbeaver is the in-cluster client that comment describes. It has no
+  # HTTPRoute — it is tailnet-only, reached through the authentik proxy outpost
+  # — so the outpost is what dials the interceptor, with the provider's internal
+  # host pointing here instead of at CloudBeaver's own Service.
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: authentik
+        app.kubernetes.io/name: authentik-outpost-proxy
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
   # Admin port. The external scaler polls it for the pending-request count.
   - fromEndpoints:
     - matchLabels:

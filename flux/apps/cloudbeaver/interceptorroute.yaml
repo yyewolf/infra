@@ -1,0 +1,45 @@
+# Routing half of the scale-to-zero pair: which backend a request belongs to,
+# and which metric to report for it. No replica counts — that is the
+# ScaledObject's job.
+#
+# The host is the *tailnet* name rather than an in-cluster one, and that is not
+# a guess. authentik's proxy outpost rewrites only `r.URL.Host` when it
+# reverse-proxies (`proxyModifyRequest` in mode_proxy.go); `r.Host` is left
+# alone unless a per-user `HostHeader` claim overrides it, and Go's
+# ReverseProxy sends `req.Host` when it is set. So what arrives here still says
+# `cloudbeaver.goby-beaufort.ts.net`, exactly as the browser sent it, and the
+# original is additionally available as X-Forwarded-Host.
+apiVersion: http.keda.sh/v1beta1
+kind: InterceptorRoute
+metadata:
+  name: cloudbeaver
+spec:
+  target:
+    service: cloudbeaver
+    port: 8978
+  rules:
+    - hosts:
+        - cloudbeaver.goby-beaufort.ts.net
+      paths:
+        - value: /
+  scalingMetric:
+    # One replica either way — this exists to get to zero, not to spread load,
+    # and the workspace is a ReadWriteOnce volume so a second replica could not
+    # start anyway. The number only has to be high enough that a busy session
+    # never reads as pressure to scale out.
+    concurrency:
+      targetValue: 100
+  coldStart:
+    # A JVM plus a Longhorn attach is a much longer wait than the static apps
+    # this placeholder was written for — enough that a held-open connection
+    # looks like a hang. The page polls /is_still_booting_up, which keeps
+    # landing here until the pod is ready, then reloads.
+    fallback:
+      service:
+        name: service-fallback
+        port: 80
+  timeouts:
+    # How long a request waits before it gets the placeholder instead. Long
+    # enough to absorb a warm pod, short enough that a cold start shows the
+    # spinner rather than appearing to stall.
+    readiness: 2s

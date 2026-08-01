@@ -1,0 +1,47 @@
+# The CloudBeaver-internal admin account. Not the SSO login — authentik is
+# what decides who reaches this server at all (see the tailscale Ingress in
+# apps/authentik). This account exists for the other half: administering
+# CloudBeaver itself, which an anonymous session cannot do, and, more
+# importantly, for consuming the first-run setup wizard at startup so that
+# nobody else is offered it.
+#
+# CB_ADMIN_NAME/CB_ADMIN_PASSWORD are read once, when the workspace is empty.
+# Changing them here after the fact does not change the account — do that from
+# the UI.
+apiVersion: v1
+kind: Secret
+metadata:
+    name: cloudbeaver-admin
+    namespace: cloudbeaver
+type: Opaque
+stringData:
+    username: ENC[AES256_GCM,data:9Z/Nd2weWw==,iv:glx5v1sRJfXGeNiVRj4b19GLDnsTu+lYLjnMuSvEeBM=,tag:VWHet4Ps8arF40UmKh4ZhA==,type:str]
+    password: ENC[AES256_GCM,data:8k9344v/VsJ/L9QSjV6F5qKkEhdn1o/C/GIR7RcsQqU=,iv:/PH7zJuGxdbyGFivB0u2SWXk2Zoq5s7BBjsnkkggUrU=,tag:FLOo+LPJyjtTs6UuSNdeDQ==,type:str]
+sops:
+    encrypted_regex: ^(data|stringData|secrets)$
+    lastmodified: "2026-08-01T17:15:34Z"
+    mac: ENC[AES256_GCM,data:MOazHwRTwc2m4Thff0wgTlHnomBiYvYKo7Wm7DP6yWq1gceW5misyLgt8RBEqmg9xsozP5STDI8G//ErVAiI3UrQG7INQY9pCdASYlARIz0OpCGu6hOwC1u5cQQYWbbeIbaNhZkqvuNtEtft9klLpB+GciW91DBtvkrO3eaJA5A=,iv:uSYX+MVCCH1VDztrVZ2p319yP1LT8YN1EY8AXNIkmO8=,tag:sheEknhgSkvcLYMmfO1prw==,type:str]
+    pgp:
+        - created_at: "2026-08-01T17:15:34Z"
+          enc: |-
+            -----BEGIN PGP MESSAGE-----
+
+            hF4DC4LUCsV/V+wSAQdA2RY0onFYUSVtbKfptDxm5k2697SwnPEObPOyOFsvWH0w
+            fMpBU0Ctl0enWwU/uZYdOXliXC7QQ8j6xmn4uIld6hBp/e9MUvFsy3IrF52Ql6C2
+            0l4BQ2phWzcALHoTqX3JigxCKBuHChZAqX6DWJ+R9u5VA1WjBc5G0/oEdFoBPsFf
+            MhQLzXE8CooCg0HPGoKe+GkkuXMyef3cu7LEs2IA+Sbu0pVb2Ek8fcrmSwqtmoMT
+            =jE4F
+            -----END PGP MESSAGE-----
+          fp: 459895EB0A5F446D3831E99F95F6A162E4A71B06
+        - created_at: "2026-08-01T17:15:34Z"
+          enc: |-
+            -----BEGIN PGP MESSAGE-----
+
+            hF4D8q6e3Tem1ZoSAQdA/vrev9s/1kuIFrvvvVcAyKYJIAkVx89AlZwXMfoU4lww
+            HQbxt7IhVcpg+OQp6sENC0I6oa93GiVuCpq7MyZEuIzJtoQt0rgB9xCQw2NJv527
+            0l4BXW/oSIrCRQQsdqqcyaAjRRhoEE9EvxebTsCgDz5VPYOChDT3cP3DepLtMtnA
+            fgkLtIoMbngcsA0D3hIMICHpqY70lQ+f4CLShVzDGLSaPSuinTgn44zX8xGa4Beh
+            =BSzA
+            -----END PGP MESSAGE-----
+          fp: DF7F5D62376A57228F35FE4C665F8C5B8E0732E5
+    version: 3.13.1
