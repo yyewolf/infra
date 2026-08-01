@@ -39,6 +39,14 @@
   ],
   "packageRules": [
     {
+      "matchFileNames": ["flux/apps/uctf/**"],
+      "enabled": false
+    },
+    {
+      "matchManagers": ["regex"],
+      "pinDigests": false
+    },
+    {
       "matchCategories": [
         "docker"
       ],
