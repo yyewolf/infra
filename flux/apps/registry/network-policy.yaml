@@ -25,6 +25,15 @@ spec:
   - toEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: registry
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: envoy-gateway-system
+    toPorts:
+    - ports:
+      - port: "10443"
+        protocol: TCP
+      - port: "10080"
+        protocol: TCP
   - toCIDRSet:
     - cidr: 0.0.0.0/0
       except:
