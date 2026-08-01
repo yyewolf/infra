@@ -43,7 +43,7 @@
       "enabled": false
     },
     {
-      "matchManagers": ["regex"],
+      "matchManagers": ["custom.regex"],
       "pinDigests": false
     },
     {
