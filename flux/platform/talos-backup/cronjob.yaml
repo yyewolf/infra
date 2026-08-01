@@ -67,7 +67,7 @@ spec:
               # This tag is the current tip of main (b9fd478) and fixes all
               # three. Re-check these three when moving to a real release:
               # Renovate will not reason about a `-N-g<sha>` tag.
-              image: ghcr.io/siderolabs/talos-backup:v0.1.0-beta.3-10-gb9fd478
+              image: ghcr.io/siderolabs/talos-backup:v0.1.0-beta.3-10-gb9fd478@sha256:7fc186ff37a3137f470082cb609bf1dc3bcece13dd9a6421ec09cfdf4f33ae6c
               imagePullPolicy: IfNotPresent
               command:
                 - /talos-backup

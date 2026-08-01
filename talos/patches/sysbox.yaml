@@ -63,7 +63,7 @@ machine:
       # a sidecar, so that it is started (and stays running) before sysbox-fs
       - name: sysbox-mgr
         restartPolicy: Always
-        image: busybox:stable
+        image: busybox:stable@sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662
         command:
         - /usr/local/bin/sysbox-mgr
         # inner container image preloading is not used with the CRI, and
@@ -110,7 +110,7 @@ machine:
           mountPropagation: Bidirectional
       containers:
       - name: sysbox-fs
-        image: busybox:stable
+        image: busybox:stable@sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662
         command:
         - /usr/local/bin/sysbox-fs
         env:
