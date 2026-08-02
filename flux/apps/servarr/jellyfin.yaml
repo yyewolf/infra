@@ -5,16 +5,6 @@
 # deadlocks on Multi-Attach. A StatefulSet deletes the old pod and waits for it
 # to actually go before creating its replacement, and there is no replicas > 1
 # to reach for later because Jellyfin's sqlite library database cannot be shared.
-#
-# NO HARDWARE TRANSCODING, unlike the root cluster. On home1 this pod ran with
-# `runtimeClassName: nvidia` and `nvidia.com/gpu: 1`. Same physical machine, but
-# w-1's Talos image carries zfs/kata/gvisor/sysbox and no NVIDIA extensions, so
-# there is no device plugin and no /dev/dri — every transcode is on the Ryzen
-# 5 3600's cores, which is what the 3-core limit is sized for. Getting the GPU
-# back means `siderolabs/nonfree-kmod-nvidia-production` plus
-# `siderolabs/nvidia-container-toolkit-production` in w-1's `extensions:` in
-# talos/cluster.yaml, a `talos.sh upgrade w-1`, an `nvidia` RuntimeClass and
-# the device plugin DaemonSet — a deliberate piece of work, not a field here.
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -36,6 +26,7 @@ spec:
       nodeSelector:
         kubernetes.io/hostname: w-1
       terminationGracePeriodSeconds: 1
+      # runtimeClassName: nvidia
       containers:
       - name: jellyfin
         image: mirror.gcr.io/linuxserver/jellyfin:10.11.10@sha256:be2bd22d5e27451ebc14b326d8a6554e1f51c79f4431d6c71522565ed17f06ea
@@ -63,6 +54,7 @@ spec:
           limits:
             cpu: 3000m
             memory: 5Gi
+            # nvidia.com/gpu: 1
       volumes:
       - name: config
         persistentVolumeClaim:

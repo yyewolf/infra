@@ -1,0 +1,61 @@
+# NVIDIA device plugin. It discovers GPUs on the node via NVML and registers
+# them with the kubelet as nvidia.com/gpu allocatable resources.
+#
+# The pod itself runs under runtimeClassName: nvidia. On Talos the NVIDIA driver
+# libraries live in extension-specific paths that no generic volume mount covers,
+# so the device plugin container cannot find libnvidia-ml.so on its own. Running
+# under the nvidia runtime makes nvidia-container-runtime inject the libraries
+# and /dev/nvidia* devices into the container — the same mechanism that delivers
+# the GPU to any workload.
+#
+# The device plugin socket lives at /var/lib/kubelet/device-plugins, the
+# standard path. Talos's containerized kubelet mounts the same directory there.
+#
+# Pinned to w-1, the only node with a GPU and the only node carrying the NVIDIA
+# extensions. The toleration for nvidia.com/gpu:NoSchedule is for the node
+# taint the device plugin itself applies — without it the DaemonSet could not
+# schedule its own pod. The condition that creates the taint only fires once the
+# plugin is running, so this is a boot-time ordering concern, not a deadlock.
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nvidia-device-plugin
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app: nvidia-device-plugin
+  template:
+    metadata:
+      labels:
+        app: nvidia-device-plugin
+    spec:
+      priorityClassName: system-node-critical
+      runtimeClassName: nvidia
+      nodeSelector:
+        yewolf.fr/nvidia: "true"
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+      containers:
+      - name: nvidia-device-plugin
+        image: nvcr.io/nvidia/k8s-device-plugin:v0.17.1
+        args:
+        - --device-discovery-strategy=nvml
+        env:
+        # Without this, nvidia-container-runtime has no signal to inject the
+        # driver libraries. The device plugin can't request nvidia.com/gpu
+        # itself (chicken-and-egg: the GPU isn't registered yet), so 'all'
+        # tells the hook to mount every available GPU's libraries and devices
+        # regardless of resource claims.
+        - name: NVIDIA_VISIBLE_DEVICES
+          value: all
+        volumeMounts:
+        - name: device-plugin
+          mountPath: /var/lib/kubelet/device-plugins
+      volumes:
+      - name: device-plugin
+        hostPath:
+          path: /var/lib/kubelet/device-plugins

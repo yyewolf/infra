@@ -1,0 +1,21 @@
+# NVIDIA GPU runtime class.
+#
+# The containerd runtime handler comes from the
+# siderolabs/nvidia-container-toolkit-production system extension. It registers
+# itself as 'nvidia' — the OCI hook that runs nvidia-container-runtime to inject
+# GPU libraries and device nodes into the container when nvidia.com/gpu is
+# requested.
+#
+# Only w-1 carries the NVIDIA extensions (talos/cluster.yaml), so the selector
+# pins to yewolf.fr/nvidia — the label set by talos/patches/nvidia.yaml. A pod
+# requesting this class on a node without the extension would fail at the kubelet
+# with an unknown runtime handler; the selector prevents that.
+---
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: nvidia
+handler: nvidia
+scheduling:
+  nodeSelector:
+    yewolf.fr/nvidia: "true"

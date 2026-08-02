@@ -1,0 +1,38 @@
+# NVIDIA GPU, for nodes carrying the nonfree-kmod-nvidia-production and
+# nvidia-container-toolkit-production extensions.
+#
+# The container-toolkit extension registers its own containerd runtime handler
+# ('nvidia') and installs the nvidia-container-runtime hook. Unlike gvisor.yaml
+# there is no CRI config to write — the extension ships its own drop-in.
+#
+# The NVIDIA device plugin DaemonSet (from Flux) selects on the label below to
+# decide which nodes to register GPU capacity on. It also runs its own pod under
+# runtimeClassName: nvidia — the container-toolkit injects the NVML libraries
+# and /dev/nvidia* into the container that way, which is the only path that
+# works on Talos because the driver files live in extension paths the device
+# plugin image has no generic mount for.
+#
+# Fabric manager is deliberately not listed. It is only needed for multi-GPU
+# NVLink topologies (NVSwitch-connected cards). A single consumer GPU does not
+# use it, and installing it unnecessarily adds a persistent process.
+machine:
+  kernel:
+    # The nonfree-kmod-nvidia-production extension ships these as loadable
+    # modules. Listing them here loads them at boot so /dev/nvidia* exists
+    # before the device plugin starts. nvidia_drm and nvidia_modeset are for
+    # headless encode/decode — hardware transcoding uses NVENC/NVDEC, which
+    # need the DRM and modeset interfaces.
+    modules:
+    - name: nvidia
+    - name: nvidia_uvm
+    - name: nvidia_drm
+    - name: nvidia_modeset
+
+  sysctls:
+    # nvidia-container-cli loads BPF programs and needs this relaxed from the
+    # KSPP-recommended default of 2. Required by the container toolkit extension
+    # itself, documented in its README.
+    net.core.bpf_jit_harden: "1"
+
+  nodeLabels:
+    yewolf.fr/nvidia: "true"

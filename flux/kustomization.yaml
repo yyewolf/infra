@@ -6,6 +6,7 @@ resources:
 - infrastructure/gvisor/ks.yaml
 - infrastructure/kata/ks.yaml
 - infrastructure/longhorn/ks.yaml
+- infrastructure/nvidia/ks.yaml
 - infrastructure/sysbox/ks.yaml
 - platform/cert-manager/ks.yaml
 - platform/descheduler/ks.yaml

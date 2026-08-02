@@ -748,7 +748,7 @@ cmd_upgrade() {
 
     info "draining $n"
     if kubectl --kubeconfig "$kubeconfig" drain "$n" \
-        --ignore-daemonsets --delete-emptydir-data --timeout=120s; then
+        --ignore-daemonsets --delete-emptydir-data --timeout=5s; then
         info "drained cleanly"
     else
         echo >&2
