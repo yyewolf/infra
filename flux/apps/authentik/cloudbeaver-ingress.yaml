@@ -28,6 +28,29 @@
 # that wrong and the outpost answers every request with its "application not
 # found" page, which looks like a routing bug rather than a configuration one.
 #
+# The backend is `ak-outpost-proxy-tailnet`, a *second* proxy outpost holding
+# only the CloudBeaver provider, and it has to be second because one outpost
+# cannot serve two cookie domains. With the filesystem session backend (the
+# default here — no Redis or Postgres is wired into the outpost), authentik's
+# `getStore` calls `filesystemstore.GetPersistentStore`, which returns a
+# process-global singleton, and then sets `Options.Domain` on it from the
+# provider being loaded. Every provider overwrites the same field, so the last
+# one loaded — providers load alphabetically, so `Provider for Syncthing`,
+# `forward_domain`, `yewolf.fr` — decides the cookie domain for all of them.
+# On the shared outpost CloudBeaver's cookie therefore went out as
+# `Domain=yewolf.fr`, which a browser on cloudbeaver.goby-beaufort.ts.net
+# discards; the OAuth callback then arrived with no session and the outpost
+# answered 400 ("mismatched session ID" with an empty `should`, then "invalid
+# state"). Every other provider is under yewolf.fr, which is why this only
+# ever surfaced here. Do not move CloudBeaver back onto the `Proxy` outpost,
+# and do not add a non-yewolf.fr provider to it either.
+#
+# The new outpost needed no policy changes: authentik's controller labels
+# every proxy outpost pod `app.kubernetes.io/name: authentik-outpost-proxy`
+# regardless of instance (the instance name is `goauthentik.io/outpost-name`),
+# and that is the selector both this namespace's policy and
+# platform/keda/network-policy.yaml already match on.
+#
 # authentik's own Kubernetes outpost controller also maintains an Ingress named
 # ak-outpost-proxy in this namespace, listing every proxy provider's external
 # host. It has no ingressClassName and nothing serves it; this file does not
@@ -52,6 +75,6 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: ak-outpost-proxy
+            name: ak-outpost-proxy-tailnet
             port:
               number: 9000
