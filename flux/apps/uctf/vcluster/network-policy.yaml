@@ -1,0 +1,169 @@
+# vcluster control plane + synced workloads. The uctf-default-deny at the top
+# of this namespace's network-policy.yaml puts every pod under default-deny, so
+# vcluster's own pods need explicit rules or the control plane cannot reach the
+# host API server and the synced workloads cannot resolve DNS.
+#
+# The split is deliberately asymmetric:
+#   - the control plane is pinned tight (host API server, kube-dns, its own
+#     workloads) because it holds the syncer credentials and the vcluster API;
+#   - the synced workloads are permissive, because they are arbitrary
+#     management tooling the operator chose to run inside the vcluster, not a
+#     fixed set with known ports. Whack-a-mole per-pod rules (coredns needing
+#     world-53, then a cert-manager pod needing 8443 to the control plane, then
+#     the next tool) is the signal that the tight model does not fit this zone.
+#     basilic/safran/fenouil stay locked because they hold live credentials
+#     (Stripe, GitHub App keys, tenant kubeconfigs) the vcluster workloads do
+#     not -- those are the operator's own tooling, trusted the way basilic is.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: uctf-vcluster-controlplane
+spec:
+  endpointSelector:
+    matchLabels:
+      app: vcluster
+      release: uctf-mgmt
+  ingress:
+  # The vcluster API server (proxy on 8443). kubectl from the LAN reaches it via
+  # port-forward, which arrives as the host entity; basilic and the synced
+  # workloads reach it in-namespace. The kubelet's /readyz probe is also 8443.
+  - fromEntities:
+    - host
+    - remote-node
+    toPorts:
+    - ports:
+      - port: "8443"
+        protocol: TCP
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: uctf
+    toPorts:
+    - ports:
+      - port: "8443"
+        protocol: TCP
+  # DNS from the synced workloads (the control plane serves 1053).
+  - fromEndpoints:
+    - matchLabels:
+        vcluster.loft.sh/managed-by: uctf-mgmt
+    toPorts:
+    - ports:
+      - port: "1053"
+        protocol: UDP
+      - port: "1053"
+        protocol: TCP
+  egress:
+  # Host API server — the syncer drives every sync (pods, services, gateway
+  # API, cert-manager) through it. host-networked, so this is host/remote-node,
+  # not a toEndpoints rule against the kubernetes Service.
+  - toEntities:
+    - host
+    - remote-node
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP
+      - port: "6443"
+        protocol: TCP
+      - port: "8443"
+        protocol: TCP
+  # kube-dns for the control plane's own resolution.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+  # Synced workloads — the syncer watches and manages them, and port-forwards
+  # and exec/logs proxy through. Unrestricted port because the workloads are
+  # arbitrary management tooling, not a fixed set with known ports.
+  - toEndpoints:
+    - matchLabels:
+        vcluster.loft.sh/managed-by: uctf-mgmt
+---
+# Synced vcluster workloads (every pod vcluster lands in this namespace with
+# `vcluster.loft.sh/managed-by: uctf-mgmt` -- coredns, cert-manager if the
+# cert-manager integration deploys it, and whatever management tooling the
+# operator runs inside the vcluster). Permissive on purpose: this is the
+# management cluster's workload zone, not a fixed app.
+#
+# Egress is three rules:
+#   - anywhere in the uctf namespace, any port: the control plane (8443, which
+#     cert-manager needs to validate certs), peer workloads, and the uctf app
+#     Services (basilic, safran, fenouil) if a management tool calls them
+#     in-cluster instead of via the public hostname;
+#   - host kube-dns on 53, for resolution that does not go through the vcluster
+#     coredns;
+#   - world, any port, except the private ranges. The except is the one
+#     security control kept here, and it is the same one basilic carries: it
+#     stops "a management tool reaches a tenant cluster" from also meaning
+#     "reaches this cluster's API server, the home LAN, or the WireGuard
+#     overlay" (10/8 covers the LAN, pods and WireGuard; 192.168/16 the network
+#     in front of the router; the v6 half the cluster's ULA). Tenant clusters
+#     are on public IPs, so the except does not block them. All ports because a
+#     tenant API server is on whatever port that tenant exposes, often the
+#     NodePort range rather than 443 -- pinning 443 breaks management with a
+#     POLICY_DENIED that looks like nothing in particular.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: uctf-vcluster-workloads
+spec:
+  endpointSelector:
+    matchLabels:
+      vcluster.loft.sh/managed-by: uctf-mgmt
+  ingress:
+  # From the control plane: the syncer, its probes, and port-forward/exec.
+  - fromEndpoints:
+    - matchLabels:
+        app: vcluster
+        release: uctf-mgmt
+  # From peer workloads, including the vcluster coredns pod.
+  - fromEndpoints:
+    - matchLabels:
+        vcluster.loft.sh/managed-by: uctf-mgmt
+  # From anywhere else in uctf (basilic calling a management tool, the kubelet
+  # from a remote control plane, etc.).
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: uctf
+  # Kubelet probes arrive from the local node; Cilium auto-allows host to
+  # local pods, but state it explicitly like the basilic policies do.
+  - fromEntities:
+    - host
+    - remote-node
+    - health
+  egress:
+  # Anywhere in the uctf namespace, any port. This is the rule that lets a
+  # synced cert-manager pod reach the vcluster API on 8443 (the control plane
+  # is a uctf endpoint), and lets any management tool call the uctf app
+  # Services in-cluster. Port-unrestricted because management tooling uses
+  # arbitrary ports.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: uctf
+  # Host kube-dns.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+  # World egress for tenant clusters and external APIs. See the comment above
+  # for the private-range except -- it is the one control kept, and why.
+  - toCIDRSet:
+    - cidr: 0.0.0.0/0
+      except:
+      - 10.0.0.0/8
+      - 172.16.0.0/12
+      - 192.168.0.0/16
+    - cidr: ::/0
+      except:
+      - fdde:c64:7096::/48

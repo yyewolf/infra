@@ -23,6 +23,18 @@ spec:
             effect: NoSchedule
       envoyService:
         type: LoadBalancer
-        externalTrafficPolicy: Local
+        externalTrafficPolicy: Cluster
         annotations:
           io.cilium/lb-ipam-ips: "83.228.250.128,2001:1600:16:10::227"
+          # Lets other LoadBalancer Services share this IP as long as their
+          # ports do not conflict with Envoy's (80, 443 TCP, 443 UDP, 22, 25,
+          # 465, 587, 993, 995, 4190). The uctf management vcluster uses this
+          # for acme-dns (UDP 53) and WireGuard (UDP 51820): Services created
+          # inside the vcluster, annotated with the same sharing-key, sync
+          # toHost into the `uctf` namespace and share the edge IP directly —
+          # bypassing Envoy's non-transparent UDP proxy, which is what makes
+          # WireGuard viable through it (peers see the real client IP, not
+          # Envoy's). The OpenStack security group has to admit each port too
+          # (53 done, 51820 pending).
+          lbipam.cilium.io/sharing-key: "edge-0"
+          lbipam.cilium.io/sharing-cross-namespace: "uctf"

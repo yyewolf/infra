@@ -112,6 +112,21 @@ spec:
     - ports:
       - port: "8080"
         protocol: TCP
+  # The uctf management vcluster (uctf-mgmt). basilic drives tenant clusters
+  # and the management cluster is where it does that from, so it dials the
+  # vcluster API on 8443 (the proxy) via the uctf-mgmt Service. Cilium
+  # translates the ClusterIP to the pod and enforces at the endpoint, so this
+  # is toEndpoints — and the vcluster pod is in this namespace, which the
+  # internet CIDR rule below excepts via 10.0.0.0/8, so without this rule the
+  # connection drops where the safran one does not.
+  - toEndpoints:
+    - matchLabels:
+        app: vcluster
+        release: uctf-mgmt
+    toPorts:
+    - ports:
+      - port: "8443"
+        protocol: TCP
   # basilic calling one of its own public hostnames — uctf.io, or safran on
   # storage.yewolf.fr — rather than the in-cluster Service. The name resolves
   # to the Gateway's LoadBalancer address, and Cilium translates that to the
@@ -196,6 +211,17 @@ spec:
     toPorts:
     - ports:
       - port: "8080"
+        protocol: TCP
+  # The management vcluster, same as the api — see the note there. The worker
+  # is if anything likelier to take it: the background jobs are what reconcile
+  # the tenant clusters, and the management cluster is where that runs.
+  - toEndpoints:
+    - matchLabels:
+        app: vcluster
+        release: uctf-mgmt
+    toPorts:
+    - ports:
+      - port: "8443"
         protocol: TCP
   # The same gateway hairpin as the api — see the note there. The worker is if
   # anything likelier to take it, since the URLs it builds for mail and

@@ -1,0 +1,223 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: uctf-mgmt
+spec:
+  interval: 10m
+  releaseName: uctf-mgmt
+  chart:
+    spec:
+      chart: vcluster
+      version: 0.36.1
+      sourceRef:
+        kind: HelmRepository
+        name: vcluster
+        namespace: uctf
+      interval: 30m
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    # The k8s distro is the only one vcluster 0.36 ships, and `enabled: true`
+    # is what selects it. Leave `version` unset so the control plane image tag
+    # (v1.36.0, the chart default) is used verbatim — setting `version` here
+    # rewrites the tag without its `v` prefix and the pull fails.
+    controlPlane:
+      distro:
+        k8s:
+          enabled: true
+      statefulSet:
+        persistence:
+          volumeClaim:
+            # 3-replica default class. A management cluster's control plane is
+            # the source of truth for everything inside it, so durability
+            # against node loss beats the single-replica `longhorn-yolo` used
+            # for the databases. Three replicas also sidesteps Longhorn's
+            # block-if-contains-last-replica during a `talos.sh upgrade` drain.
+            storageClass: longhorn
+            size: 5Gi
+
+    # Sync. vcluster's own defaults already push services, endpoints,
+    # endpointSlices, pods, configmaps and secrets to the host (so a workload
+    # created inside the management cluster lands as a real pod in this
+    # namespace and is reachable by name). The additions below are the "and
+    # all" half: Gateway API and cert-manager (both reusing the host's
+    # controllers rather than running second copies inside the vcluster), plus
+    # PV/PVC and NetworkPolicy toHost sync and storageClass/RuntimeClass
+    # fromHost import so the management cluster can provision storage and pin
+    # a sandbox the same way a host workload can.
+    sync:
+      toHost:
+        # Gateways and HTTPRoutes declared inside the management cluster sync
+        # down to this namespace, where the host's envoy-gateway controller
+        # (GatewayClass `eg`) realises them. Nothing is created until a
+        # Gateway is actually declared in the vcluster — enabling this is
+        # capability, not action. `referenceGrants` stays at its `auto`
+        # default so grants follow route sync and are validated in-tenant.
+        gatewayApi:
+          enabled: true
+          httpRoutes:
+            enabled: true
+          gateways:
+            enabled: true
+          tlsRoutes:
+            enabled: true
+          backendTLSPolicies:
+            enabled: true
+        # PVCs are on by default (a vcluster workload with a volume needs its
+        # claim to land on the host for the host provisioner to bind), stated
+        # explicitly so a later default flip does not silently change it.
+        persistentVolumeClaims:
+          enabled: true
+        # PVs are off by default. Enabling lets the management cluster own the
+        # full PVC<->PV pair: a statically-provisioned PV declared in the
+        # vcluster syncs to the host and binds a synced claim. Dynamic
+        # provisioning does not need this (the host provisioner creates the PV
+        # from the claim anyway), so this is for volumes the vcluster pins by
+        # hand. The chart only adds persistentvolumes create/delete/patch/
+        # update/watch to its ClusterRole when this is true.
+        persistentVolumes:
+          enabled: true
+        # Standard Kubernetes NetworkPolicies (networking.k8s.io/v1), not
+        # CiliumNetworkPolicies. Cilium implements the K8s NetworkPolicy API,
+        # so one declared in the vcluster and synced here is enforced by Cilium
+        # at the host endpoint -- a second layer on top of the
+        # CiliumNetworkPolicies in network-policy.yaml. Use CiliumNetworkPolicy
+        # for anything Cilium-specific (L7, FQDN, entities); this is the
+        # portable subset a management cluster can carry if it ever moves.
+        networkPolicies:
+          enabled: true
+      fromHost:
+        # Import the host's GatewayClasses (just `eg`) so a Gateway created in
+        # the vcluster can resolve its `gatewayClassName`, AND so the imported
+        # `envoy-gateway` below resolves its class. Read-only at the cluster
+        # scope — see the chart's ClusterRole, which only gets/list/watches
+        # gatewayclasses for this.
+        gatewayClasses:
+          enabled: true
+        # Import the shared `envoy-gateway` from envoy-gateway-system, read-only,
+        # so HTTPRoutes created inside the vcluster can attach to the existing
+        # edge Gateway instead of the vcluster standing up its own. The mapping
+        # lands it in a virtual `envoy-gateway-system` namespace with the same
+        # name, so a route inside the vcluster references it exactly as a host
+        # app would:
+        #   parentRefs: [{name: envoy-gateway, namespace: envoy-gateway-system}]
+        # The route then syncs toHost into the `uctf` namespace, where the host's
+        # envoy-gateway controller realises it -- and the host Gateway's https
+        # listener is `allowedRoutes.namespaces.from: All`, so a route landing
+        # in `uctf` attaches cleanly. The http listener is `from: Same`
+        # (redirect-only), so nothing from the vcluster may attach there; that
+        # is the one listener-level constraint and it is the right one.
+        #
+        # Read-only both ways: imported Gateways and GatewayClasses do not sync
+        # back, and `sanitize.certificateRefs`/`sanitize.infrastructure` (the
+        # chart defaults) strip the cert refs and infrastructure fields so the
+        # vcluster never sees the listener's certificate Secrets or the
+        # EnvoyProxy parametersRef. `status.exposeAddresses` stays false, so the
+        # Gateway's public LB addresses are not mirrored into the vcluster -- a
+        # management tool that needs them reads them from the host context.
+        gateways:
+          enabled: true
+          mappings:
+            byName:
+              envoy-gateway-system/envoy-gateway: envoy-gateway-system/envoy-gateway
+          # The tenant-facing allowedRoutes the imported Gateway shows inside
+          # the vcluster, and that vcluster enforces for routes created there.
+          # The vcluster gateway syncer (`virtualNamespacePolicyFor` in
+          # pkg/controllers/resources/gateways/syncer.go) rewrites every
+          # listener's allowedRoutes from the matched policy — there is no
+          # per-listener granularity, so both http and https show the same
+          # value inside the vcluster. `from: All` lets a route in any virtual
+          # namespace attach without vcluster-side rejection. The override
+          # pins this explicitly to the `envoy-gateway` Gateway (matched by
+          # hostNamespace + Gateway name); the default alone would do the
+          # same, but the override makes the intent unambiguous for this one
+          # imported Gateway. The host Gateway's http listener is `from: Same`
+          # on the host side, so a vcluster route that syncs to the `uctf`
+          # namespace is still rejected by the host's http listener regardless
+          # of what the vcluster display says — the host enforces its own.
+          #
+          # `allowedListeners` is NOT in the vcluster import schema — it is a
+          # host-side field the import mirrors read-only and cannot override.
+          # ListenerSets are imported fromHost only (see customResources
+          # below), so there is no vcluster-side ListenerSet attaching to the
+          # imported gateway that this field would gate.
+          allowedRoutes:
+            defaultVirtualNamespacePolicy:
+              from: All
+            overrides:
+            - hostNamespace: envoy-gateway-system
+              name: envoy-gateway
+              virtualNamespacePolicy:
+                from: All
+        # Host StorageClasses (longhorn, longhorn-ha, longhorn-yolo, longhorn-ci)
+        # so a PVC created in the vcluster can name one. The default is `auto`,
+        # which only turns on with the virtual scheduler -- and the scheduler is
+        # off here (the host schedules the synced pods), so `auto` resolves to
+        # false and the classes would never appear inside the vcluster. `true`
+        # imports them unconditionally. The chart only adds the storageclasses
+        # get/list/watch to its ClusterRole on an explicit `true`.
+        storageClasses:
+          enabled: true
+        # Host RuntimeClasses (kata, gvisor, sysbox-runc, nvidia) so a vcluster
+        # workload can pin a sandbox. The RuntimeClass admission plugin runs on
+        # the host for the synced pod, so the class must exist there -- which it
+        # does -- and importing it here is what lets the vcluster's own
+        # admission accept the name. A kata/gvisor pod then lands on the host
+        # and is scheduled per the class's nodeSelector (control-plane for both).
+        runtimeClasses:
+          enabled: true
+        # Real host nodes. The chart default (`enabled: false`) creates fake
+        # nodes -- only the name is real, capacity/IP/images are randomly
+        # generated -- and only materialises a node once a synced pod actually
+        # lands on it. With one StatefulSet replica that meant a single node
+        # (cp-1) regardless of how many the host has. `enabled: true` swaps in
+        # real node info (capacity, labels, taints, obfuscated node IP by
+        # default), and `selector.all: true` makes every host node appear
+        # instead of only the ones running a vcluster pod. The chart adds a
+        # cluster-scoped nodes get/list/watch to its ClusterRole for this;
+        # syncBackChanges stays false, so the vcluster cannot mutate host node
+        # labels or taints.
+        nodes:
+          enabled: true
+          selector:
+            all: true
+
+    # Reuse the host cert-manager. Certificates and Issuers created in the
+    # vcluster sync to this namespace (realised by the host controller);
+    # ClusterIssuers are imported back read-only so the vcluster can reference
+    # the existing `letsencrypt-*` issuers without a second copy. The chart's
+    # sync.toHost/fromHost defaults under here are already the right shape, so
+    # the single `enabled: true` is enough.
+    integrations:
+      # Proxy the host metrics-server so `kubectl top` works inside the
+      # vcluster. nodes and pods both on: the management cluster needs to see
+      # real usage of the workloads it drives, not just its own control plane.
+      # The chart adds a metrics.k8s.io pods rule to its Role for this and a
+      # nodes rule to its ClusterRole (cluster-scoped read).
+      metricsServer:
+        enabled: true
+        nodes: true
+        pods: true
+
+    # The chart's ResourceQuota and LimitRange are namespace-wide, which in
+    # this shared namespace would cap basilic, safran and fenouil alongside
+    # the management workloads (count/pods: 20, requests.storage: 100Gi, …) —
+    # a shared limit the other three never opted into. The host cluster's own
+    # capacity bounds the vcluster instead.
+    policies:
+      resourceQuota:
+        enabled: false
+      limitRange:
+        enabled: false
+      # The chart's own NetworkPolicy is off by default; uctf-vcluster in
+      # network-policy.yaml replaces it in Cilium terms. The control plane has
+      # to reach the host kube-apiserver, which is host-networked and so needs
+      # host/remote-node entities (the gotcha documented on uctf-basilic-api),
+      # not the chart's port-only egress rule that a standard NetworkPolicy
+      # would not match against reserved:host reliably.
+      networkPolicy:
+        enabled: false

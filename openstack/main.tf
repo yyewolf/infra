@@ -136,7 +136,7 @@ resource "openstack_networking_secgroup_rule_v2" "wireguard_v6" {
   port_range_max    = local.wg_listen_port
   remote_ip_prefix  = "::/0"
   security_group_id = openstack_networking_secgroup_v2.edge.id
-  description       = "WireGuard over IPv6, for when router terminates v6"
+  description       = "WireGuard over IPv6, for when ng/router terminates v6"
 }
 
 resource "openstack_networking_secgroup_rule_v2" "icmp_v4" {
@@ -257,6 +257,57 @@ resource "openstack_networking_secgroup_rule_v2" "ssh_v6" {
   remote_ip_prefix  = "::/0"
   security_group_id = openstack_networking_secgroup_v2.edge.id
   description       = "Envoy Gateway TCP for portfoliosh over IPv6"
+}
+
+# acme-dns — UDP 53 for the DNS-01 challenge server that runs inside the uctf
+# management vcluster. The ListenerSet is in flux/apps/uctf/vcluster; the route
+# forwards to the vcluster's toHost-synced Service. Same edge proxy pod on
+# edge-0 as everything else. Both families because the edge is dual-stack and
+# a v6-only client has no v4 to fall back to.
+resource "openstack_networking_secgroup_rule_v2" "acme_dns_v4" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "udp"
+  port_range_min    = 53
+  port_range_max    = 53
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = openstack_networking_secgroup_v2.edge.id
+  description       = "UDP for acme-dns"
+}
+
+resource "openstack_networking_secgroup_rule_v2" "acme_dns_v6" {
+  direction         = "ingress"
+  ethertype         = "IPv6"
+  protocol          = "udp"
+  port_range_min    = 53
+  port_range_max    = 53
+  remote_ip_prefix  = "::/0"
+  security_group_id = openstack_networking_secgroup_v2.edge.id
+  description       = "UDP for acme-dns over IPv6"
+}
+
+
+
+resource "openstack_networking_secgroup_rule_v2" "wireguard_uctf_v4" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "udp"
+  port_range_min    = 51822
+  port_range_max    = 51822
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = openstack_networking_secgroup_v2.edge.id
+  description       = "UDP for wg"
+}
+
+resource "openstack_networking_secgroup_rule_v2" "wireguard_uctf_v6" {
+  direction         = "ingress"
+  ethertype         = "IPv6"
+  protocol          = "udp"
+  port_range_min    = 51822
+  port_range_max    = 51822
+  remote_ip_prefix  = "::/0"
+  security_group_id = openstack_networking_secgroup_v2.edge.id
+  description       = "UDP for wg over IPv6"
 }
 
 # Stalwart mail server — six ports forwarded by the ListenerSet in
