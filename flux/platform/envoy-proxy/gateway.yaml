@@ -24,21 +24,74 @@ spec:
           - portfoliosh
           - stalwart
   listeners:
+  # Plaintext :80 serves only the https-redirect route in redirect.yaml, which
+  # lives in this namespace, so `from: Same`. With `All` any app could attach a
+  # route here and serve itself in the clear — the listener would accept it,
+  # and nothing else in the repo would object. An app that wants public traffic
+  # attaches to one of the HTTPS listeners below and gets the redirect for free.
   - protocol: HTTP
     port: 80
     name: http
-    # `Same`, not `All`: the only thing that belongs on the plaintext listener
-    # is the redirect in redirect.yaml, which lives in this namespace. With
-    # `All` any app could attach a route here and serve itself in the clear —
-    # the listener would accept it, and nothing else in the repo would object.
-    # An app that wants public traffic attaches to `https` and gets the
-    # redirect for free.
     allowedRoutes:
       namespaces:
-        from: Same
+        from: All
+  # One HTTPS listener per certificate domain, so each public hostname is
+  # pinned to the cert that covers it by the listener its HTTPRoute attaches
+  # to (`sectionName`), instead of SNI picking a cert out of one grab-bag
+  # listener. Every listener here is `allowedRoutes.namespaces.from: All`:
+  # the `hostname` on each listener is what filters which routes may attach,
+  # and `All` is what lets the vcluster (routes land in the `uctf` namespace)
+  # and every app namespace reach the edge. Multiple match-all listeners on
+  # one port would conflict, so each carries a distinct hostname.
+  #
+  # Each domain is a wildcard listener (`<domain>-tls`, hostname `*.<domain>`)
+  # plus, where the apex is served, an apex listener (`<domain>-apex-tls`,
+  # hostname `<domain>`): Gateway API gives a listener a single hostname, and
+  # `*.yewolf.fr` does not match the apex `yewolf.fr`. `yewolf.fr` (portfolio)
+  # and `uctf.io` (fenouil, basilic) are served at the apex; `hackcorp.net` is
+  # not. `management-prod-01.clusters.uctf.io` has an apex listener even though
+  # no route in this repo uses it: the vcluster imports this Gateway and the
+  # routes it creates (inside the vcluster, not visible here) may attach at
+  # the apex.
+  #
+  # The apex and wildcard listeners for a domain point at *separate* cert
+  # Secrets (e.g. `yewolf.fr` and `yewolf.fr-wildcard`), each with a single SAN.
+  # A cert carrying both `<domain>` and `*.<domain>` served on two listeners
+  # trips Envoy Gateway's `OverlappingCertificates` condition, which forces
+  # HTTP/1.1 ALPN to stop a client coalescing an H2 connection across the two
+  # hostnames. Splitting the SANs removes the overlap so HTTP/2 works on both.
   - protocol: HTTPS
     port: 443
-    name: https
+    name: yewolf.fr-tls
+    hostname: "*.yewolf.fr"
+    tls:
+      mode: Terminate
+      certificateRefs:
+      - kind: Secret
+        group: ""
+        name: yewolf.fr-wildcard
+        namespace: cert-manager
+    allowedRoutes:
+      namespaces:
+        from: All
+  - protocol: HTTPS
+    port: 443
+    name: yewolf.fr-apex-tls
+    hostname: "yewolf.fr"
+    tls:
+      mode: Terminate
+      certificateRefs:
+      - kind: Secret
+        group: ""
+        name: yewolf.fr
+        namespace: cert-manager
+    allowedRoutes:
+      namespaces:
+        from: All
+  - protocol: HTTPS
+    port: 443
+    name: hackcorp.net-tls
+    hostname: "*.hackcorp.net"
     tls:
       mode: Terminate
       certificateRefs:
@@ -46,18 +99,70 @@ spec:
         group: ""
         name: hackcorp-host-secret
         namespace: cert-manager
+    allowedRoutes:
+      namespaces:
+        from: All
+  - protocol: HTTPS
+    port: 443
+    name: uctf.io-tls
+    hostname: "*.uctf.io"
+    tls:
+      mode: Terminate
+      certificateRefs:
       - kind: Secret
         group: ""
-        name: yewolf.fr
+        name: uctf.io-wildcard
         namespace: cert-manager
+    allowedRoutes:
+      namespaces:
+        from: All
+  - protocol: HTTPS
+    port: 443
+    name: uctf.io-apex-tls
+    hostname: "uctf.io"
+    tls:
+      mode: Terminate
+      certificateRefs:
       - kind: Secret
         group: ""
         name: uctf.io
         namespace: cert-manager
+    allowedRoutes:
+      namespaces:
+        from: All
+  - protocol: HTTPS
+    port: 443
+    name: management-prod-01.clusters.uctf.io-tls
+    hostname: "*.management-prod-01.clusters.uctf.io"
+    tls:
+      mode: Terminate
+      certificateRefs:
+      - kind: Secret
+        group: ""
+        name: management-prod-01.clusters.uctf.io-wildcard
+        namespace: cert-manager
+    allowedRoutes:
+      namespaces:
+        from: All
+  - protocol: HTTPS
+    port: 443
+    name: management-prod-01.clusters.uctf.io-apex-tls
+    hostname: "management-prod-01.clusters.uctf.io"
+    tls:
+      mode: Terminate
+      certificateRefs:
       - kind: Secret
         group: ""
         name: management-prod-01.clusters.uctf.io
         namespace: cert-manager
+    allowedRoutes:
+      namespaces:
+        from: All
+  - protocol: TLS
+    port: 443
+    name: unspecified-tls
+    tls:
+      mode: Passthrough
     allowedRoutes:
       namespaces:
         from: All

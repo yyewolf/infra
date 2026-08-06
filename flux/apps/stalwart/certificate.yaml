@@ -1,7 +1,7 @@
 # Dedicated certificate for the mail server hostname, issued in the stalwart
 # namespace so the pod can mount the resulting Secret directly. The edge Gateway
 # terminates the *.yewolf.fr wildcard for the WebUI's HTTPS listener (route.yaml
-# → sectionName: https), but the mail protocols (SMTPS, IMAPS, POP3S) are plain
+# → sectionName: yewolf.fr-tls), but the mail protocols (SMTPS, IMAPS, POP3S) are plain
 # TCP passthrough from the edge to stalwart — the pod itself terminates TLS for
 # those, and needs this Secret on its own filesystem.
 apiVersion: cert-manager.io/v1

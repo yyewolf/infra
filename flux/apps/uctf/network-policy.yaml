@@ -56,6 +56,31 @@ spec:
         protocol: UDP
       - port: "53"
         protocol: TCP
+  # The other half of the same mechanism. When a DNS reply arrives after the
+  # querying socket has closed — a resolver race every Node.js service here
+  # produces, fenouil most often — the pod's kernel answers with an ICMP
+  # port-unreachable, and that is egress Cilium evaluates like any other.
+  #
+  # It needs its own rule rather than riding on the one above for two reasons:
+  # the error is addressed to the kube-dns ClusterIP (an ICMP error quotes the
+  # pre-DNAT destination) and a ClusterIP is not an endpoint, so `toEndpoints`
+  # never matches it; and Cilium resolves those two addresses to the
+  # `cidr:10.0.0.0/8` and `cidr:fdde:c64:7096::/48` identities that the
+  # excepts further down this file brought into being, which is why the drop
+  # surfaces against a CIDR identity that looks unrelated to DNS.
+  #
+  # Nothing depends on the error being delivered; the resolver has already
+  # given up on that query. This is here so an ordinary race stops reading as
+  # a policy denial.
+  - toCIDR:
+    - 10.96.0.10/32
+    - fdde:c64:7096:9600::a/128
+    icmps:
+    - fields:
+      - type: DestinationUnreachable
+        family: IPv4
+      - type: DestinationUnreachable
+        family: IPv6
 ---
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy

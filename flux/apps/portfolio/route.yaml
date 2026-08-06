@@ -14,7 +14,7 @@ spec:
   parentRefs:
   - name: envoy-gateway
     namespace: envoy-gateway-system
-    sectionName: https
+    sectionName: yewolf.fr-apex-tls
   hostnames:
   - "yewolf.fr"
   rules:

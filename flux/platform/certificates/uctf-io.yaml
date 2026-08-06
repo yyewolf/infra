@@ -19,7 +19,6 @@ spec:
       - uctf
   dnsNames:
     - 'uctf.io'
-    - '*.uctf.io'
   issuerRef:
     name: infomaniak
     kind: ClusterIssuer

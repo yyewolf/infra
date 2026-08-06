@@ -66,6 +66,22 @@ spec:
         protocol: TCP
       - port: "8443"
         protocol: TCP
+  # The host metrics-server. `integrations.metricsServer` in release.yaml makes
+  # the control plane answer metrics.k8s.io inside the vcluster by proxying to
+  # the host's, so `kubectl top` works there. 10250 is metrics-server's
+  # container port, not the Service's 443 — Cilium enforces after the
+  # translation. The other half of this is an ingress rule in
+  # platform/metrics-server/network-policy.yaml; with only one side the proxy
+  # retries in a tight loop and the drop reads as an unexplained EGRESS DENIED
+  # to kube-system rather than as a broken integration.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        app.kubernetes.io/name: metrics-server
+    toPorts:
+    - ports:
+      - port: "10250"
+        protocol: TCP
   # kube-dns for the control plane's own resolution.
   - toEndpoints:
     - matchLabels:
@@ -173,6 +189,27 @@ spec:
         protocol: UDP
       - port: "53"
         protocol: TCP
+  # Tailscale's portmapper probing its default gateway for a NAT-traversal
+  # helper: NAT-PMP/PCP on 5351 and UPnP's SSDP on 1900. A tsnet node inside
+  # the vcluster (the tenant apiserver bridges) does this every few seconds.
+  # The gateway is the node's own cilium_host address, which carries the `host`
+  # identity — the world rule below cannot cover it, because CIDR rules never
+  # select host or remote-node, and it is inside the 10.0.0.0/8 except besides.
+  #
+  # Nothing on a Talos node answers either port, so this permits packets that
+  # go nowhere. That is the point: the probe then fails as silence, which is
+  # what tailscale expects from a network without UPnP, instead of as a policy
+  # drop several times a minute for every bridge. Endpoint discovery already
+  # works without it — STUN to the DERP servers and the DERP relay itself are
+  # both plain world egress, permitted below.
+  - toEntities:
+    - host
+    toPorts:
+    - ports:
+      - port: "5351"
+        protocol: UDP
+      - port: "1900"
+        protocol: UDP
   # Envoy Gateway: the vcluster calls its own public hostname (e.g. a cert
   # validation callback), which resolves to the LoadBalancer and is translated
   # to the envoy pod. 10443 is the container port after the 443->10443 offset

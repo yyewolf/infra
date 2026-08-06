@@ -30,3 +30,13 @@ spec:
           controllerName: gateway.envoyproxy.io/gatewayclass-controller
         extensionApis:
           enableBackend: true
+          # Enables EnvoyPatchPolicy, the xDS escape hatch used by
+          # platform/envoy-proxy/upgrade-configs.yaml to add the
+          # `tailscale-control-protocol` HTTP Upgrade type Headscale needs.
+          # This is a security-relevant switch: anyone who can create an
+          # EnvoyPatchPolicy in `envoy-gateway-system` can inject arbitrary
+          # Envoy config (clusters, routes, secrets) into the edge proxy. It
+          # is confined to that namespace by the API's same-namespace rule on
+          # `targetRef`, which already holds the edge proxy itself — keep RBAC
+          # on the CRD tight and do not enable `mergeGateways`.
+          enableEnvoyPatchPolicy: true

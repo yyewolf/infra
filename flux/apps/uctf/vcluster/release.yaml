@@ -106,9 +106,11 @@ spec:
         # app would:
         #   parentRefs: [{name: envoy-gateway, namespace: envoy-gateway-system}]
         # The route then syncs toHost into the `uctf` namespace, where the host's
-        # envoy-gateway controller realises it -- and the host Gateway's https
-        # listener is `allowedRoutes.namespaces.from: All`, so a route landing
-        # in `uctf` attaches cleanly. The http listener is `from: Same`
+      # envoy-gateway controller realises it -- and the host Gateway's HTTPS
+      # listeners are each `allowedRoutes.namespaces.from: All` (one per
+      # certificate domain, matched by hostname), so a route landing in `uctf`
+      # attaches cleanly to the listener whose hostname covers it. The http
+      # listener is `from: Same`
         # (redirect-only), so nothing from the vcluster may attach there; that
         # is the one listener-level constraint and it is the right one.
         #

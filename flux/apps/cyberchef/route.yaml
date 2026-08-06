@@ -9,7 +9,10 @@ spec:
   parentRefs:
   - name: envoy-gateway
     namespace: envoy-gateway-system
-    sectionName: https
+    sectionName: hackcorp.net-tls
+  - name: envoy-gateway
+    namespace: envoy-gateway-system
+    sectionName: yewolf.fr-tls
   hostnames:
   - "kebab.hackcorp.net"
   - "kebab.yewolf.fr"

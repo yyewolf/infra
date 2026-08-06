@@ -19,7 +19,6 @@ spec:
       - yewolf
   dnsNames:
     - 'yewolf.fr'
-    - '*.yewolf.fr'
   issuerRef:
     name: infomaniak
     kind: ClusterIssuer

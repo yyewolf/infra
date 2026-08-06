@@ -45,7 +45,7 @@ spec:
       parentRefs:
       - name: envoy-gateway
         namespace: envoy-gateway-system
-        sectionName: https
+        sectionName: uctf.io-apex-tls
       # Ordering against basilic's route is not left to chance: both attach to
       # the same hostname, and the Gateway API resolves overlapping HTTPRoute
       # rules by path specificity before creation timestamp. `/api` is longer

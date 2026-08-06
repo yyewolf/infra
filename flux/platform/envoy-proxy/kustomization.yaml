@@ -8,3 +8,4 @@ resources:
 - gateway.yaml
 - redirect.yaml
 - http3.yaml
+- upgrade-configs.yaml

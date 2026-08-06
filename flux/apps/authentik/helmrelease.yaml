@@ -33,7 +33,7 @@ spec:
           parentRefs:
           - name: envoy-gateway
             namespace: envoy-gateway-system
-            sectionName: https
+            sectionName: yewolf.fr-tls
   valuesFrom:
   # DB credentials pushed by platform/postgres/applications/authentik/eso-pushsecret.yaml.
   - kind: Secret

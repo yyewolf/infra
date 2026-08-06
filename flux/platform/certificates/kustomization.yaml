@@ -9,7 +9,10 @@ resources:
 - webhook/release.yaml
 - webhook/network-policy.yaml
 - yewolf-fr.yaml
+- yewolf-fr-wildcard.yaml
 - hackcorp-net.yaml
 - uctf-io.yaml
+- uctf-io-wildcard.yaml
 - management-prod-01-clusters-uctf-io.yaml
+- management-prod-01-clusters-uctf-io-wildcard.yaml
 - reference-grant.yaml

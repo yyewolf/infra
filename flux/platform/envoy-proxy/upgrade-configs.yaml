@@ -1,0 +1,80 @@
+# Headscale speaks two HTTP/1.1 upgrade protocols through this gateway, and
+# Envoy rejects both with `upgrade_failed` unless the HCM's `upgrade_configs`
+# lists them:
+#
+#   tailscale-control-protocol — the control plane on /ts2021, how a node logs
+#                                in and receives its netmap.
+#   DERP                       — the embedded relay on /derp
+#                                (`derp.server.enabled` in the headscale
+#                                config), how two nodes exchange WireGuard
+#                                packets when neither can reach the other
+#                                directly.
+#
+# The second is easy to miss because the tailnet looks healthy without it:
+# nodes register, appear online, and get addresses, since that is all control
+# protocol. Only actual node-to-node traffic fails, and it fails as a plain
+# timeout at whatever is using the tailnet — a tsnet bridge forwarding to a
+# tenant apiserver just hangs. The signature is a 403/`upgrade_failed` on
+# `/derp` in this proxy's access log, repeating every few seconds as the
+# client retries.
+#
+# Direct connections do not paper over it. A node in this cluster and a node
+# in a tenant cluster generally have no path except the relay: the endpoints
+# each advertises are private addresses in their own network, so the direct
+# probes are dropped (in this cluster, by the private-range excepts in
+# apps/uctf/vcluster/network-policy.yaml, which is a deliberate control and
+# not the thing to loosen when this breaks).
+#
+# Envoy Gateway's generated HCM sets `upgrade_configs` to nothing and relies on
+# Envoy's implicit default — websocket only. Listing the new types alone would
+# re-enable the field and drop websocket, breaking jellyfin/radar/etc., so all
+# three are listed; websocket first to preserve the prior behaviour exactly.
+#
+# The patch targets the merged HTTPS Listener resource. Every TLS listener on
+# :443 (yewolf.fr, hackcorp.net, uctf.io, management-prod-01.clusters.uctf.io
+# and the apexes) collapses into one Envoy Listener named after the first one
+# (`yewolf.fr-tls`), with one filter chain per SNI, each carrying its own HCM.
+# The jsonPath therefore adds `upgrade_configs` to every SNI chain on the
+# listener. That is intentional and harmless: the only effect on non-Headscale
+# hostnames is making the websocket allowance explicit, and permitting an
+# upgrade type no other app uses. It is also the robust choice — a jsonPath
+# narrowed to one filter chain is fragile, and a no-op match fails safe but
+# leaves Headscale broken with the same `upgrade_failed` this exists to fix.
+#
+# The Listener name is derived from the first :443 listener in the Gateway, so
+# reordering the Gateway's HTTPS listeners would rename the resource and
+# silently detach this patch. The QUIC/HTTP3 listener (`*-quic`) is a separate
+# resource and is deliberately not patched: Tailscale's control plane is
+# HTTP/1.1, never HTTP/3.
+#
+# EnvoyPatchPolicy is gated by `extensionApis.enableEnvoyPatchPolicy` in the
+# envoy-gateway HelmRelease and confined to `envoy-gateway-system` by the API's
+# same-namespace rule on `targetRef` — see the comment there for the trade-off.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyPatchPolicy
+metadata:
+  name: tailscale-control-protocol-upgrade
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: Gateway
+    name: envoy-gateway
+  type: JSONPatch
+  priority: 0
+  jsonPatches:
+  - type: type.googleapis.com/envoy.config.listener.v3.Listener
+    name: envoy-gateway-system/envoy-gateway/yewolf.fr-tls
+    operation:
+      op: add
+      # Every HCM in this Listener — one per SNI filter chain. Matches the
+      # pattern from the EG docs (`..virtual_hosts[?match(@.name, '...')]`),
+      # applied to the network filter instead of a route virtual host.
+      jsonPath: "..filters[?match(@.name, 'envoy.filters.network.http_connection_manager')].typed_config"
+      path: upgrade_configs
+      value:
+      - upgrade_type: websocket
+      - upgrade_type: tailscale-control-protocol
+      # Spelled the way the client sends it (tailscale's `derp.UpgradeProto`).
+      # Envoy matches upgrade types case-insensitively, so the casing is for
+      # readers rather than for Envoy.
+      - upgrade_type: DERP

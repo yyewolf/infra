@@ -57,7 +57,7 @@ spec:
   parentRefs:
   - name: envoy-gateway
     namespace: envoy-gateway-system
-    sectionName: https
+    sectionName: yewolf.fr-tls
   hostnames:
   - "jellyfin.yewolf.fr"
   rules:
@@ -85,7 +85,7 @@ spec:
   parentRefs:
   - name: envoy-gateway
     namespace: envoy-gateway-system
-    sectionName: https
+    sectionName: yewolf.fr-tls
   hostnames:
   - "jellyseerr.yewolf.fr"
   rules:
@@ -111,7 +111,7 @@ spec:
   parentRefs:
   - name: envoy-gateway
     namespace: envoy-gateway-system
-    sectionName: https
+    sectionName: yewolf.fr-tls
   hostnames:
   - "sonarr.yewolf.fr"
   rules:
@@ -171,7 +171,7 @@ spec:
   parentRefs:
   - name: envoy-gateway
     namespace: envoy-gateway-system
-    sectionName: https
+    sectionName: yewolf.fr-tls
   hostnames:
   - "radarr.yewolf.fr"
   rules:
@@ -231,7 +231,7 @@ spec:
   parentRefs:
   - name: envoy-gateway
     namespace: envoy-gateway-system
-    sectionName: https
+    sectionName: yewolf.fr-tls
   hostnames:
   - "prowlarr.yewolf.fr"
   rules:
@@ -291,7 +291,7 @@ spec:
   parentRefs:
   - name: envoy-gateway
     namespace: envoy-gateway-system
-    sectionName: https
+    sectionName: yewolf.fr-tls
   hostnames:
   - "bazarr.yewolf.fr"
   rules:
@@ -354,7 +354,7 @@ spec:
   parentRefs:
   - name: envoy-gateway
     namespace: envoy-gateway-system
-    sectionName: https
+    sectionName: yewolf.fr-tls
   hostnames:
   - "flaresolverr.yewolf.fr"
   rules:

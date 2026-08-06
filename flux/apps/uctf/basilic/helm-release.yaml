@@ -97,7 +97,7 @@ spec:
       parentRefs:
       - name: envoy-gateway
         namespace: envoy-gateway-system
-        sectionName: https
+        sectionName: uctf.io-apex-tls
       matches:
       - path:
           type: PathPrefix

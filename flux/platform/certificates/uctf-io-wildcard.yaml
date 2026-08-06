@@ -1,9 +1,9 @@
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: management-prod-01.clusters.uctf.io
+  name: uctf.io-wildcard
 spec:
-  secretName: management-prod-01.clusters.uctf.io
+  secretName: uctf.io-wildcard
   privateKey:
     algorithm: RSA
     encoding: PKCS1
@@ -12,13 +12,13 @@ spec:
   renewBefore: 360h # 15d
   isCA: false
   usages:
-  - server auth
-  - client auth
+    - server auth
+    - client auth
   subject:
     organizations:
-    - uctf
+      - uctf
   dnsNames:
-  - 'management-prod-01.clusters.uctf.io'
+    - '*.uctf.io'
   issuerRef:
     name: infomaniak
     kind: ClusterIssuer

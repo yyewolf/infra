@@ -30,6 +30,23 @@ spec:
     - ports:
       - port: "10250"
         protocol: TCP
+  # The uctf-mgmt vcluster's metrics proxy (`integrations.metricsServer` in
+  # apps/uctf/vcluster/release.yaml), which serves metrics.k8s.io inside the
+  # vcluster by calling this pod. It is an ordinary pod in the `uctf`
+  # namespace rather than an aggregation layer request, so none of the three
+  # entities above match it and it needs saying separately. Scoped to the
+  # control plane's own labels, not the namespace: basilic and the synced
+  # workloads share that namespace and have no business reading cluster
+  # metrics.
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: uctf
+        app: vcluster
+        release: uctf-mgmt
+    toPorts:
+    - ports:
+      - port: "10250"
+        protocol: TCP
   egress:
   # Scraping the kubelet's summary API. Same port number as the ingress rule
   # above and that is a coincidence: 10250 there is metrics-server's own
