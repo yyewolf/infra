@@ -83,6 +83,16 @@ spec:
   - toEndpoints:
     - matchLabels:
         vcluster.loft.sh/managed-by: uctf-mgmt
+  # Envoy Gateway: the control plane validates its hostname (e.g. a cert
+  # validation callback) which resolves to the LoadBalancer and is translated
+  # to the envoy pod. 10443 is the container port after the 443->10443 offset.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: envoy-gateway-system
+    toPorts:
+    - ports:
+      - port: "10443"
+        protocol: TCP
 ---
 # Synced vcluster workloads (every pod vcluster lands in this namespace with
 # `vcluster.loft.sh/managed-by: uctf-mgmt` -- coredns, cert-manager if the
@@ -121,6 +131,13 @@ spec:
     - matchLabels:
         app: vcluster
         release: uctf-mgmt
+  # From the Envoy Gateway: cert-manager ACME HTTP-01 challenges reach pods
+  # inside the vcluster through the gateway (the uctf-public hostname resolves
+  # to the LoadBalancer, and Cilium translates that to the envoy proxy pod).
+  # Sent to port 8080 (the container port after Service translation).
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: envoy-gateway-system
   # From peer workloads, including the vcluster coredns pod.
   - fromEndpoints:
     - matchLabels:
@@ -155,6 +172,17 @@ spec:
       - port: "53"
         protocol: UDP
       - port: "53"
+        protocol: TCP
+  # Envoy Gateway: the vcluster calls its own public hostname (e.g. a cert
+  # validation callback), which resolves to the LoadBalancer and is translated
+  # to the envoy pod. 10443 is the container port after the 443->10443 offset
+  # that the proxy uses to run unprivileged.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: envoy-gateway-system
+    toPorts:
+    - ports:
+      - port: "10443"
         protocol: TCP
   # World egress for tenant clusters and external APIs. See the comment above
   # for the private-range except -- it is the one control kept, and why.
