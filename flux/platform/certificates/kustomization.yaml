@@ -11,4 +11,5 @@ resources:
 - yewolf-fr.yaml
 - hackcorp-net.yaml
 - uctf-io.yaml
+- management-prod-01-clusters-uctf-io.yaml
 - reference-grant.yaml

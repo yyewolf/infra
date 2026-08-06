@@ -54,6 +54,10 @@ spec:
         group: ""
         name: uctf.io
         namespace: cert-manager
+      - kind: Secret
+        group: ""
+        name: management-prod-01.clusters.uctf.io
+        namespace: cert-manager
     allowedRoutes:
       namespaces:
         from: All
