@@ -157,13 +157,17 @@ spec:
         - { name: config, mountPath: /config }
         - { name: media, mountPath: /media }
         - { name: shm, mountPath: /dev/shm }
+        # Frigate's authenticated web UI lives on 8971 and returns 400 to
+        # unauthenticated probes. The internal API on 5000 is unauthenticated
+        # (firewalled off — it is not exposed on the Service) and is what
+        # Frigate's own Docker healthcheck polls.
         livenessProbe:
-          httpGet: { path: /api, port: 8971 }
+          httpGet: { path: /api/stats, port: 5000 }
           initialDelaySeconds: 60
           periodSeconds: 30
           failureThreshold: 5
         readinessProbe:
-          httpGet: { path: /api, port: 8971 }
+          httpGet: { path: /api/stats, port: 5000 }
           initialDelaySeconds: 15
           periodSeconds: 10
         resources:
