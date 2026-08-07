@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: stirlingpdf
-        image: ghcr.io/stirling-tools/stirling-pdf:2.14.2-ultra-lite@sha256:a88bff3c0730e9e81bf6412b7ee0fabf34a47cb868a542814e88e995bda93511
+        image: ghcr.io/stirling-tools/stirling-pdf:2.14.3-ultra-lite@sha256:8eb382b98aad9b69180c8f7398a06f189e4b5c3128ac3c204b4517de708df325
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
