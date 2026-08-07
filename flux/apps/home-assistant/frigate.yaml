@@ -97,9 +97,9 @@ data:
           improve_contrast: true
         review:
           alerts:
-            required_zones: porte
+            required_zones: []
           detections:
-            required_zones: porte
+            required_zones: []
     version: 0.17-0
 ---
 apiVersion: apps/v1
