@@ -102,19 +102,14 @@ spec:
       initContainers:
       - name: init-config
         image: mirror.gcr.io/busybox:1.37@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0
-        # Copy the template into place on first boot only. If config.yml
-        # already exists (a previous boot, or a UI edit) this is a no-op, so a
-        # pod restart never reverts a config change made through the UI.
+        # Always reseed config.yml from the template on every boot, so the
+        # config in git is the source of truth and template edits propagate on
+        # the next pod restart. The tradeoff is that edits made through the
+        # Frigate UI are overwritten — keep the config in git.
         command:
         - sh
         - -c
-        - |
-          if [ ! -f /config/config.yml ]; then
-            cp /template/config.yml /config/config.yml
-            echo "Seeded /config/config.yml from template"
-          else
-            echo "/config/config.yml already exists, leaving it in place"
-          fi
+        - "cp /template/config.yml /config/config.yml && echo 'Seeded /config/config.yml from template'"
         volumeMounts:
         - { name: config, mountPath: /config }
         - { name: template, mountPath: /template, readOnly: true }
