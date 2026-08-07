@@ -36,8 +36,8 @@ data:
     # this template on first boot, so UI edits survive pod restarts.
     mqtt:
       host: mosquitto
-      user: "{FRIGATE_MQTT_USER}"
-      password: "{FRIGATE_MQTT_PASSWORD}"
+      user: '{FRIGATE_MQTT_USER}'
+      password: '{FRIGATE_MQTT_PASSWORD}'
 
     # CPU detector — the default. No hwaccel_args, no detector type override.
     detectors:
@@ -46,13 +46,16 @@ data:
 
     record:
       enabled: true
-      retain:
-        days: 7
-      events:
+      alerts:
         retain:
-          default: 10
-          mode: motion
-
+          days: 10
+      detections:
+        retain:
+          days: 10
+      continuous:
+        days: 7
+      motion:
+        days: 7
     snapshots:
       enabled: true
       retain:
@@ -73,12 +76,31 @@ data:
           enabled: true
         ffmpeg:
           inputs:
-          - path: "rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@192.168.1.22:554/stream1"
-            roles:
-            - detect
-          - path: "rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@192.168.1.22:554/stream2"
-            roles:
-            - record
+            - path: 
+                rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@192.168.1.22:554/stream1
+              roles:
+                - detect
+            - path: 
+                rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@192.168.1.22:554/stream2
+              roles:
+                - record
+        zones:
+          porte:
+            coordinates: 
+              0.436,0.003,0.463,0.003,0.48,0.005,0.518,0.027,0.55,0.044,0.571,0.058,0.568,0.435,0.568,0.765,0.463,0.814,0.465,0.443,0.431,0.434
+            loitering_time: 0
+            friendly_name: Porte
+        motion:
+          mask: 0.435,0.003,0.431,0.887,0.598,0.768,0.582,0.038
+          threshold: 60
+          contour_area: 21
+          improve_contrast: true
+        review:
+          alerts:
+            required_zones: porte
+          detections:
+            required_zones: porte
+    version: 0.17-0
 ---
 apiVersion: apps/v1
 kind: StatefulSet
