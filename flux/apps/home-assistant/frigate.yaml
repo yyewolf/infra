@@ -73,10 +73,10 @@ data:
           enabled: true
         ffmpeg:
           inputs:
-          - path: "rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@192.168.1.100:554/Streaming/Channels/102"
+          - path: "rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@192.168.1.22:554/Streaming/Channels/102"
             roles:
             - detect
-          - path: "rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@192.168.1.100:554/Streaming/Channels/101"
+          - path: "rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@192.168.1.22:554/Streaming/Channels/101"
             roles:
             - record
 ---
@@ -84,15 +84,15 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: frigate
-  labels: {app: frigate}
+  labels: { app: frigate }
 spec:
   serviceName: frigate
   replicas: 1
   selector:
-    matchLabels: {app: frigate}
+    matchLabels: { app: frigate }
   template:
     metadata:
-      labels: {app: frigate}
+      labels: { app: frigate }
     spec:
       # Pinned to w-1 like the rest of the HA stack: the cameras are on the home
       # LAN reachable from that node, and both PVCs are big-pool (w-1-only).
@@ -116,61 +116,60 @@ spec:
             echo "/config/config.yml already exists, leaving it in place"
           fi
         volumeMounts:
-        - {name: config, mountPath: /config}
-        - {name: template, mountPath: /template, readOnly: true}
+        - { name: config, mountPath: /config }
+        - { name: template, mountPath: /template, readOnly: true }
       containers:
       - name: frigate
         image: ghcr.io/blakeblackshear/frigate:0.17.2@sha256:d4351369984d4a9e2a49ac59736f6490856a7ea11f7790040746d21496967010
-        # The official Frigate image runs as root. This namespace is PSA
-        # privileged, so it is admissible, and the frigate process writes to
-        # /config and /media which are fsGroup-owned — runAsNonRoot would need
-        # the image to honor a non-root uid, which it does not reliably. Left
-        # as the image default (root) rather than fighting it, the same trade
-        # home-assistant and zigbee2mqtt make for device access. Frigate needs
-        # no privileged: true and none is granted.
+        # The official Frigate image runs as root and its s6-overlay needs
+        # CAP_CHOWN, CAP_SETUID and CAP_SETGID to set up its log/runtime dirs.
+        # This namespace is PSA privileged, so it is admissible. Rather than
+        # chipping caps one at a time, grant privileged: true — the same trade
+        # home-assistant and zigbee2mqtt make for device access, and the
+        # namespace is already excluded from require-kata-for-privileged for
+        # exactly those two. Frigate needs no host devices; the privilege is
+        # only for the container's own init, not for the host.
         securityContext:
-          allowPrivilegeEscalation: false
-          capabilities: {drop: [ALL]}
-          seccompProfile: {type: RuntimeDefault}
+          privileged: true
         env:
-        - {name: TZ, value: "Europe/Paris"}
+        - { name: TZ, value: "Europe/Paris" }
         # MQTT credentials — resolved by Frigate's {FRIGATE_*} substitution.
         - name: FRIGATE_MQTT_USER
           value: "frigate"
         - name: FRIGATE_MQTT_PASSWORD
           valueFrom:
-            secretKeyRef: {name: frigate-secret, key: mqtt-password}
+            secretKeyRef: { name: frigate-secret, key: mqtt-password }
         # RTSP credentials — shared camera account.
         - name: FRIGATE_RTSP_USER
           valueFrom:
-            secretKeyRef: {name: frigate-secret, key: rtsp-user}
+            secretKeyRef: { name: frigate-secret, key: rtsp-user }
         - name: FRIGATE_RTSP_PASSWORD
           valueFrom:
-            secretKeyRef: {name: frigate-secret, key: rtsp-password}
+            secretKeyRef: { name: frigate-secret, key: rtsp-password }
         ports:
-        - {containerPort: 8971, name: http}
-        - {containerPort: 8554, name: rtsp}
-        - {containerPort: 1935, name: rtmp}
+        - { containerPort: 8971, name: http }
+        - { containerPort: 8554, name: rtsp }
+        - { containerPort: 1935, name: rtmp }
         # Frigate runs ffmpeg and the detector in shared memory; the default
         # 64Mi /dev/shm is too small and detection fails with shm errors. This
         # is a pod-level field, no privilege required.
         volumeMounts:
-        - {name: config, mountPath: /config}
-        - {name: media, mountPath: /media}
-        - {name: shm, mountPath: /dev/shm}
+        - { name: config, mountPath: /config }
+        - { name: media, mountPath: /media }
+        - { name: shm, mountPath: /dev/shm }
         livenessProbe:
-          httpGet: {path: /api, port: 8971}
+          httpGet: { path: /api, port: 8971 }
           initialDelaySeconds: 60
           periodSeconds: 30
           failureThreshold: 5
         readinessProbe:
-          httpGet: {path: /api, port: 8971}
+          httpGet: { path: /api, port: 8971 }
           initialDelaySeconds: 15
           periodSeconds: 10
         resources:
           # CPU-only decode is the constraint. Tune up with camera count.
-          requests: {memory: "512Mi", cpu: "500m"}
-          limits: {memory: "2Gi", cpu: "2"}
+          requests: { memory: "512Mi", cpu: "500m" }
+          limits: { memory: "2Gi", cpu: "2" }
       volumes:
       - name: config
         persistentVolumeClaim:
@@ -191,7 +190,7 @@ kind: Service
 metadata:
   name: frigate
 spec:
-  selector: {app: frigate}
+  selector: { app: frigate }
   ports:
-  - {name: http, port: 8971, targetPort: 8971, protocol: TCP}
-  - {name: rtsp, port: 8554, targetPort: 8554, protocol: TCP}
+  - { name: http, port: 8971, targetPort: 8971, protocol: TCP }
+  - { name: rtsp, port: 8554, targetPort: 8554, protocol: TCP }
