@@ -92,8 +92,7 @@ data:
             loitering_time: 0
             friendly_name: Porte
         motion:
-          mask: 0.435,0.003,0.431,0.887,0.598,0.768,0.582,0.038
-          threshold: 60
+          threshold: 35
           contour_area: 21
           improve_contrast: true
         review:
