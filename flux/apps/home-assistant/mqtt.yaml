@@ -30,6 +30,9 @@ data:
     topic readwrite homeassistant/cover/#
     topic readwrite homeassistant/binary_sensor/#
     topic readwrite homeassistant/button/#
+
+    user frigate
+    topic readwrite frigate/#
 ---
 apiVersion: apps/v1
 kind: StatefulSet

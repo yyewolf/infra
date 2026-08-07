@@ -29,10 +29,19 @@ spec:
     matchLabels:
       app: mqtt
   ingress:
-  # zigbee2mqtt publishing device state. The only in-cluster pod client.
+  # zigbee2mqtt publishing device state. The only in-cluster pod client that
+  # publishes device topics.
   - fromEndpoints:
     - matchLabels:
         app: zigbee2mqtt
+    toPorts:
+    - ports:
+      - port: "1883"
+        protocol: TCP
+  # Frigate publishing camera/discovery state to its own topic tree.
+  - fromEndpoints:
+    - matchLabels:
+        app: frigate
     toPorts:
     - ports:
       - port: "1883"
@@ -241,3 +250,61 @@ spec:
   # No egress beyond DNS. It used to reach a snapcast server on 192.168.1.95 for
   # audio sync; snapcast is gone and that rule went with it, so serving the page
   # is all this pod does now.
+
+# -------------------------------------------------------------------- frigate
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: frigate
+spec:
+  endpointSelector:
+    matchLabels:
+      app: frigate
+  ingress:
+  # The UI is tailnet-only: ingress.yaml gives it an `ingressClassName:
+  # tailscale` Ingress and no public HTTPRoute, so the operator's proxy pod is
+  # the only thing that should reach it. Same shape as zigbee2mqtt.
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: tailscale
+    toPorts:
+    - ports:
+      - port: "8971"
+        protocol: TCP
+  # kubelet probes.
+  - fromEntities:
+    - host
+    - remote-node
+    - health
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+  # Publishing camera state and discovery to Mosquitto.
+  - toEndpoints:
+    - matchLabels:
+        app: mqtt
+    toPorts:
+    - ports:
+      - port: "1883"
+        protocol: TCP
+  # RTSP to cameras on the home LAN. `toCIDRSet` rather than `toEntities: world`
+  # — world would include the tailnet and the public internet, and a camera
+  # feed is neither. Both ranges: the home LAN is 192.168.0.0/24 and the cluster
+  # node network is 10.200.0.0/24 (inside 10.0.0.0/8). Tighten to exact camera
+  # IPs once the camera list is final.
+  - toCIDRSet:
+    - cidr: 192.168.0.0/16
+    - cidr: 10.0.0.0/8
+    toPorts:
+    - ports:
+      - port: "554"
+        protocol: TCP

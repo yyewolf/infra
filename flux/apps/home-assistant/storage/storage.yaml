@@ -61,3 +61,44 @@ spec:
   resources:
     requests:
       storage: 15Gi
+---
+# Frigate's config directory — config.yml, the SQLite DB and the cached model
+# weights. Small and rarely written, so it shares the home-assistant-backup
+# recurring job with the rest of the stack. Like the three above it is a static
+# claim referenced by name rather than a volumeClaimTemplate, matching every
+# other workload in this namespace.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: frigate-config
+  labels:
+    recurring-job-group.longhorn.io/home-assistant-backup: enabled
+spec:
+  accessModes: [ ReadWriteOnce ]
+  storageClassName: big-pool
+  resources:
+    requests:
+      storage: 10Gi
+---
+# Frigate's recording store. This is the bulk of Frigate's footprint: every
+# retained event segment and continuous recording lands here. Sized to start;
+# big-pool is allowVolumeExpansion so it grows later without recreating the PV.
+# Also on the home-assistant-backup recurring job.
+#
+# One volume per role (config vs media) rather than a single claim with two
+# paths, so the two are sized independently and a media pruning never touches
+# the config DB. Both are RWO on big-pool, which is w-1-only — Frigate is
+# pinned to w-1 for the same reason the rest of the HA stack is (the cameras
+# are on the home LAN reachable from that node, and big-pool lives there).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: frigate-media
+  labels:
+    recurring-job-group.longhorn.io/home-assistant-backup: enabled
+spec:
+  accessModes: [ ReadWriteOnce ]
+  storageClassName: big-pool
+  resources:
+    requests:
+      storage: 100Gi

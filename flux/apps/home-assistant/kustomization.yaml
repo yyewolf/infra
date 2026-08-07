@@ -10,6 +10,8 @@ resources:
 - router-wol-secret-sops.yaml
 - mqtt.yaml
 - mqtt-passwords-sops.yaml
+- frigate.yaml
+- frigate-secret-sops.yaml
 - smart-clock.yaml
 - route.yaml
 - ingress.yaml

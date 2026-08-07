@@ -1,0 +1,197 @@
+# Frigate NVR — CPU-only decode and detection, wired to the existing Mosquitto
+# broker in this namespace and reachable only over the tailnet.
+#
+# No GPU. w-1 carries an NVIDIA GPU with a working RuntimeClass + device plugin
+# (flux/infrastructure/nvidia), but this workload was deliberately kept
+# CPU-only: no runtimeClassName, no nvidia.com/gpu request, and no toleration
+# for the nvidia.com/gpu:NoSchedule taint the device plugin applies. ffmpeg
+# decode and the object detector both run on the CPU, so this is viable for a
+# small number of cameras on sub-streams and will saturate w-1 if pointed at
+# many high-resolution main streams. Adding the GPU back is a runtimeClassName
+# + resource request + toleration, not a rewrite.
+#
+# Config lives on the frigate-config PVC, not in a ConfigMap mounted read-only:
+# Frigate rewrites config.yml from its own UI editor and persists DB/model
+# state beside it. A ConfigMap would be overwritten on every reconcile. Instead
+# the ConfigMap below is a *template* mounted via subPath to a separate path
+# (/config/config.yml.template) and an init container copies it to
+# /config/config.yml on first boot only — so the credentials are resolved
+# from env vars (Frigate's native {FRIGATE_*} substitution) without clobbering
+# a config a user has since edited in the UI. The init container is idempotent:
+# it skips the copy when /config/config.yml already exists.
+#
+# Credentials never land in git. The RTSP password and the MQTT password are
+# injected from the frigate-secret SOPS Secret as FRIGATE_RTSP_PASSWORD and
+# FRIGATE_MQTT_PASSWORD, and the config template references them with
+# {FRIGATE_*} placeholders that Frigate substitutes at load time.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frigate-config-template
+data:
+  config.yml: |
+    # Rendered from env vars by Frigate's native {FRIGATE_*} substitution.
+    # Edit cameras here or in the Frigate UI — the init container only copies
+    # this template on first boot, so UI edits survive pod restarts.
+    mqtt:
+      host: mosquitto
+      user: "{FRIGATE_MQTT_USER}"
+      password: "{FRIGATE_MQTT_PASSWORD}"
+
+    # CPU detector — the default. No hwaccel_args, no detector type override.
+    detectors:
+      cpu:
+        type: cpu
+
+    record:
+      enabled: true
+      retain:
+        days: 7
+      events:
+        retain:
+          default: 10
+          mode: motion
+
+    snapshots:
+      enabled: true
+      retain:
+        default: 10
+
+    # One example camera. Add more by copying this block. The RTSP password is
+    # shared across cameras via FRIGATE_RTSP_PASSWORD; give each camera a
+    # unique key and point its input at the camera's sub-stream for detect and
+    # its main stream for record.
+    cameras:
+      front_door:
+        enabled: true
+        detect:
+          width: 1280
+          height: 720
+          fps: 5
+        record:
+          enabled: true
+        ffmpeg:
+          inputs:
+          - path: "rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@192.168.1.100:554/Streaming/Channels/102"
+            roles:
+            - detect
+          - path: "rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@192.168.1.100:554/Streaming/Channels/101"
+            roles:
+            - record
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: frigate
+  labels: {app: frigate}
+spec:
+  serviceName: frigate
+  replicas: 1
+  selector:
+    matchLabels: {app: frigate}
+  template:
+    metadata:
+      labels: {app: frigate}
+    spec:
+      # Pinned to w-1 like the rest of the HA stack: the cameras are on the home
+      # LAN reachable from that node, and both PVCs are big-pool (w-1-only).
+      nodeSelector:
+        kubernetes.io/hostname: w-1
+      terminationGracePeriodSeconds: 30
+      initContainers:
+      - name: init-config
+        image: mirror.gcr.io/busybox:1.37@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0
+        # Copy the template into place on first boot only. If config.yml
+        # already exists (a previous boot, or a UI edit) this is a no-op, so a
+        # pod restart never reverts a config change made through the UI.
+        command:
+        - sh
+        - -c
+        - |
+          if [ ! -f /config/config.yml ]; then
+            cp /template/config.yml /config/config.yml
+            echo "Seeded /config/config.yml from template"
+          else
+            echo "/config/config.yml already exists, leaving it in place"
+          fi
+        volumeMounts:
+        - {name: config, mountPath: /config}
+        - {name: template, mountPath: /template, readOnly: true}
+      containers:
+      - name: frigate
+        image: ghcr.io/blakeblackshear/frigate:0.17.2@sha256:d4351369984d4a9e2a49ac59736f6490856a7ea11f7790040746d21496967010
+        # The official Frigate image runs as root. This namespace is PSA
+        # privileged, so it is admissible, and the frigate process writes to
+        # /config and /media which are fsGroup-owned — runAsNonRoot would need
+        # the image to honor a non-root uid, which it does not reliably. Left
+        # as the image default (root) rather than fighting it, the same trade
+        # home-assistant and zigbee2mqtt make for device access. Frigate needs
+        # no privileged: true and none is granted.
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities: {drop: [ALL]}
+          seccompProfile: {type: RuntimeDefault}
+        env:
+        - {name: TZ, value: "Europe/Paris"}
+        # MQTT credentials — resolved by Frigate's {FRIGATE_*} substitution.
+        - name: FRIGATE_MQTT_USER
+          value: "frigate"
+        - name: FRIGATE_MQTT_PASSWORD
+          valueFrom:
+            secretKeyRef: {name: frigate-secret, key: mqtt-password}
+        # RTSP credentials — shared camera account.
+        - name: FRIGATE_RTSP_USER
+          valueFrom:
+            secretKeyRef: {name: frigate-secret, key: rtsp-user}
+        - name: FRIGATE_RTSP_PASSWORD
+          valueFrom:
+            secretKeyRef: {name: frigate-secret, key: rtsp-password}
+        ports:
+        - {containerPort: 8971, name: http}
+        - {containerPort: 8554, name: rtsp}
+        - {containerPort: 1935, name: rtmp}
+        # Frigate runs ffmpeg and the detector in shared memory; the default
+        # 64Mi /dev/shm is too small and detection fails with shm errors. This
+        # is a pod-level field, no privilege required.
+        volumeMounts:
+        - {name: config, mountPath: /config}
+        - {name: media, mountPath: /media}
+        - {name: shm, mountPath: /dev/shm}
+        livenessProbe:
+          httpGet: {path: /api, port: 8971}
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          failureThreshold: 5
+        readinessProbe:
+          httpGet: {path: /api, port: 8971}
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        resources:
+          # CPU-only decode is the constraint. Tune up with camera count.
+          requests: {memory: "512Mi", cpu: "500m"}
+          limits: {memory: "2Gi", cpu: "2"}
+      volumes:
+      - name: config
+        persistentVolumeClaim:
+          claimName: frigate-config
+      - name: media
+        persistentVolumeClaim:
+          claimName: frigate-media
+      - name: template
+        configMap:
+          name: frigate-config-template
+      - name: shm
+        emptyDir:
+          medium: Memory
+          sizeLimit: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frigate
+spec:
+  selector: {app: frigate}
+  ports:
+  - {name: http, port: 8971, targetPort: 8971, protocol: TCP}
+  - {name: rtsp, port: 8554, targetPort: 8554, protocol: TCP}

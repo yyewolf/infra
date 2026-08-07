@@ -1,8 +1,8 @@
-# Tailnet entries for the two admin UIs in this namespace. Home Assistant
-# itself is public over the gateway (route.yaml); these two are not, and on the
-# root cluster they were only reachable as sub-paths of the `dashboard` Caddy
-# router. ng's dashboard links out instead of proxying, so each needs a device
-# of its own.
+# Tailnet entries for the admin UIs in this namespace. Home Assistant itself
+# is public over the gateway (route.yaml); the rest are not, and on the root
+# cluster they were only reachable as sub-paths of the `dashboard` Caddy router.
+# ng's dashboard links out instead of proxying, so each needs a device of its
+# own.
 #
 # A Tailscale Ingress takes its hostname from `tls.hosts`, not from a rule host
 # — there is no rule host below for that reason.
@@ -51,3 +51,28 @@ spec:
             name: zigbee2mqtt
             port:
               number: 8080
+---
+# Frigate's UI. Tailnet-only like zigbee2mqtt and esphome — the tailnet is the
+# access control, same posture as the rest of the admin surfaces here. The
+# device name `frigate` is not currently taken on the tailnet (the nine-device
+# list in AGENTS.md has none named frigate), so no `-1` suffix collision is
+# expected; confirm in the Tailscale admin console before relying on it.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: frigate
+spec:
+  ingressClassName: tailscale
+  tls:
+  - hosts:
+    - frigate
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frigate
+            port:
+              number: 8971
