@@ -142,7 +142,8 @@ spec:
           valueFrom:
             secretKeyRef: { name: frigate-secret, key: rtsp-password }
         ports:
-        - { containerPort: 8971, name: http }
+        - { containerPort: 5000, name: http }
+        - { containerPort: 8971, name: https }
         - { containerPort: 8554, name: rtsp }
         - { containerPort: 1935, name: rtmp }
         # Frigate runs ffmpeg and the detector in shared memory; the default
@@ -152,10 +153,11 @@ spec:
         - { name: config, mountPath: /config }
         - { name: media, mountPath: /media }
         - { name: shm, mountPath: /dev/shm }
-        # Frigate's authenticated web UI lives on 8971 and returns 400 to
-        # unauthenticated probes. The internal API on 5000 is unauthenticated
-        # (firewalled off — it is not exposed on the Service) and is what
-        # Frigate's own Docker healthcheck polls.
+        # Frigate serves two web ports: 8971 is the authenticated HTTPS UI
+        # (returns 400 to plain HTTP), 5000 is the unauthenticated internal
+        # HTTP API that also serves the full UI. The Tailscale proxy and the
+        # kubelet probes both use 5000 — the former because it terminates TLS
+        # itself and sends plain HTTP, the latter because probes can't auth.
         livenessProbe:
           httpGet: { path: /api/stats, port: 5000 }
           initialDelaySeconds: 60
@@ -191,5 +193,5 @@ metadata:
 spec:
   selector: { app: frigate }
   ports:
-  - { name: http, port: 8971, targetPort: 8971, protocol: TCP }
+  - { name: http, port: 5000, targetPort: 5000, protocol: TCP }
   - { name: rtsp, port: 8554, targetPort: 8554, protocol: TCP }

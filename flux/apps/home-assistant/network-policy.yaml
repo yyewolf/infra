@@ -270,7 +270,7 @@ spec:
         io.kubernetes.pod.namespace: tailscale
     toPorts:
     - ports:
-      - port: "8971"
+      - port: "5000"
         protocol: TCP
   # kubelet probes.
   - fromEntities:

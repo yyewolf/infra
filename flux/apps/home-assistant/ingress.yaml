@@ -75,4 +75,4 @@ spec:
           service:
             name: frigate
             port:
-              number: 8971
+              number: 5000
