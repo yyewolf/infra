@@ -19,7 +19,7 @@ spec:
         containers:
           main:
             image:
-              tag: v3.0.2
+              tag: v3.1.0
             env:
               REDIS_HOSTNAME: redis.album.svc
               REDIS_PORT: "6379"
@@ -33,18 +33,11 @@ spec:
     machine-learning:
       persistence:
         cache:
-          enabled: false
-      controllers:
-        main:
-          containers:
-            main:
-              volumeMounts:
-                - name: ml-cache
-                  mountPath: /cache
-      volumes:
-        - name: ml-cache
-          persistentVolumeClaim:
-            claimName: immich-ml-cache
+          enabled: true
+          type: persistentVolumeClaim
+          size: 10Gi
+          accessMode: ReadWriteOnce
+          storageClass: longhorn-yolo
   valuesFrom:
   - kind: Secret
     name: immich-db
