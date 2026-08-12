@@ -32,7 +32,7 @@ spec:
         # move below is a plain dump/restore, so the schema on both ends has to
         # be the one this exact build migrates to. Upgrade after the move has
         # landed, not as part of it.
-        image: ghcr.io/umami-software/umami:3.2.0@sha256:8edfe4beaef13f9d1300619fa264ef250a3688df9cc54d24ca830ca31cb475ec
+        image: ghcr.io/umami-software/umami:3.3.0@sha256:87312d334d009ee67ee0d2fba8fed01435547cc468e452243aef5133a9984d48
         ports:
         - containerPort: 3000
         securityContext:
