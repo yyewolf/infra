@@ -1,6 +1,12 @@
 # NVIDIA GPU, for nodes carrying the nonfree-kmod-nvidia-production and
 # nvidia-container-toolkit-production extensions.
 #
+# The two must always move together: the toolkit's userspace has to match the
+# kmod's driver version. Production is only correct while the card is Turing or
+# newer — w-1 ran a GTX 1060 until August 2026, and production 595.71.05 ignores
+# Pascal outright ("NVRM: No NVIDIA GPU found"), which needs the -lts pair
+# instead. It is an RTX 3060 now, so production is the right branch.
+#
 # The container-toolkit extension registers its own containerd runtime handler
 # ('nvidia') and installs the nvidia-container-runtime hook. Unlike gvisor.yaml
 # there is no CRI config to write — the extension ships its own drop-in.
