@@ -122,3 +122,78 @@ spec:
     metrics:
       serviceMonitor:
         enabled: false
+
+  # Hold longhorn-manager until w-1's ext4 zvol is actually mounted at
+  # /var/mnt/longhorn-zvol.
+  #
+  # THE FAILURE THIS PREVENTS, because nothing about it is visible in the logs:
+  #
+  # The zvol is mounted by a static pod (talos/patches/zfs-tank-longhorn.yaml),
+  # which cannot run until ext-zfs-service has imported the pool. Nothing orders
+  # longhorn-manager after that. When the manager wins the race it finds a bare
+  # directory where its disk should be, decides the disk was replaced, and
+  # REWRITES longhorn-disk.cfg with a fresh diskUUID. The recorded UUID and the
+  # on-disk one no longer agree, so the disk goes Ready=False with
+  # DiskFilesystemChanged and every volume on it reports `faulted` — while the
+  # data sits intact and untouched on the zvol. Recovery is by hand.
+  #
+  # On 2026-08-16 this happened on a reboot and cost most of a day, mostly
+  # because the symptom points at the data and the cause is a mount. Longhorn
+  # had created 16 empty replicas on the wrong filesystem, and `du` on the path
+  # returned 236K against the 2.7 TB the pool actually held.
+  #
+  # The path itself is the primary fix — see zfs-tank-longhorn.yaml for why it
+  # is no longer a child of /var/mnt/tank. This gate is the second layer: a
+  # manager that starts early now waits instead of improvising.
+  #
+  # It tests a device-number difference rather than the path existing, because
+  # /var/mnt/longhorn-zvol exists either way and its presence proves nothing. It
+  # is a distinct filesystem from /var/mnt only once the ext4 is really there,
+  # which is exactly the condition the manager needs and exactly what the old
+  # `mount | grep` style of check failed to establish.
+  #
+  # Applied to every longhorn-manager pod, but only w-1 ever waits — the tank is
+  # what identifies it, and cp-0/1/2 exit immediately. A postRenderer rather
+  # than a values key because the chart has no hook for this.
+  postRenderers:
+  - kustomize:
+      patches:
+      - target:
+          kind: DaemonSet
+          name: longhorn-manager
+        patch: |
+          apiVersion: apps/v1
+          kind: DaemonSet
+          metadata:
+            name: longhorn-manager
+          spec:
+            template:
+              spec:
+                initContainers:
+                - name: wait-for-tank-zvol
+                  image: busybox:1.38@sha256:dc2d74b28e4cf8984fa52af1f39bc7c3d9c73760b41a74d629f5d11b1ab28616
+                  command: [ "sh", "-c" ]
+                  args:
+                  - |
+                    M=/host/var/mnt
+                    Z=$M/longhorn-zvol
+                    # The tank is what identifies w-1; no other node has one, and
+                    # no other node has a zvol to wait for.
+                    [ -d "$M/tank" ] || { echo "no tank on this node, nothing to wait for"; exit 0; }
+                    while [ ! -d "$Z" ] || [ "$(stat -c %d "$M")" = "$(stat -c %d "$Z")" ]; do
+                      echo "waiting for ext4 zvol at /var/mnt/longhorn-zvol ..."
+                      sleep 3
+                    done
+                    echo "zvol mounted; releasing longhorn-manager"
+                  volumeMounts:
+                  - name: tank-mount-gate
+                    mountPath: /host/var/mnt
+                    readOnly: true
+                    # Without this the container keeps the mount table it was
+                    # started with and never observes the zvol appearing, so the
+                    # loop would spin forever on a node that is already fine.
+                    mountPropagation: HostToContainer
+                volumes:
+                - name: tank-mount-gate
+                  hostPath:
+                    path: /var/mnt

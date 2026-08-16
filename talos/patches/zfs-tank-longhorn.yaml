@@ -25,7 +25,7 @@
 #      (ext-zfs-service runs at boot; a pool that appears afterwards is not
 #      imported until the next one), and
 #   3. `talosctl -n <w-1> ls /var/mnt/tank` shows the datasets, and
-#      /var/mnt/tank/longhorn exists.
+#      /var/mnt/longhorn-zvol exists.
 #
 # See README.md, "Adding the tank node".
 
@@ -57,17 +57,31 @@ machine:
   # this annotation is inert after registration.
   nodeAnnotations:
     node.longhorn.io/default-disks-config: |-
-      [{"path":"/var/mnt/tank/longhorn","allowScheduling":true,"storageReserved":0,"tags":["bigpool"]}]
+      [{"path":"/var/mnt/longhorn-zvol","allowScheduling":true,"storageReserved":0,"tags":["bigpool"]}]
 
-  # Static pod that mounts the ext4 zvol at /var/mnt/tank/longhorn. The zvol
+  # Static pod that mounts the ext4 zvol at /var/mnt/longhorn-zvol. The zvol
   # device appears only after ext-zfs-service imports the pool, which happens
   # during boot — later than machine.disks processing — so a Talos-native
   # mount is not possible. A static pod bypasses the API server (no PSA, no
   # Kyverno) and retries via restartPolicy: OnFailure until the device exists.
   #
-  # The kubelet's extraMounts on /var/mnt/tank already uses rshared propagation
-  # (zfs-tank.yaml), so this mount becomes visible to Longhorn pods without
-  # further configuration.
+  # DELIBERATELY NOT UNDER /var/mnt/tank, and this is load-bearing. It lived at
+  # /var/mnt/tank/longhorn until 2026-08-16, when a reboot mounted the tank
+  # dataset at /var/mnt/tank *after* this pod had mounted the zvol beneath it.
+  # The ext4 stayed in the mount table and became unreachable by path: every
+  # reader — Longhorn included — resolved /var/mnt/tank/longhorn to the empty
+  # ZFS directory instead. Longhorn concluded its disk had been replaced, wrote
+  # a fresh longhorn-disk.cfg with a new diskUUID, created 16 empty replicas,
+  # and faulted every volume on the pool while 2.7 TB sat intact and invisible
+  # on the zvol. A sibling of /var/mnt/tank cannot be shadowed by it.
+  #
+  # Longhorn does not reach this path through a hostPath mount — longhorn-manager
+  # only mounts /boot, /dev, /proc, /etc and /var/lib/longhorn, and inspects disk
+  # paths by entering the host mount namespace via /host/proc. So what matters is
+  # that the mount lands in the HOST namespace, which is what Bidirectional
+  # propagation on the '/' hostPath below achieves. The kubelet's rshared bind of
+  # /var/mnt/tank (zfs-tank.yaml) is for the tank's own hostPath PVs and has
+  # nothing to do with this mount.
   pods:
   - apiVersion: v1
     kind: Pod
@@ -85,16 +99,38 @@ machine:
         command: [ "sh", "-c" ]
         args:
         - |
-          mkdir -p /host/var/mnt/tank/longhorn
-          if mount | grep -q /host/var/mnt/tank/longhorn; then
+          mkdir -p /host/var/mnt/longhorn-zvol
+
+          # Whether the zvol is mounted is a question about what a reader
+          # actually gets, so it is answered by comparing device numbers rather
+          # than by grepping the mount table for the path. The old check was
+          # `mount | grep -q <path>`, which matched the shadowed 2026-08-16
+          # mount and printed "already mounted" while every reader saw the empty
+          # directory underneath — the pod could never notice it had a problem,
+          # let alone recover from it. /var/mnt/longhorn-zvol is a distinct
+          # filesystem from /var/mnt only once the ext4 is really there.
+          mounted() {
+            [ "$(stat -c %d /host/var/mnt)" != "$(stat -c %d /host/var/mnt/longhorn-zvol)" ]
+          }
+
+          if mounted; then
             echo "already mounted"
           else
             until [ -b /host/dev/zvol/tank/longhorn ]; do
               echo "waiting for /dev/zvol/tank/longhorn..."
               sleep 5
             done
-            mount -t ext4 -o noatime,discard /host/dev/zvol/tank/longhorn /host/var/mnt/tank/longhorn
-            echo "mounted ext4 zvol at /var/mnt/tank/longhorn"
+            mount -t ext4 -o noatime,discard /host/dev/zvol/tank/longhorn /host/var/mnt/longhorn-zvol
+
+            # Confirm it is reachable and not merely in the mount table. Exiting
+            # non-zero here is the recovery path: restartPolicy is OnFailure, so
+            # the kubelet runs this again rather than leaving Longhorn to find a
+            # bare directory and draw its own conclusions.
+            if ! mounted; then
+              echo "mount is in the table but the path does not resolve to it; failing for retry"
+              exit 1
+            fi
+            echo "mounted ext4 zvol at /var/mnt/longhorn-zvol"
           fi
           echo "holding mount open — do not restart this container"
           exec sleep infinity

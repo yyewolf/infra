@@ -26,7 +26,13 @@ spec:
       nodeSelector:
         kubernetes.io/hostname: w-1
       terminationGracePeriodSeconds: 1
-      # runtimeClassName: nvidia
+      # Hardware transcoding on w-1's RTX 3060. This is not optional decoration
+      # on top of the resource request below: on Talos the driver libraries live
+      # in extension paths no generic volume mount covers, so only the
+      # nvidia-container-runtime can put libnvidia-encode / libnvcuvid and
+      # /dev/nvidia* inside the container. Same mechanism the device plugin
+      # itself relies on — see flux/infrastructure/nvidia/device-plugin.yaml.
+      runtimeClassName: nvidia
       containers:
       - name: jellyfin
         image: mirror.gcr.io/linuxserver/jellyfin:10.11.11@sha256:0dd18f8de37c7cfbe76877a8b928943b3588beb9678fb223121914ec9a3cdf7c
@@ -42,6 +48,17 @@ spec:
           value: "1000"
         - name: TZ
           value: "Europe/Paris"
+        # The container runtime's default capability set is 'utility' alone,
+        # which mounts nvidia-smi and nothing else — ffmpeg would find the GPU
+        # via NVML, report it in the UI, and then fail to open an encoder. The
+        # three that matter here:
+        #   video    NVENC/NVDEC — libnvidia-encode, libnvcuvid. The whole point.
+        #   compute  CUDA, for the tonemapping filters HDR->SDR needs.
+        #   utility  nvidia-smi, so the GPU is inspectable from inside the pod.
+        # Deliberately not 'all': that adds graphics/display, which pull in the
+        # GL and DRM stack this workload never renders with.
+        - name: NVIDIA_DRIVER_CAPABILITIES
+          value: "compute,utility,video"
         volumeMounts:
         - name: config
           mountPath: /config
@@ -54,7 +71,15 @@ spec:
           limits:
             cpu: 3000m
             memory: 5Gi
-            # nvidia.com/gpu: 1
+            # Extended resources are integer-only and cannot be overcommitted:
+            # Kubernetes copies this into requests, and w-1 advertises exactly 1,
+            # so this pod holds the whole GPU. Nothing else on the node can be
+            # granted nvidia.com/gpu while Jellyfin is running. That is fine
+            # today because nothing else asks — frigate is deliberately CPU-only
+            # — but it is the constraint to revisit before a second GPU
+            # workload, which needs time-slicing on the device plugin rather
+            # than a bigger number here.
+            nvidia.com/gpu: 1
       volumes:
       - name: config
         persistentVolumeClaim:
