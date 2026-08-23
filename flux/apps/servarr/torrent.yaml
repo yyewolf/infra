@@ -121,7 +121,7 @@ spec:
             cpu: 2000m
             memory: 2Gi
       - name: rustatio
-        image: ghcr.io/takitsu21/rustatio:2.8.0@sha256:7c028e22c52e56540f4cc3b9baf2933eee238a68c2d46ba557d72b0ffb50539b
+        image: ghcr.io/takitsu21/rustatio:2.9.0@sha256:1bcf39c5c75b04902a1b10874a73987e64c63dd1b93cb8775402e06568c8bf46
         # PUID/gosu image: the entrypoint chowns /app and /data, so it needs
         # CHOWN/SETUID. Keep the default capability set; harden with
         # no-privilege-escalation and seccomp only.
