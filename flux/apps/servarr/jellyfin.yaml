@@ -35,7 +35,7 @@ spec:
       runtimeClassName: nvidia
       containers:
       - name: jellyfin
-        image: mirror.gcr.io/linuxserver/jellyfin:10.11.11@sha256:aef1046ab41bbd7b48e205e711aa31dfb1fa55a3fb8e22cbbb150a323c4a48c7
+        image: mirror.gcr.io/linuxserver/jellyfin:10.11.11@sha256:4f6d8dfc53ec5a1ddf7a90e4338972d57d7b0adff6dc88b53184f8285d0b594f
         securityContext:
           seccompProfile:
             type: RuntimeDefault
