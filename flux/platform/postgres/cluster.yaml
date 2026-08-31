@@ -90,7 +90,7 @@ spec:
     - name: postgis
       image:
         # renovate: datasource=docker versioning=docker
-        reference: ghcr.io/cloudnative-pg/postgis-extension:3.6.2-18-bookworm
+        reference: ghcr.io/cloudnative-pg/postgis-extension:3.6.4-18-bookworm
       # PostGIS needs system libraries (GEOS, PROJ, GDAL) that the base image
       # does not carry. They ship inside the extension image under `system`,
       # and this is what puts them on the dynamic linker's path — without it
