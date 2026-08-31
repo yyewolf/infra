@@ -157,7 +157,7 @@ spec:
                 # this cluster that wants a Docker Hub image goes through
                 # mirror.gcr.io; this is the same image by digest.
                 - name: wait-for-db
-                  image: mirror.gcr.io/library/busybox:1.36
+                  image: mirror.gcr.io/library/busybox:1.38@sha256:dc2d74b28e4cf8984fa52af1f39bc7c3d9c73760b41a74d629f5d11b1ab28616
                 containers:
                 - name: k7
                   volumeMounts:
