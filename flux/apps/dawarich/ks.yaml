@@ -1,0 +1,25 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: dawarich
+  namespace: flux-system
+spec:
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-gpg
+  dependsOn:
+  # envoy-proxy for the Gateway the route attaches to, and longhorn for the
+  # class the claim names. Not dawarich-db: that Kustomization writes a Role
+  # into this namespace, so it is the one that waits. The pod stays pending on
+  # its missing secret until the push lands, and then blocks in its entrypoint
+  # until the database itself exists — see the comment on the web container.
+  - name: envoy-proxy
+  - name: longhorn
+  interval: 10m
+  path: ./flux/apps/dawarich
+  prune: true
+  retryInterval: 1m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

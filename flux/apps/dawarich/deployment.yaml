@@ -1,0 +1,367 @@
+# Everything both containers agree on. Split out rather than repeated in each
+# `env:` block because the two processes are the same Rails application read
+# two different ways, and a value that drifted between them (a different
+# DATABASE_NAME, a different TIME_ZONE) would produce a subtly wrong instance
+# rather than a failure.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dawarich-config
+data:
+  RAILS_ENV: production
+  # Required since 0.25.4; without it Dawarich runs in its hosted-service mode
+  # and expects billing and an account server that are not there.
+  SELF_HOSTED: "true"
+  STORE_GEODATA: "true"
+  RAILS_LOG_TO_STDOUT: "true"
+
+  # Rails host authorization. The public name is the one that matters, but the
+  # loopback entries are load-bearing too: the kubelet's probes and the sidekiq
+  # container's wait loop both reach the web container over localhost, and
+  # Rails answers 403 to a Host header it was not told about.
+  APPLICATION_HOSTS: "dawarich.yewolf.fr,localhost,127.0.0.1,::1"
+  # Envoy terminates TLS and forwards plain HTTP, so Rails cannot infer this.
+  # It is what absolute URLs in the UI and in OIDC redirects get built from.
+  APPLICATION_PROTOCOL: https
+
+  # Sign-in through authentik. Only the client id and secret are secret; they
+  # come from oidc-secret-sops.yaml through envFrom on both containers, and
+  # Dawarich treats their presence as the switch that turns all of this on.
+  #
+  # This puts authentik in front of the *browser* login only. The API that
+  # phones POST points to still authenticates on a per-user Dawarich API key,
+  # which is the reason this route has no ext-auth filter in front of it — see
+  # route.yaml.
+  #
+  # The bare issuer, not the discovery URL. Dawarich strips a trailing
+  # /.well-known/openid-configuration if one is pasted here, but the gem builds
+  # the path itself, and the value is also what the ID token's `iss` is checked
+  # against — so it has to match authentik's per-provider issuer exactly,
+  # trailing slash included.
+  OIDC_ISSUER: "https://auth.yewolf.fr/application/o/dawarich/"
+  # Registered strict-match on the authentik provider. Dawarich would otherwise
+  # derive it from APPLICATION_URL, which is not set.
+  OIDC_REDIRECT_URI: "https://dawarich.yewolf.fr/users/auth/openid_connect/callback"
+  # The label on the sign-in button.
+  OIDC_PROVIDER_NAME: authentik
+  OIDC_PKCE_ENABLED: "true"
+  # Anyone authentik lets through gets a Dawarich account created on first
+  # sign-in. That is not as open as it reads: the authentik application is
+  # bound to the HasDawarich group, so the set of people who can reach this at
+  # all is managed there rather than here. Turning it off would also make the
+  # account-linking flow below unreachable, because Dawarich then looks up
+  # users only by an identity that has already been linked.
+  OIDC_AUTO_REGISTER: "true"
+
+  TIME_ZONE: Europe/Paris
+  PROMETHEUS_EXPORTER_ENABLED: "false"
+
+  REDIS_URL: redis://redis:6379
+
+  # The shared cluster, not one of Dawarich's own. postgres-rw is the primary —
+  # this writes on every request, so there is nothing to send to postgres-ro.
+  DATABASE_HOST: postgres-rw.postgres.svc.cluster.local
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: dawarich
+  DATABASE_USERNAME: dawarich
+
+  # Both entrypoints check for these and, when set and running as root, chown
+  # the writable paths and re-exec under this uid with gosu. Without them the
+  # application keeps running as root. 1000:1000 matches what the rest of this
+  # cluster's file-owning workloads use.
+  PUID: "1000"
+  PGID: "1000"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dawarich
+  labels:
+    app: dawarich
+spec:
+  replicas: 1
+  # Recreate, not RollingUpdate, for two independent reasons: the web
+  # entrypoint runs `rails db:migrate` before it serves anything, so a rolling
+  # window would have two versions live against a schema only one expects; and
+  # the data claim is RWO, so a second pod on another node would sit in
+  # Multi-Attach until it timed out.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: dawarich
+  template:
+    metadata:
+      labels:
+        app: dawarich
+    spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+        # No fsGroup on purpose. Both entrypoints already chown the mounted
+        # paths to PUID:PGID before dropping to them, and fsGroup would add a
+        # recursive relabel of the whole volume on every mount to reach the
+        # same place.
+
+      containers:
+      # The Rails web process, and the only thing that migrates the schema.
+      #
+      # Its entrypoint does three things worth knowing about before reading the
+      # rest of this file:
+      #
+      #   1. It re-syncs /var/app/public from a pristine copy at
+      #      /var/app/public_dist on every boot. That is why mounting an empty
+      #      PVC over public/ is safe here when it would break most Rails
+      #      images — the compiled assets are restored into the volume at
+      #      startup, and that is also how an upgrade replaces them.
+      #   2. It tries `createdb` and explicitly tolerates the failure, then
+      #      blocks in a `psql -d dawarich` loop until the database answers. So
+      #      it waits for the CNPG Database CR on its own and needs no
+      #      initContainer and no dependsOn to order it — the dawarich role has
+      #      no CREATEDB and is not meant to.
+      #   3. It runs db:migrate, then data:migrate, then db:seed, and only then
+      #      execs the server. On a first install that is minutes, which is
+      #      what the startupProbe below is sized for.
+      - name: web
+        image: mirror.gcr.io/freikin/dawarich:1.14.0@sha256:f251f08d6330a9b22506c862407e53b0b4aec620a63953a446e19cd610d7d476
+        command: [web-entrypoint.sh]
+        args: [bin/rails, server, -p, "3000", -b, "::"]
+        ports:
+        - name: http
+          containerPort: 3000
+        securityContext:
+          allowPrivilegeEscalation: false
+          # Rails writes pids, caches and logs under /var/app/tmp and
+          # /var/app/log, neither of which is a mounted volume.
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+            - ALL
+            # The container starts as root only to hand itself off: chown the
+            # volumes (CHOWN, plus DAC_OVERRIDE and FOWNER to traverse and act
+            # on paths it does not own yet) and then gosu to PUID:PGID (SETUID,
+            # SETGID). Everything after the re-exec runs as 1000 with these
+            # gone. Dropping ALL without re-adding them makes the entrypoint
+            # fail at the chown instead of falling back.
+            add:
+            - CHOWN
+            - DAC_OVERRIDE
+            - FOWNER
+            - SETGID
+            - SETUID
+        envFrom:
+        - configMapRef:
+            name: dawarich-config
+        - secretRef:
+            name: dawarich-oidc
+        env:
+        # Written into this namespace by the PushSecret in
+        # platform/postgres/applications/dawarich — it is not in git, and the
+        # pod will not start until that has run.
+        - name: DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: dawarich-db
+              key: password
+        # Rails signs session cookies and encrypts ActiveRecord attributes with
+        # this. Changing it logs everyone out; see secret-sops.yaml.
+        - name: SECRET_KEY_BASE
+          valueFrom:
+            secretKeyRef:
+              name: dawarich-secrets
+              key: SECRET_KEY_BASE
+        # One preloaded Puma worker, which is upstream's own default for a
+        # household instance. Each additional worker is a full copy of the
+        # Rails process and its own database connections.
+        - name: WEB_CONCURRENCY
+          value: "1"
+        volumeMounts:
+        # Compiled assets, plus the exports Dawarich writes for download.
+        - name: data
+          mountPath: /var/app/public
+          subPath: public
+        # ActiveStorage: uploaded import files and anything generated from them.
+        - name: data
+          mountPath: /var/app/storage
+          subPath: storage
+        # Drop a .json/.gpx here and Dawarich imports it without going through
+        # the upload form. Does not exist in the image; the subPath creates it.
+        - name: data
+          mountPath: /var/app/tmp/imports/watched
+          subPath: watched
+        # Every probe overrides the Host header. The kubelet otherwise sends the
+        # pod IP, which is not in APPLICATION_HOSTS and which Rails answers 403
+        # to — so the pod would never become ready and the liveness probe would
+        # restart it forever, for a reason that looks nothing like host
+        # authorization from the outside.
+        startupProbe:
+          httpGet:
+            path: /api/v1/health
+            port: http
+            httpHeaders:
+            - name: Host
+              value: localhost
+            # Without this, force_ssl (APPLICATION_PROTOCOL=https) answers 301
+            # and the kubelet scores it a pass, because 2xx-3xx is the success
+            # range. The probe would then report healthy off a redirect issued
+            # before Rails has looked at anything, which is how a pod whose
+            # migrations had not finished still went Ready.
+            - name: X-Forwarded-Proto
+              value: https
+          # 10 minutes. A first install runs the full migration history and the
+          # data migrations before it listens at all, and the liveness probe
+          # below must not start counting until that is done.
+          periodSeconds: 10
+          failureThreshold: 60
+        readinessProbe:
+          httpGet:
+            path: /api/v1/health
+            port: http
+            httpHeaders:
+            - name: Host
+              value: localhost
+            # Without this, force_ssl (APPLICATION_PROTOCOL=https) answers 301
+            # and the kubelet scores it a pass, because 2xx-3xx is the success
+            # range. The probe would then report healthy off a redirect issued
+            # before Rails has looked at anything, which is how a pod whose
+            # migrations had not finished still went Ready.
+            - name: X-Forwarded-Proto
+              value: https
+          periodSeconds: 10
+          timeoutSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /api/v1/health
+            port: http
+            httpHeaders:
+            - name: Host
+              value: localhost
+            # Without this, force_ssl (APPLICATION_PROTOCOL=https) answers 301
+            # and the kubelet scores it a pass, because 2xx-3xx is the success
+            # range. The probe would then report healthy off a redirect issued
+            # before Rails has looked at anything, which is how a pod whose
+            # migrations had not finished still went Ready.
+            - name: X-Forwarded-Proto
+              value: https
+          periodSeconds: 20
+          timeoutSeconds: 5
+          failureThreshold: 5
+        resources:
+          requests:
+            cpu: 100m
+            memory: 512Mi
+          limits:
+            cpu: "1"
+            memory: 2Gi
+
+      # The background worker. Same image, different entrypoint: imports,
+      # reverse geocoding, track and trip generation, stats.
+      - name: sidekiq
+        image: mirror.gcr.io/freikin/dawarich:1.14.0@sha256:f251f08d6330a9b22506c862407e53b0b4aec620a63953a446e19cd610d7d476
+        # sidekiq-entrypoint.sh waits for the database to answer but not for the
+        # schema to be current, and in one pod it starts at the same instant as
+        # the web container rather than after it. On a first install, or on any
+        # upgrade carrying a migration, that means Sidekiq boots the Rails app
+        # against a schema that is mid-migration.
+        #
+        # This reproduces what compose gets from `depends_on: dawarich_app:
+        # service_healthy`: the web container reports healthy only after
+        # db:migrate, data:migrate and db:seed have all returned, so waiting on
+        # its health endpoint over localhost is waiting on the migrations.
+        command: [sh, -c]
+        args:
+        # Both headers are load-bearing. Host, because the pod's own address is
+        # not in APPLICATION_HOSTS and Rails answers 403 to anything else.
+        # X-Forwarded-Proto, because APPLICATION_PROTOCOL=https puts Rails in
+        # force_ssl: without it every plain-HTTP request here is answered with
+        # a 301 to https://127.0.0.1:3000, where Puma is speaking cleartext, so
+        # wget fails the TLS handshake and this loop never terminates. Rails
+        # trusts the header from a loopback peer, so this is the same claim
+        # Envoy makes for real traffic and not a way around the redirect.
+        - |
+          until wget -q -O - \
+            --header='Host: localhost' \
+            --header='X-Forwarded-Proto: https' \
+            http://127.0.0.1:3000/api/v1/health 2>/dev/null | grep -q '"status"'; do
+            echo "waiting for the web container to finish migrations..."
+            sleep 5
+          done
+          exec sidekiq-entrypoint.sh
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+            - ALL
+            add:
+            - CHOWN
+            - DAC_OVERRIDE
+            - FOWNER
+            - SETGID
+            - SETUID
+        envFrom:
+        - configMapRef:
+            name: dawarich-config
+        - secretRef:
+            name: dawarich-oidc
+        env:
+        - name: DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: dawarich-db
+              key: password
+        - name: SECRET_KEY_BASE
+          valueFrom:
+            secretKeyRef:
+              name: dawarich-secrets
+              key: SECRET_KEY_BASE
+        # Upstream's default. Each thread is another Postgres connection out of
+        # the shared cluster's 200, and raising it is the lever for a big
+        # one-off import rather than something to leave up.
+        - name: BACKGROUND_PROCESSING_CONCURRENCY
+          value: "3"
+        volumeMounts:
+        # The same three paths as the web container. Sharing them is the reason
+        # these are one pod and not two Deployments: there is no ReadWriteMany
+        # class in this cluster, so two pods could only share this claim by both
+        # being pinned to one node.
+        - name: data
+          mountPath: /var/app/public
+          subPath: public
+        - name: data
+          mountPath: /var/app/storage
+          subPath: storage
+        - name: data
+          mountPath: /var/app/tmp/imports/watched
+          subPath: watched
+        livenessProbe:
+          exec:
+            # The bracket in [s]idekiq is what makes this a check and not a
+            # tautology. pgrep -f matches whole command lines, and both the
+            # wait loop above (".. exec sidekiq-entrypoint.sh") and this probe's
+            # own shell contain the literal string, so a plain `pgrep -f
+            # sidekiq` reports success in a container where Sidekiq never
+            # started. The character class matches the real process's title
+            # without matching the pattern as it appears here.
+            command: [sh, -c, "pgrep -f 'bundle exec [s]idekiq|^[s]idekiq ' > /dev/null"]
+          # Generous: this only starts counting once the container is running,
+          # and the wait loop above can hold it there for the length of a first
+          # install's migrations.
+          initialDelaySeconds: 120
+          periodSeconds: 30
+          failureThreshold: 5
+        resources:
+          requests:
+            cpu: 100m
+            memory: 512Mi
+          limits:
+            # Higher than the web container's. Importing a Google Takeout
+            # archive parses the whole file and fans out geocoding work; this is
+            # the container that will actually use it.
+            cpu: "2"
+            memory: 3Gi
+
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: dawarich-data

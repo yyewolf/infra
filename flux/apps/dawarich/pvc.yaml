@@ -1,0 +1,23 @@
+# One claim for all three of Dawarich's writable paths, split by subPath in the
+# Deployment. Upstream's compose uses three named volumes; there is nothing to
+# gain from three PVCs here, and one claim is one thing to size, back up and
+# restore.
+#
+# `longhorn` (the default class: three replicas on the sata pool) rather than
+# `big-pool`. Nothing here pins the pod to w-1, and this is not a database, so
+# the reasons the servarr and paperless claims take a single-replica local pool
+# do not apply — surviving a node loss is worth more than local-disk reads for
+# a few gigabytes of imports.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dawarich-data
+  labels:
+    recurring-job-group.longhorn.io/dawarich-backup: enabled
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 20Gi

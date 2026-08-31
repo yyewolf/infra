@@ -60,6 +60,44 @@ spec:
     shared_preload_libraries:
     - vchord.so
 
+    # PostGIS, for dawarich. Mounted as a read-only ImageVolume rather than
+    # baked into `imageName` above, which is the whole reason this cluster can
+    # have it at all: the image is a VectorChord build, there is no upstream
+    # image carrying both vchord and postgis, and swapping to
+    # `cloudnative-pg/postgis` would take vchord away from immich.
+    #
+    # The mechanism is CNPG 1.27+ driving Postgres 18's `extension_control_path`
+    # over a Kubernetes ImageVolume: the extension is a separate OCI image
+    # mounted at /extensions/postgis, and CNPG points the GUCs at it. It needs
+    # Kubernetes 1.33+ with the ImageVolume feature and containerd 2.1+ — this
+    # cluster is on 1.36 and containerd 2.2, so both are well clear.
+    #
+    # Two things about the tag that are easy to get wrong:
+    #
+    #   bookworm, not trixie. It has to match the distro of the base image
+    #   above, because `ld_library_path` makes PostGIS link against the
+    #   libraries it carries alongside the ones already in the pod. The
+    #   CloudNativePG docs example says trixie; the VectorChord image is
+    #   Debian 12, so trixie here would be a linker error at CREATE EXTENSION.
+    #
+    #   `-18-` is the Postgres major. Under docker versioning Renovate reads
+    #   `-18-bookworm` as a compatibility suffix, so it offers PostGIS patch
+    #   releases and will not silently move the Postgres major or the distro.
+    #
+    # Adding or changing this list is a rolling restart of both instances
+    # (a switchover, so seconds of connection churn rather than an outage).
+    extensions:
+    - name: postgis
+      image:
+        # renovate: datasource=docker versioning=docker
+        reference: ghcr.io/cloudnative-pg/postgis-extension:3.6.2-18-bookworm
+      # PostGIS needs system libraries (GEOS, PROJ, GDAL) that the base image
+      # does not carry. They ship inside the extension image under `system`,
+      # and this is what puts them on the dynamic linker's path — without it
+      # CREATE EXTENSION fails on a missing libgeos.
+      ld_library_path:
+      - system
+
     parameters:
       # Shared cluster, so the connection budget is shared too. Every app
       # holding an idle pool counts against this. If it starts to bind, a

@@ -1,0 +1,43 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: dawarich
+spec:
+  parentRefs:
+  - name: envoy-gateway
+    namespace: envoy-gateway-system
+    sectionName: yewolf.fr-tls
+  hostnames:
+  - "dawarich.yewolf.fr"
+  rules:
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: dawarich
+      port: 3000
+      weight: 1
+    # No authentik ext-auth in front of this. Dawarich is a location tracker
+    # whose whole point is that a phone (Overland, OwnTracks, GPSLogger, the
+    # Dawarich app) POSTs points to /api/v1/... on an API key. An ext-auth
+    # filter would reject every one of those with a redirect to a login page
+    # the phone cannot follow, so what gates this is Dawarich's own accounts
+    # and API keys.
+    #
+    # Registration is closed by default on a self-hosted instance, so the
+    # exposed surface is a login form and an API that needs a key.
+    #
+    # What does front the browser login is Dawarich's own OIDC client, pointed
+    # at authentik — see the OIDC_* block in deployment.yaml. That is the right
+    # layer for it: it authenticates people arriving at the UI and leaves the
+    # /api/v1 paths on their API keys, which an ext-auth filter here could not
+    # have done.
+    timeouts:
+      # Imports of a Google Takeout archive are uploaded through this route and
+      # are routinely hundreds of megabytes; the default 15s request timeout
+      # cuts them off mid-upload.
+      request: 0s
+      backendRequest: 0s
+    matches:
+    - path:
+        type: PathPrefix
+        value: /

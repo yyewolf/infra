@@ -1,0 +1,35 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: dawarich
+  namespace: postgres
+spec:
+  cluster:
+    name: postgres
+  name: dawarich
+  owner: dawarich
+
+  # Dawarich's schema.rb declares exactly these two (plus plpgsql, which is
+  # always present). They are created here, by the operator as superuser,
+  # rather than by the application: `CREATE EXTENSION postgis` is
+  # superuser-only, and the alternative is granting the dawarich role rights it
+  # would then keep forever for the sake of one statement at first boot.
+  #
+  # Rails still issues its own `enable_extension` during db:migrate, but that
+  # renders as CREATE EXTENSION IF NOT EXISTS, so it finds them already here and
+  # is a no-op.
+  #
+  # postgis is only installable because the shared cluster mounts it as an
+  # ImageVolume — see the `extensions` block in ../../cluster.yaml. Neither the
+  # extension nor this Database will reconcile without that.
+  #
+  # No `version:` on purpose. Pinning one here would mean every Renovate bump of
+  # the extension image in cluster.yaml needs a matching edit in this file, and
+  # the two silently drifting is worse than the thing it buys. PostGIS SQL-level
+  # upgrades are a deliberate `SELECT postgis_extensions_upgrade();` after an
+  # image bump, not something to hide behind a reconcile.
+  extensions:
+  - name: postgis
+    ensure: present
+  - name: pgcrypto
+    ensure: present

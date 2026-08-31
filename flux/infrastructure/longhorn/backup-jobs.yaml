@@ -70,3 +70,23 @@ spec:
   - stalwart-backup
   retain: 30
   concurrency: 1
+---
+# Dawarich's own data — the location history itself — lives in the shared
+# Postgres and is covered by barman's WAL archiving, not by this. What this
+# protects is the claim beside it: the raw import files under ActiveStorage,
+# which are the one thing on that volume that cannot be regenerated. The
+# compiled assets are restored from the image on every boot and the exports are
+# rebuilt on demand.
+apiVersion: longhorn.io/v1beta2
+kind: RecurringJob
+metadata:
+  name: dawarich-backup
+  namespace: longhorn-system
+spec:
+  name: dawarich-backup
+  cron: "0 4 * * *"
+  task: backup
+  groups:
+  - dawarich-backup
+  retain: 30
+  concurrency: 1

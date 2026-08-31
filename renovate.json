@@ -26,13 +26,13 @@
       "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}"
     },
     {
-      "description": "Full image references under an `imageName:` key, as CNPG's Cluster CR uses. The built-in kubernetes manager only reads `image:`, and the tag-only manager above cannot split a repository from its tag. Annotate the line above with `# renovate: datasource=docker`.",
+      "description": "Full image references under an `imageName:` or `reference:` key, as CNPG's Cluster CR uses for the instance image and for each `postgresql.extensions[].image`. The built-in kubernetes manager only reads `image:`, and the tag-only manager above cannot split a repository from its tag. Annotate the line above with `# renovate: datasource=docker`.",
       "customType": "regex",
       "managerFilePatterns": [
         "/.*\\.yaml$/"
       ],
       "matchStrings": [
-        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)(?:\\s+versioning=(?<versioning>\\S+))?\\s*\\n\\s*imageName:\\s*[\"']?(?<depName>[^\"'\\s:]+):(?<currentValue>[^\"'\\s]+)[\"']?"
+        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)(?:\\s+versioning=(?<versioning>\\S+))?\\s*\\n\\s*(?:imageName|reference):\\s*[\"']?(?<depName>[^\"'\\s:]+):(?<currentValue>[^\"'\\s]+)[\"']?"
       ],
       "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}docker{{/if}}"
     }

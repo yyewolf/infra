@@ -1,0 +1,42 @@
+# The identity the SecretStore authenticates as when it writes the database
+# password into the dawarich namespace.
+#
+# Its own ServiceAccount rather than reusing another application's: those are
+# created by different Flux Kustomizations, and sharing one would make this
+# directory silently depend on that one applying first. The SA has no
+# permissions beyond the RoleBinding below.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: eso-push-writer-dawarich
+  namespace: postgres
+---
+# In the dawarich namespace, not this one: this is what the SA is allowed to do
+# at the far end of the push. Secrets only, and only the verbs a PushSecret
+# needs to create and keep one up to date.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: eso-push-writer
+  namespace: dawarich
+rules:
+- apiGroups: [""]
+  resources: [secrets]
+  verbs: [get, list, watch, create, update, patch]
+- apiGroups: [authorization.k8s.io]
+  resources: [selfsubjectrulesreviews]
+  verbs: [create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: eso-push-writer-dawarich
+  namespace: dawarich
+subjects:
+- kind: ServiceAccount
+  name: eso-push-writer-dawarich
+  namespace: postgres
+roleRef:
+  kind: Role
+  name: eso-push-writer
+  apiGroup: rbac.authorization.k8s.io

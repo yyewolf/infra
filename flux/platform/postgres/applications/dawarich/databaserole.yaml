@@ -1,0 +1,12 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: dawarich
+  namespace: postgres
+spec:
+  cluster:
+    name: postgres
+  name: dawarich
+  login: true
+  passwordSecret:
+    name: dawarich-db-credentials

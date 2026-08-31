@@ -1,0 +1,105 @@
+# Sidekiq's broker. Same image and digest as the paperless and immich Redises,
+# deliberately — there is no reason for three different builds of the same
+# thing in one cluster.
+#
+# Unlike those two this one is backed by a PVC rather than an emptyDir, and the
+# save points from upstream's compose are kept. The difference is what the queue
+# holds: paperless enqueues one job per document, but a single Dawarich import
+# fans out into reverse-geocoding work for every point in the file, which can be
+# tens of thousands of jobs running for hours. Losing that to a pod restart
+# leaves the import half-processed with nothing to retry it and no error
+# anywhere — the UI just shows points that never got their place names.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dawarich-redis
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  labels:
+    app: redis
+spec:
+  replicas: 1
+  # The PVC is RWO, so the old pod has to release it before the new one can
+  # attach. A rolling update would deadlock on Multi-Attach until it timed out.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: redis
+        image: mirror.gcr.io/redis:8.10.0@sha256:344e3945a0b431c8ff1eecd58c5573538126bd756f02fc7e218ddf1fc2546366
+        args:
+        - redis-server
+        - --save
+        - "900"
+        - "1"
+        - --save
+        - "300"
+        - "10"
+        - --appendonly
+        - "no"
+        ports:
+        - containerPort: 6379
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        readinessProbe:
+          exec:
+            command: [redis-cli, ping]
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: dawarich-redis
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+spec:
+  selector:
+    app: redis
+  ports:
+  - port: 6379
+    targetPort: 6379
+  type: ClusterIP
