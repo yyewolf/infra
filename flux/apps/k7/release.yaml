@@ -1,0 +1,170 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: k7
+spec:
+  interval: 30m
+  chartRef:
+    kind: OCIRepository
+    name: k7
+  values:
+    # Without this the chart names everything `<release>-<chart>` — `k7-k7`.
+    # The Ingress backend, the network policy selector and the PVC name all
+    # follow from it.
+    fullnameOverride: k7
+
+    # One writer on /data and on the schema migrations K7 runs at boot. The
+    # chart already sets `strategy: Recreate` for that reason; there is no
+    # replicas > 1 to reach for later.
+    replicaCount: 0
+
+    database:
+      provider: Postgres
+      # The shared cluster, not one of K7's own. The chart can provision a CNPG
+      # Cluster itself (`mode: cnpg`) and that is deliberately not used: there is
+      # one Postgres for the whole cluster and apps get a database on it, via
+      # the Database CR in platform/postgres/applications/k7.
+      mode: external
+      # Lowercase — see the comment on the Database CR. The chart's default is
+      # `K7`, which CNPG would create as a case-sensitive identifier.
+      name: k7
+      external:
+        host: postgres-rw.postgres.svc.cluster.local
+        port: 5432
+        user: k7
+        # Written into this namespace by the PushSecret in
+        # platform/postgres/applications/k7 — it is not in git, and the pod will
+        # not start until that has run. The chart reads key `database-password`
+        # from it.
+        existingSecret: k7-db
+
+    security:
+      # secret-sops.yaml. Rotating it invalidates every API key that has been
+      # issued, which is what makes it worth keeping in git rather than letting
+      # the chart mint one on each install.
+      existingSecret: k7-secrets
+      # The Tailscale proxy terminates TLS and forwards over plain HTTP, so this
+      # relies on K7 honouring X-Forwarded-Proto. It does: `TrustPrivateProxies`
+      # defaults to true and trusts RFC1918, and the proxy pod's source address
+      # is in the pod CIDR. If /setup ever comes back with an antiforgery error
+      # or the browser loops on a redirect, that assumption is what broke — the
+      # upstream docs call out exactly that failure — and `false` is the
+      # temporary way through the wizard.
+      forceHttps: true
+
+    # What browsers and federation peers are told to come back to. OIDC
+    # redirects are built from it, so it has to be the tailnet name the Ingress
+    # publishes, not the Service.
+    baseUrl: https://k7.goby-beaufort.ts.net
+
+    # Left empty on purpose: the first-run token is generated and printed to the
+    # pod log, so it is read once with `kubectl logs` and never written down
+    # here. Filling in `setup.adminPassword` instead would put the admin
+    # password in the chart's own Secret in plaintext values.
+    setup:
+      token: ""
+      adminUsername: ""
+      adminPassword: ""
+
+    # Match the servarr stack, which owns the files in servarr-media as 1000:1000
+    # (see the PUID/PGID on jellyfin, sonarr and radarr). The media mount is
+    # read-only so this only decides who K7 runs as, but /data is chowned to it.
+    puid: 1000
+    pgid: 1000
+
+    service:
+      type: ClusterIP
+      port: 7080
+
+    # The chart renders a networking.k8s.io Ingress with no class of its own
+    # worth using here; ingress.yaml is the Tailscale one instead.
+    ingress:
+      enabled: false
+
+    # Config, metadata artwork, logs and the transcoding cache. big-pool because
+    # the pod is pinned to w-1 by the media claim anyway (see nodeSelector), so
+    # a longhorn class on cp-0/1/2 would put every metadata write across the LAN
+    # for a replica count the workload cannot move to take advantage of. Same
+    # argument as the servarr config claims.
+    persistence:
+      enabled: true
+      storageClass: big-pool
+      accessModes:
+      - ReadWriteOnce
+      size: 100Gi
+
+    # The existing library, read-only. servarr-media is RWO and attached to w-1,
+    # which is what the nodeSelector below is for — it is a correctness
+    # requirement, not a placement preference. A pod without it that lands
+    # elsewhere sits in ContainerCreating on a Multi-Attach error.
+    #
+    # The chart mounts an existingClaim whole, with no subPath, so this alone
+    # would give K7 `/media/media/...` and `/media/downloads/...`. The
+    # postRenderer below adds `subPath: media` to cut both problems at once: the
+    # libraries land at `/media/<library>` where they read naturally, and the
+    # in-progress torrents under `downloads/` stop being visible to a scanner
+    # that has no business indexing them.
+    mediaVolumes:
+    - name: media
+      mountPath: /media
+      existingClaim: servarr-media
+
+    nodeSelector:
+      kubernetes.io/hostname: w-1
+
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        # Transcoding is CPU-only here. w-1 has an RTX 3060 and the device
+        # plugin advertises exactly one nvidia.com/gpu, which jellyfin holds for
+        # as long as it is running — extended resources are integer-only and
+        # cannot be overcommitted. Giving K7 hardware encode means time-slicing
+        # on the device plugin, not a `nvidia.com/gpu: 1` here.
+        cpu: "4"
+        # The floor is far lower; this is sized for a library scan, which holds
+        # a lot of metadata in flight at once.
+        memory: 4Gi
+
+    # Deliberately left empty, which is the chart's own default. K7's entrypoint
+    # starts as root — it usermods appuser to PUID/PGID, chowns /data, then
+    # drops with gosu — so it cannot be runAsNonRoot the way umami is. The
+    # servarr namespace enforces privileged PSA already (for gluetun's
+    # NET_ADMIN), so nothing rejects it, and Kyverno's require-kata-for-privileged
+    # does not fire: this is root, not `securityContext.privileged`.
+    podSecurityContext: {}
+    securityContext: {}
+
+  postRenderers:
+  - kustomize:
+      patches:
+      # Two edits the chart has no values for.
+      - target:
+          kind: Deployment
+          name: k7
+        patch: |
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: k7
+          spec:
+            template:
+              spec:
+                initContainers:
+                # The chart hardcodes `busybox:1.36`, i.e. an anonymous Docker
+                # Hub pull with the rate limit that implies. Everything else on
+                # this cluster that wants a Docker Hub image goes through
+                # mirror.gcr.io; this is the same image by digest.
+                - name: wait-for-db
+                  image: mirror.gcr.io/library/busybox:1.36
+                containers:
+                - name: k7
+                  volumeMounts:
+                  # Keyed on mountPath, which is volumeMounts' patchMergeKey —
+                  # `name` is not, and keying on it would append a second mount
+                  # instead of merging into the chart's. The chart's entry
+                  # supplies name and readOnly; this adds only the subPath. See
+                  # the mediaVolumes comment above for why it matters.
+                  - mountPath: /media
+                    subPath: media

@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# servarr, not a namespace of K7's own. See ks.yaml — the media claim decides
+# this, not preference.
+namespace: servarr
+
+resources:
+- secret-sops.yaml
+- ocirepository.yaml
+- release.yaml
+- ingress.yaml
+- network-policy.yaml

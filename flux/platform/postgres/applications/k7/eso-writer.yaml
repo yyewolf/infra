@@ -1,0 +1,46 @@
+# The identity the SecretStore authenticates as when it writes the database
+# password into the servarr namespace.
+#
+# Its own ServiceAccount rather than reusing another application's: those are
+# created by different Flux Kustomizations, and sharing one would make this
+# directory silently depend on that one applying first. The SA has no
+# permissions beyond the RoleBinding below.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: eso-push-writer-k7
+  namespace: postgres
+---
+# In the servarr namespace, not this one: this is what the SA is allowed to do
+# at the far end of the push. Secrets only, and only the verbs a PushSecret
+# needs to create and keep one up to date.
+#
+# This is the first ESO writer into `servarr` — the rest of that namespace has
+# no database. If a second one ever lands, it gets its own SA and its own
+# RoleBinding; only the Role name is shared, and both bindings can name it.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: eso-push-writer
+  namespace: servarr
+rules:
+- apiGroups: [""]
+  resources: [secrets]
+  verbs: [get, list, watch, create, update, patch]
+- apiGroups: [authorization.k8s.io]
+  resources: [selfsubjectrulesreviews]
+  verbs: [create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: eso-push-writer-k7
+  namespace: servarr
+subjects:
+- kind: ServiceAccount
+  name: eso-push-writer-k7
+  namespace: postgres
+roleRef:
+  kind: Role
+  name: eso-push-writer
+  apiGroup: rbac.authorization.k8s.io

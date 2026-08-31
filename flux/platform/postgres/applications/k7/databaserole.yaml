@@ -1,0 +1,12 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: k7
+  namespace: postgres
+spec:
+  cluster:
+    name: postgres
+  name: k7
+  login: true
+  passwordSecret:
+    name: k7-db-credentials

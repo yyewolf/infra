@@ -1,0 +1,24 @@
+apiVersion: external-secrets.io/v1
+kind: SecretStore
+metadata:
+  name: k7
+  namespace: postgres
+spec:
+  provider:
+    kubernetes:
+      # servarr, not a namespace of K7's own: the pod mounts `servarr-media`,
+      # and a PVC cannot be mounted across namespaces. See flux/apps/k7/ks.yaml.
+      remoteNamespace: servarr
+      server:
+        caProvider:
+          type: ConfigMap
+          name: kube-root-ca.crt
+          key: ca.crt
+      auth:
+        # Must match the ServiceAccount in eso-writer.yaml, which is the one the
+        # RoleBinding in the servarr namespace grants. One SA per app — naming
+        # another directory's SA here authenticates as an identity with no
+        # rights at the far end, and the store fails validation with the
+        # unhelpful "client is not allowed to get secrets".
+        serviceAccount:
+          name: eso-push-writer-k7

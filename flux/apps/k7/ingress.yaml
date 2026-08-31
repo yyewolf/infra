@@ -1,0 +1,32 @@
+# Tailnet only. K7 carries its own accounts, API keys and OIDC, so there is no
+# authentik ext-auth in front of it the way servarr and ytdlp have — a gate
+# there would also block the native clients and the API, which authenticate
+# with K7's own keys rather than a session cookie.
+#
+# The consequence to be aware of: federation with instances outside this tailnet
+# is off the table while this is the only way in. K7 advertises `BaseUrl` to
+# peers, and a ts.net name resolves for nobody else.
+#
+# A Tailscale Ingress takes its hostname from `tls.hosts`, not from a rule host.
+# There is no rule host below for that reason. Renaming it later needs the old
+# device removed from the Tailscale admin console first; a rename alone gets the
+# operator's silent `-1` suffix.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: k7
+spec:
+  ingressClassName: tailscale
+  tls:
+  - hosts:
+    - k7
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: k7
+            port:
+              number: 7080

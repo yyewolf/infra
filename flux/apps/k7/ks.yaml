@@ -1,0 +1,34 @@
+# K7 lives in the `servarr` namespace rather than one of its own, and that is
+# forced rather than chosen: it mounts `servarr-media`, and a PVC cannot be
+# mounted across namespaces. Putting it here also means it inherits the
+# namespace-wide `servarr` CiliumNetworkPolicy, which already grants everything
+# K7 needs but the database — see network-policy.yaml for the one rule added.
+#
+# It is still its own Flux Kustomization, per the convention that each app gets
+# one. Reconciling K7 does not touch jellyfin or the torrent stack.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: k7
+  namespace: flux-system
+spec:
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-gpg
+  dependsOn:
+  # The tailscale operator owns the `tailscale` IngressClass and the proxy the
+  # Ingress needs; without it the Ingress is admitted and nothing serves it.
+  - name: tailscale
+  # Owns the servarr namespace and the servarr-media claim this mounts.
+  - name: servarr-storage
+  # Deliberately not k7-db: that Kustomization writes a Role into this
+  # namespace, so it is the half that waits. The pod simply stays pending on
+  # its missing secret until the push lands.
+  interval: 10m
+  path: ./flux/apps/k7
+  prune: true
+  retryInterval: 1m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

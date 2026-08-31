@@ -35,6 +35,7 @@ resources:
 - platform/postgres/applications/authentik/ks.yaml
 - platform/postgres/applications/immich/ks.yaml
 - platform/postgres/applications/cloudbeaver/ks.yaml
+- platform/postgres/applications/k7/ks.yaml
 - platform/mysql/applications/uptime-kuma/ks.yaml
 - platform/mysql/applications/cloudbeaver/ks.yaml
 - apps/cloudbeaver/ks.yaml
@@ -51,6 +52,7 @@ resources:
 - apps/home-assistant/ks.yaml
 - apps/servarr/storage/ks.yaml
 - apps/servarr/ks.yaml
+- apps/k7/ks.yaml
 - apps/immich/storage/ks.yaml
 - apps/immich/ks.yaml
 - apps/paperless/storage/ks.yaml

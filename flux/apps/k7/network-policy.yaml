@@ -1,0 +1,34 @@
+# This adds one rule to what the namespace-wide `servarr` policy already grants;
+# it does not replace it. Cilium unions policies, so K7 keeps that policy's
+# ingress (tailscale proxies, the rest of the namespace, kubelet probes) and its
+# egress (DNS, the namespace, the internet minus the LAN) and gains Postgres.
+#
+# The reason a rule is needed at all is the shape of the servarr policy's
+# internet rule: `toCIDRSet: 0.0.0.0/0` with `10.0.0.0/8` excepted, which is a
+# deliberate security control there and which the pod network sits inside. No
+# other workload in that namespace has a database, so the exception has never
+# had to be qualified before.
+#
+# `toEndpoints` rather than a CIDR carve-out on purpose: Cilium matches it by
+# identity, so it is unaffected by the exception above and stays correct if the
+# pod CIDR ever moves.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: k7
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: k7
+      app.kubernetes.io/instance: k7
+  egress:
+  # The other half of platform/postgres/network-policy.yaml's `fromEntities:
+  # cluster` rule. Without this K7 cannot reach the database no matter what the
+  # Postgres side allows.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: postgres
+    toPorts:
+    - ports:
+      - port: "5432"
+        protocol: TCP

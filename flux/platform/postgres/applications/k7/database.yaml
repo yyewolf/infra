@@ -1,0 +1,15 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: k7
+  namespace: postgres
+spec:
+  cluster:
+    name: postgres
+  # Lowercase, unlike the chart's `K7` default. CNPG quotes the identifier when
+  # it issues CREATE DATABASE, so `K7` would be a genuinely case-sensitive name
+  # that every psql session then has to quote too. Nothing in K7 depends on the
+  # capital, so the name is folded here and `database.name` in the HelmRelease
+  # is set to match.
+  name: k7
+  owner: k7
