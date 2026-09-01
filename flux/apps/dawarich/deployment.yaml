@@ -123,7 +123,7 @@ spec:
       #      execs the server. On a first install that is minutes, which is
       #      what the startupProbe below is sized for.
       - name: web
-        image: mirror.gcr.io/freikin/dawarich:1.14.0@sha256:f251f08d6330a9b22506c862407e53b0b4aec620a63953a446e19cd610d7d476
+        image: mirror.gcr.io/freikin/dawarich:1.14.1@sha256:65be16e1d261ea9a92c885eb8626e33ae46de6bfc6f6d6bce71c24eff2a6ae5f
         command: [web-entrypoint.sh]
         args: [bin/rails, server, -p, "3000", -b, "::"]
         ports:
@@ -257,7 +257,7 @@ spec:
       # The background worker. Same image, different entrypoint: imports,
       # reverse geocoding, track and trip generation, stats.
       - name: sidekiq
-        image: mirror.gcr.io/freikin/dawarich:1.14.0@sha256:f251f08d6330a9b22506c862407e53b0b4aec620a63953a446e19cd610d7d476
+        image: mirror.gcr.io/freikin/dawarich:1.14.1@sha256:65be16e1d261ea9a92c885eb8626e33ae46de6bfc6f6d6bce71c24eff2a6ae5f
         # sidekiq-entrypoint.sh waits for the database to answer but not for the
         # schema to be current, and in one pod it starts at the same instant as
         # the web container rather than after it. On a first install, or on any
