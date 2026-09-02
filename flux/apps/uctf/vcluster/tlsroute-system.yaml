@@ -1,0 +1,64 @@
+# TLS passthrough from the edge into the management-beta-01 cluster (the
+# uctf-mgmt vcluster). The edge never terminates any of this TLS: the
+# management cluster runs its own acme-dns and cert-manager and issues its own
+# certificates for the hostnames it serves, so it has to keep the private keys
+# — the same reason stalwart is passed through rather than terminated. These
+# are the first routes on the `unspecified-tls` listener in
+# platform/envoy-proxy/gateway.yaml, the catch-all TLS :443 listener that
+# coexists with the terminate listeners on the same port.
+#
+# The backends are vcluster-synced Services: a Service created inside the
+# vcluster lands here as `<name>-x-<namespace>-x-uctf-mgmt`. Both speak TLS on
+# 443 themselves — the port in the backendRef is the Service's, not an edge
+# certificate, because Envoy only relays bytes.
+#
+# Two routes:
+#   - acme-dns and grafana are the management cluster's system components, and
+#     are served by the system gateway inside the vcluster (`envoy-gateway` in
+#     `gateway-system`);
+#   - the second route carries no hostnames at all, which the Gateway API
+#     defines as matching every SNI: it is the default for the whole listener,
+#     and everything the edge does not terminate (test.com, the apex, a bare
+#     IP probe) lands on the general gateway inside the vcluster (`gateway-01`
+#     in `gateway-01`).
+# Ordering is Envoy's filter-chain matching, not this file's: chains with an
+# SNI match — the edge's terminate listeners and the first route's two exact
+# hostnames — are preferred over the hostnames-less chain, so repo-managed
+# domains keep behaving exactly as before and only the unmatched remainder
+# falls through. The price is that gateway-01 is now what the internet's TLS
+# scanners see: it receives every unmatched SNI and answers however it likes.
+#
+# DNS is not covered here: a TLSRoute is not one of external-dns's sources
+# (gateway-httproute, service, crd), so the records for these hostnames point
+# at the edge IP out of band, the same way the management-prod-01 ones do.
+apiVersion: gateway.networking.k8s.io/v1alpha2
+kind: TLSRoute
+metadata:
+  name: management-beta-01-system
+spec:
+  parentRefs:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    namespace: envoy-gateway-system
+    name: envoy-gateway
+    sectionName: unspecified-tls
+  hostnames:
+  - "*.management-prod-01.clusters.uctf.io"
+  rules:
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: gateway-system-x-gateway-system-x-uctf-mgmt
+      port: 443
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: management-beta-01-proxy-protocol
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: TLSRoute
+    name: management-beta-01-system
+  proxyProtocol:
+    version: V2

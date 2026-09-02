@@ -44,29 +44,13 @@ spec:
     # endpointSlices, pods, configmaps and secrets to the host (so a workload
     # created inside the management cluster lands as a real pod in this
     # namespace and is reachable by name). The additions below are the "and
-    # all" half: Gateway API and cert-manager (both reusing the host's
-    # controllers rather than running second copies inside the vcluster), plus
-    # PV/PVC and NetworkPolicy toHost sync and storageClass/RuntimeClass
+    # all" half: cert-manager (reusing the host's controller rather than
+    # running a second copy inside the vcluster), plus PV/PVC and
+    # NetworkPolicy toHost sync and storageClass/RuntimeClass
     # fromHost import so the management cluster can provision storage and pin
     # a sandbox the same way a host workload can.
     sync:
       toHost:
-        # Gateways and HTTPRoutes declared inside the management cluster sync
-        # down to this namespace, where the host's envoy-gateway controller
-        # (GatewayClass `eg`) realises them. Nothing is created until a
-        # Gateway is actually declared in the vcluster — enabling this is
-        # capability, not action. `referenceGrants` stays at its `auto`
-        # default so grants follow route sync and are validated in-tenant.
-        gatewayApi:
-          enabled: true
-          httpRoutes:
-            enabled: true
-          gateways:
-            enabled: true
-          tlsRoutes:
-            enabled: true
-          backendTLSPolicies:
-            enabled: true
         # PVCs are on by default (a vcluster workload with a volume needs its
         # claim to land on the host for the host provisioner to bind), stated
         # explicitly so a later default flip does not silently change it.
@@ -91,70 +75,6 @@ spec:
         networkPolicies:
           enabled: true
       fromHost:
-        # Import the host's GatewayClasses (just `eg`) so a Gateway created in
-        # the vcluster can resolve its `gatewayClassName`, AND so the imported
-        # `envoy-gateway` below resolves its class. Read-only at the cluster
-        # scope — see the chart's ClusterRole, which only gets/list/watches
-        # gatewayclasses for this.
-        gatewayClasses:
-          enabled: true
-        # Import the shared `envoy-gateway` from envoy-gateway-system, read-only,
-        # so HTTPRoutes created inside the vcluster can attach to the existing
-        # edge Gateway instead of the vcluster standing up its own. The mapping
-        # lands it in a virtual `envoy-gateway-system` namespace with the same
-        # name, so a route inside the vcluster references it exactly as a host
-        # app would:
-        #   parentRefs: [{name: envoy-gateway, namespace: envoy-gateway-system}]
-        # The route then syncs toHost into the `uctf` namespace, where the host's
-      # envoy-gateway controller realises it -- and the host Gateway's HTTPS
-      # listeners are each `allowedRoutes.namespaces.from: All` (one per
-      # certificate domain, matched by hostname), so a route landing in `uctf`
-      # attaches cleanly to the listener whose hostname covers it. The http
-      # listener is `from: Same`
-        # (redirect-only), so nothing from the vcluster may attach there; that
-        # is the one listener-level constraint and it is the right one.
-        #
-        # Read-only both ways: imported Gateways and GatewayClasses do not sync
-        # back, and `sanitize.certificateRefs`/`sanitize.infrastructure` (the
-        # chart defaults) strip the cert refs and infrastructure fields so the
-        # vcluster never sees the listener's certificate Secrets or the
-        # EnvoyProxy parametersRef. `status.exposeAddresses` stays false, so the
-        # Gateway's public LB addresses are not mirrored into the vcluster -- a
-        # management tool that needs them reads them from the host context.
-        gateways:
-          enabled: true
-          mappings:
-            byName:
-              envoy-gateway-system/envoy-gateway: envoy-gateway-system/envoy-gateway
-          # The tenant-facing allowedRoutes the imported Gateway shows inside
-          # the vcluster, and that vcluster enforces for routes created there.
-          # The vcluster gateway syncer (`virtualNamespacePolicyFor` in
-          # pkg/controllers/resources/gateways/syncer.go) rewrites every
-          # listener's allowedRoutes from the matched policy — there is no
-          # per-listener granularity, so both http and https show the same
-          # value inside the vcluster. `from: All` lets a route in any virtual
-          # namespace attach without vcluster-side rejection. The override
-          # pins this explicitly to the `envoy-gateway` Gateway (matched by
-          # hostNamespace + Gateway name); the default alone would do the
-          # same, but the override makes the intent unambiguous for this one
-          # imported Gateway. The host Gateway's http listener is `from: Same`
-          # on the host side, so a vcluster route that syncs to the `uctf`
-          # namespace is still rejected by the host's http listener regardless
-          # of what the vcluster display says — the host enforces its own.
-          #
-          # `allowedListeners` is NOT in the vcluster import schema — it is a
-          # host-side field the import mirrors read-only and cannot override.
-          # ListenerSets are imported fromHost only (see customResources
-          # below), so there is no vcluster-side ListenerSet attaching to the
-          # imported gateway that this field would gate.
-          allowedRoutes:
-            defaultVirtualNamespacePolicy:
-              from: All
-            overrides:
-            - hostNamespace: envoy-gateway-system
-              name: envoy-gateway
-              virtualNamespacePolicy:
-                from: All
         # Host StorageClasses (longhorn, longhorn-ha, longhorn-yolo, longhorn-ci)
         # so a PVC created in the vcluster can name one. The default is `auto`,
         # which only turns on with the virtual scheduler -- and the scheduler is

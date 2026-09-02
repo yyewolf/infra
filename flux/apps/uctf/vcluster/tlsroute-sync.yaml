@@ -1,0 +1,202 @@
+# Publishing the management cluster's gateways at the edge.
+#
+# A tenant inside the uctf-mgmt vcluster gets a TLSRoute per cluster, attached
+# to `gateway-01` — a Gateway that really exists in there, backed by a real
+# Envoy, and which routes to the tenant's own nested vcluster. That half works
+# on its own and stays inside. What it does not have is an address on the
+# internet: the only thing that does is this cluster's edge Gateway.
+#
+# So the hop this adds is the outer one. For every TLSRoute inside the
+# vcluster, a matching route is written here that carries the same hostnames,
+# attaches to the edge Gateway, and hands the connection to the inner gateway —
+# which then does its own routing, unchanged. Two Envoys in series, each
+# matching the SNI it already knows about, and neither one terminating: the
+# management cluster issues its own certificates and keeps its own keys, the
+# same arrangement stalwart has.
+#
+# The backend is derived from the route's parentRef rather than from its
+# backendRefs, which stay inside. Each inner Gateway is fronted by a ClusterIP
+# Service of the same name in the same namespace (`gateway-01/gateway-01`,
+# `gateway-system/gateway-system`), so a parentRef naming `gateway-01` in
+# `gateway-01` becomes a backendRef to `gateway-01-x-gateway-01-x-uctf-mgmt`
+# out here — the host name read off the vcluster syncer's own annotations, not
+# recomputed, because it is truncated and hashed once the joined form passes 63
+# characters. A route whose parentRef does not resolve that way is skipped: it
+# names a gateway that does not exist, and there is nothing to publish it to.
+#
+# vcluster's own `sync.toHost.gatewayApi` cannot express any of this. Enabling
+# it at all turns on the Gateway and GatewayClass syncers with it, so the
+# vcluster's internal gateways are pushed into this namespace as unprogrammed
+# strays; its patch expressions cannot reach across from a parentRef to a
+# backendRef; and they cannot reproduce a hashed Service name. A route pointing
+# at a Service that does not exist is accepted by the API server and then
+# quietly blackholes.
+#
+# The PROXY v2 header every one of those routes needs is not written by the
+# loop at all — the BackendTrafficPolicy at the bottom of this file selects
+# them by label, so it covers whatever the loop happens to have written without
+# being regenerated for each one. It is not optional: both inner gateways carry
+# a ClientTrafficPolicy with `proxyProtocol.optional: false`, so a connection
+# arriving without the header has its ClientHello read as a malformed PROXY
+# header and dies in a way that looks like a routing bug.
+#
+# The loop itself is deliberately dumb: list, translate, server-side apply,
+# delete what is no longer wanted, sleep. It reconciles from scratch every
+# pass, so a missed event is not a class of bug it has.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tlsroute-sync
+---
+# Namespaced, and only over what it writes. The routes it owns live in this
+# namespace; `services` is read-only and is what resolves a vcluster Service
+# name to its host counterpart. No BackendTrafficPolicy verbs: the one policy
+# involved is declared below and reconciled by Flux.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: tlsroute-sync
+rules:
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["get", "list"]
+- apiGroups: ["gateway.networking.k8s.io"]
+  resources: ["tlsroutes"]
+  verbs: ["get", "list", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tlsroute-sync
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: tlsroute-sync
+subjects:
+- kind: ServiceAccount
+  name: tlsroute-sync
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tlsroute-sync
+spec:
+  replicas: 1
+  # Recreate, not RollingUpdate: two copies of the loop running at once would
+  # both apply and both prune, and the pass that has not caught up yet would
+  # delete what the other just wrote.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tlsroute-sync
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: tlsroute-sync
+    spec:
+      serviceAccountName: tlsroute-sync
+      securityContext:
+        runAsUser: 65534
+        runAsGroup: 65534
+        runAsNonRoot: true
+        # Secret volumes are owned by root whatever the pod runs as, so without
+        # this the client certificate below is mounted 0440 root:root and the
+        # loop cannot read the credential it exists to use. fsGroup is what
+        # regroups the volume to 65534; the mode alone would not do it.
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: sync
+        # kubectl and jq in one image, the same one backup-watchdog uses for
+        # the same reason: no package installs on the critical path.
+        image: mirror.gcr.io/alpine/k8s:1.36.2@sha256:44ef4942e171939b9c665a4a84beb80e2dcdb9a24330d4651cfdfd2e9deecc47
+        imagePullPolicy: IfNotPresent
+        command:
+        - /bin/sh
+        - /script/sync.sh
+        env:
+        # Seconds between passes. A tenant cluster coming up waits at most this
+        # long for its hostname to answer, and each pass is three API listings.
+        - name: INTERVAL
+          value: "20"
+        - name: HOST_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        # kubectl writes its discovery cache under $HOME, and the root
+        # filesystem is read-only.
+        - name: HOME
+          value: /tmp
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        # The steady state is a sleeping shell, but `kubectl apply` peaks near
+        # 200Mi parsing the cluster OpenAPI schema — measured, and roughly
+        # constant in the number of routes rather than growing with them.
+        # Client-side apply costs the same, so this is the price of apply at
+        # all, not of --server-side. 128Mi held for as long as every route was
+        # being skipped and no apply ran, then OOM-killed the pass that finally
+        # had something to write.
+        resources:
+          requests:
+            cpu: 20m
+            memory: 64Mi
+          limits:
+            memory: 384Mi
+        volumeMounts:
+        - name: script
+          mountPath: /script
+        - name: vcluster-kubeconfig
+          mountPath: /vc
+          readOnly: true
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: script
+        configMap:
+          name: tlsroute-sync
+      # The vcluster's admin client certificate, as issued by the chart. The
+      # loop only ever reads through it, but this is the cluster-admin
+      # credential for the management cluster and nothing else in this
+      # namespace mounts it — which is the argument for keeping this workload
+      # as small as it is.
+      - name: vcluster-kubeconfig
+        secret:
+          secretName: vc-uctf-mgmt
+          defaultMode: 0440
+      # The generated kubeconfig, the API dumps and kubectl's discovery cache.
+      - name: tmp
+        emptyDir:
+          sizeLimit: 32Mi
+---
+# PROXY v2 into the inner gateways, for every route the syncer writes.
+#
+# targetSelectors rather than targetRefs, so this stays a fixed object: the
+# routes it covers are created and deleted by a loop, and a policy naming them
+# one by one would have to be rewritten on every pass — which is the only
+# reason it would need to be generated rather than declared here. The label is
+# the one the syncer stamps on everything it owns, and `namespaces` defaults to
+# `Same`, so the selection is exactly "the synced routes in this namespace" and
+# reaches nothing else — not the hand-written routes in tlsroute-system.yaml,
+# which carry their own policy, and nothing outside uctf.
+#
+# The version has to match what the receiving end expects rather than merely
+# being enabled: a v2 header sent to a listener configured for v1 fails the
+# same way sending none at all does.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: tlsroute-sync-proxy-protocol
+spec:
+  targetSelectors:
+  - group: gateway.networking.k8s.io
+    kind: TLSRoute
+    matchLabels:
+      tlsroute-sync.uctf.io/managed: "true"
+  proxyProtocol:
+    version: V2

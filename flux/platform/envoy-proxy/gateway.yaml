@@ -104,20 +104,6 @@ spec:
         from: All
   - protocol: HTTPS
     port: 443
-    name: uctf.io-tls
-    hostname: "*.uctf.io"
-    tls:
-      mode: Terminate
-      certificateRefs:
-      - kind: Secret
-        group: ""
-        name: uctf.io-wildcard
-        namespace: cert-manager
-    allowedRoutes:
-      namespaces:
-        from: All
-  - protocol: HTTPS
-    port: 443
     name: uctf.io-apex-tls
     hostname: "uctf.io"
     tls:
@@ -126,34 +112,6 @@ spec:
       - kind: Secret
         group: ""
         name: uctf.io
-        namespace: cert-manager
-    allowedRoutes:
-      namespaces:
-        from: All
-  - protocol: HTTPS
-    port: 443
-    name: management-prod-01.clusters.uctf.io-tls
-    hostname: "*.management-prod-01.clusters.uctf.io"
-    tls:
-      mode: Terminate
-      certificateRefs:
-      - kind: Secret
-        group: ""
-        name: management-prod-01.clusters.uctf.io-wildcard
-        namespace: cert-manager
-    allowedRoutes:
-      namespaces:
-        from: All
-  - protocol: HTTPS
-    port: 443
-    name: management-prod-01.clusters.uctf.io-apex-tls
-    hostname: "management-prod-01.clusters.uctf.io"
-    tls:
-      mode: Terminate
-      certificateRefs:
-      - kind: Secret
-        group: ""
-        name: management-prod-01.clusters.uctf.io
         namespace: cert-manager
     allowedRoutes:
       namespaces:

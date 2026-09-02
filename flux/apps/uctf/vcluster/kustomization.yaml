@@ -4,4 +4,15 @@ kind: Kustomization
 resources:
 - repository.yaml
 - release.yaml
+- tlsroute-system.yaml
+- tlsroute-sync.yaml
+- udproute.yaml
 - network-policy.yaml
+
+# The name carries a content hash, so editing the script rolls the Deployment.
+# A plain ConfigMap would leave the running pod on the old copy until something
+# unrelated restarted it — and this one only ever restarts when it crashes.
+configMapGenerator:
+- name: tlsroute-sync
+  files:
+  - cm/sync.sh

@@ -232,3 +232,40 @@ spec:
     - cidr: ::/0
       except:
       - fdde:c64:7096::/48
+---
+# The TLSRoute syncer (tlsroute-sync.yaml). Two destinations and nothing else:
+# the vcluster API it reads from and the host API it writes to. DNS is not
+# repeated here — uctf-dns in the namespace's own network-policy.yaml selects
+# every endpoint in this namespace, this pod included.
+#
+# No ingress section, so ingress stays closed by uctf-default-deny: the loop
+# listens on nothing and has no probes to answer.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: uctf-tlsroute-sync
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: tlsroute-sync
+  egress:
+  # The vcluster API. 8443 is the control plane's own port, not the 443 of the
+  # uctf-mgmt Service in front of it — Cilium matches the backend port. The
+  # receiving end already admits this: uctf-vcluster-controlplane above takes
+  # 8443 from anything in the uctf namespace.
+  - toEndpoints:
+    - matchLabels:
+        app: vcluster
+        release: uctf-mgmt
+    toPorts:
+    - ports:
+      - port: "8443"
+        protocol: TCP
+  # The host API server, where the translated routes land. host-networked, so
+  # the kube-apiserver entity rather than a rule against the kubernetes Service.
+  - toEntities:
+    - kube-apiserver
+    toPorts:
+    - ports:
+      - port: "6443"
+        protocol: TCP
