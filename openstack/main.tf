@@ -286,6 +286,36 @@ resource "openstack_networking_secgroup_rule_v2" "acme_dns_v6" {
   description       = "UDP for acme-dns over IPv6"
 }
 
+# headscale STUN — UDP 3478, the endpoint tailscale clients hit to discover
+# their own mapped address before deciding whether a direct path is possible.
+# Same edge proxy and same ListenerSet as acme-dns above, one listener over.
+#
+# Closing this port does not break tailscale, which is what makes it easy to
+# leave shut by accident: clients fail discovery quietly and relay everything
+# through DERP instead, so it reads as headscale being slow rather than as a
+# blocked port. Both families for the same reason as acme-dns.
+resource "openstack_networking_secgroup_rule_v2" "headscale_stun_v4" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "udp"
+  port_range_min    = 3478
+  port_range_max    = 3478
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = openstack_networking_secgroup_v2.edge.id
+  description       = "UDP for headscale STUN"
+}
+
+resource "openstack_networking_secgroup_rule_v2" "headscale_stun_v6" {
+  direction         = "ingress"
+  ethertype         = "IPv6"
+  protocol          = "udp"
+  port_range_min    = 3478
+  port_range_max    = 3478
+  remote_ip_prefix  = "::/0"
+  security_group_id = openstack_networking_secgroup_v2.edge.id
+  description       = "UDP for headscale STUN over IPv6"
+}
+
 
 
 resource "openstack_networking_secgroup_rule_v2" "wireguard_uctf_v4" {
