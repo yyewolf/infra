@@ -206,6 +206,10 @@ spec:
     - host
     toPorts:
     - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
       - port: "5351"
         protocol: UDP
       - port: "1900"
@@ -269,3 +273,88 @@ spec:
     - ports:
       - port: "6443"
         protocol: TCP
+---
+# acme-dns, reached from the internet on 53/UDP.
+#
+# This is the one workload here that the public talks to directly rather than
+# through the Gateway. `acme-dns-udp-x-acme-dns-x-uctf-mgmt` is a LoadBalancer
+# the vcluster syncs out of the mgmt cluster's acme-dns namespace, and it
+# shares 83.228.250.128 / 2001:1600:16:10::227 with the Envoy LoadBalancer.
+# There is a ListenerSet in udproute.yaml that looks like it should be carrying
+# this instead; it is not attached (the Gateway refuses ListenerSets from the
+# uctf namespace), so the direct LoadBalancer is what actually serves, and
+# without this rule every query dies as a POLICY_DENIED ingress from
+# `world-ipv4` that names no policy in particular.
+#
+# Its own policy rather than a rule in uctf-vcluster-workloads: that policy
+# selects every pod vcluster lands in this namespace, so a world-ingress rule
+# there would expose all of them -- including tenant CTF workloads -- instead
+# of the one DNS server that wants it. Cilium rules are additive, so this
+# grants on top of what uctf-vcluster-workloads already allows.
+#
+# The selector pins all three labels on purpose. `app: acme-dns` alone is a
+# label a tenant could set on a pod of their own; adding managed-by plus
+# `vcluster.loft.sh/namespace: acme-dns` ties it to the mgmt cluster's own
+# acme-dns namespace. Pods from a nested vcluster carry their vcluster's
+# namespace in that label (uctf-archive-2026-... and so on) and their inner
+# namespace only in a hashed label, so a tenant cannot forge a match.
+#
+# `world` and not a 0.0.0.0/0 toCIDR rule: the entity expands to world,
+# world-ipv4 and world-ipv6, which is what makes the v6 half of the shared
+# LoadBalancer address work. A CIDR rule would need both families spelled out.
+#
+# UDP only, matching the LoadBalancer. The ClusterIP Service also carries
+# 53/TCP, but nothing publishes it externally, so a truncated-response retry
+# over TCP has no path to arrive on and a rule for it would be dead. If 53/TCP
+# is ever exposed, it needs adding here too.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: uctf-acme-dns-public
+spec:
+  endpointSelector:
+    matchLabels:
+      app: acme-dns
+      vcluster.loft.sh/managed-by: uctf-mgmt
+      vcluster.loft.sh/namespace: acme-dns
+  ingress:
+  - fromEntities:
+    - world
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+---
+# headscale's STUN endpoint, reached from the internet on 3478/UDP.
+#
+# Same shape and same reasoning as uctf-acme-dns-public above: a synced
+# LoadBalancer (`headscale-udp-x-headscale-x-uctf-mgmt`) on the shared address,
+# the dead ListenerSet that was supposed to front it, and a selector pinned to
+# the mgmt cluster's headscale namespace.
+#
+# 3478 is what tailscale clients hit to discover their own mapped address
+# before falling back to a DERP relay. Denying it does not break connectivity,
+# which is what makes it easy to miss -- clients quietly relay everything
+# through DERP instead of finding a direct path, and it reads as headscale
+# being slow rather than as a policy drop.
+#
+# headscale's 8080 (the API and the DERP HTTP endpoint) is not here: that
+# arrives through the Envoy Gateway, and uctf-vcluster-workloads already takes
+# ingress from the envoy-gateway-system namespace.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: uctf-headscale-stun-public
+spec:
+  endpointSelector:
+    matchLabels:
+      app: headscale
+      vcluster.loft.sh/managed-by: uctf-mgmt
+      vcluster.loft.sh/namespace: headscale
+  ingress:
+  - fromEntities:
+    - world
+    toPorts:
+    - ports:
+      - port: "3478"
+        protocol: UDP

@@ -7,8 +7,9 @@ spec:
   # Apps do not get to bolt listeners onto this Gateway by default — the
   # Gateway API default is to allow no ListenerSets at all, and it stays that
   # way for everything not named here. `portfoliosh` opens SSH, `stalwart`
-  # opens the mail ports. Both declare their ListenerSets in their own
-  # directories and this is the consent half.
+  # opens the mail ports, `uctf` opens UDP 53 and 3478 for the acme-dns and
+  # headscale STUN endpoints inside the management vcluster. All three declare
+  # their ListenerSets in their own directories and this is the consent half.
   #
   # Selector rather than `All`, so a new namespace cannot open a port on the
   # public edge by creating an object in its own directory. The label is the

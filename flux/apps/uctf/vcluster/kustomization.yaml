@@ -6,7 +6,6 @@ resources:
 - release.yaml
 - tlsroute-system.yaml
 - tlsroute-sync.yaml
-- udproute.yaml
 - network-policy.yaml
 
 # The name carries a content hash, so editing the script rolls the Deployment.

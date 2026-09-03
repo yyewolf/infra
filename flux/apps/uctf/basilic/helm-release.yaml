@@ -8,7 +8,7 @@ spec:
   chart:
     spec:
       chart: basilic
-      version: 1.7.2
+      version: 1.7.3
       sourceRef:
         kind: HelmRepository
         name: uctf-charts
@@ -23,7 +23,7 @@ spec:
   values:
     image:
       repository: ghcr.io/u-ctf/basilic
-      tag: 1.7.2
+      tag: 1.7.3
 
     api:
       enabled: true
