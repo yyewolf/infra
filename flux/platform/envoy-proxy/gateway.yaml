@@ -24,6 +24,7 @@ spec:
           values:
           - portfoliosh
           - stalwart
+          - uctf
   listeners:
   # Plaintext :80 serves only the https-redirect route in redirect.yaml, which
   # lives in this namespace, so `from: Same`. With `All` any app could attach a
