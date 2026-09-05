@@ -7,7 +7,7 @@ name: ng
 # Talos and Kubernetes versions. talos_version also selects the Image Factory
 # build used for the installer and the ISO, so bumping it here is the whole
 # upgrade knob.
-talos_version: v1.13.7
+talos_version: v1.14.0
 kubernetes_version: 1.36.3
 
 # Where './talos.sh installer' pushes the images it builds for nodes carrying
