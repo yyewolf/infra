@@ -28,7 +28,7 @@ spec:
         kubernetes.io/hostname: w-1
       containers:
       - name: radarr
-        image: mirror.gcr.io/linuxserver/radarr:6.3.0@sha256:119aaa4a4f7349bcd2a136c5373a0d7925b5479915c7dfe0c0ad352db2a6d438
+        image: mirror.gcr.io/linuxserver/radarr:6.3.0@sha256:95ba0801df4d9d1d79d0d9a3849f656542497dab061d91b87ad4f53a71aff3ef
         securityContext:
           seccompProfile:
             type: RuntimeDefault
