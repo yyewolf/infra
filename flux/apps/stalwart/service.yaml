@@ -11,8 +11,8 @@ spec:
     port: 8080
     targetPort: 8080
   - name: smtp
-    port: 25
-    targetPort: 25
+    port: 10025
+    targetPort: 10025
   - name: smtps
     port: 465
     targetPort: 465
