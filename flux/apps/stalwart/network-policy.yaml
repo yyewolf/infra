@@ -37,6 +37,8 @@ spec:
         protocol: TCP
       - port: "25"
         protocol: TCP
+      - port: "10025"
+        protocol: TCP
       - port: "465"
         protocol: TCP
       - port: "587"
@@ -100,6 +102,8 @@ spec:
       - port: "80"
         protocol: TCP
       - port: "25"
+        protocol: TCP
+      - port: "10025"
         protocol: TCP
       - port: "465"
         protocol: TCP
