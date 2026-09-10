@@ -46,11 +46,29 @@ lavalink:
   # on every start into the plugins emptyDir, which is why the pod needs
   # internet egress before it can become ready.
   #
-  # No Renovate manager reads a maven coordinate in a ConfigMap, so unlike
-  # every other version in flux/ this one is invisible to the bot — bump it by
-  # hand when the Lavalink image moves.
-  - dependency: "dev.lavalink.youtube:youtube-plugin:1.18.2"
-    snapshot: false
+  # A COMMIT HASH, NOT A RELEASE, AND DELIBERATELY SO
+  #
+  # 1.18.2 is the newest release (2026-07-27) and two of its client failures
+  # are fixed only in commits made after it:
+  #
+  #   b33460b3  Use a PlayStation 4 User-Agent for the TV client (#233)
+  #             — closes issue #226, "TVHTML5 failed: The page needs to be
+  #             reloaded", which is the exact message this node produced. The
+  #             trigger was isolated to the TV client's User-Agent.
+  #   34ee4c5f  client version bump to 21.02.35 (#231)
+  #   6579cdfd  make IOS playable
+  #   f45bbb7a  recover total length for formats omitting contentLength (#235)
+  #
+  # On issue #240 — "Lavalink login required bug", the ANDROID_VR "This video
+  # requires login" failure — the maintainer's advice is to run a snapshot,
+  # and two reporters confirmed it fixed them. So this pins f45bbb7a, the
+  # newest snapshot, which contains all four.
+  #
+  # No Renovate manager reads a maven coordinate in a ConfigMap, and a commit
+  # hash is not a version it could order anyway: revisit this by hand when
+  # youtube-source cuts a release above 1.18.2, and prefer that release.
+  - dependency: "dev.lavalink.youtube:youtube-plugin:f45bbb7aebfcbc1c553769e04af6cd43afa8b7c3"
+    snapshot: true
   pluginsDir: "/plugins"
   server:
     # password comes from LAVALINK_SERVER_PASSWORD (Spring relaxed binding),
