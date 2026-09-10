@@ -1,0 +1,162 @@
+# The bot process itself. It holds the Discord gateway connection and drives
+# Lavalink; it serves nothing and is reached by nothing, so it has no Service.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vocard
+  labels:
+    app: vocard
+spec:
+  replicas: 1
+  # One gateway session per token — two pods would each try to identify as the
+  # same bot and fight over the session.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: vocard
+  template:
+    metadata:
+      labels:
+        app: vocard
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+      # settings.json has to be writable and it has to carry two passwords,
+      # and the ConfigMap can give it neither: Vocard rewrites the file in
+      # place on every version change (func.update_json, called from
+      # setup_hook — on a read-only mount that exception kills the startup),
+      # and the Lavalink node password and the dashboard IPC password are the
+      # two credentials with no environment fallback in voicelink/config.py.
+      # So the ConfigMap is the template, this splices the secrets in, and the
+      # bot gets the copy.
+      - name: render-settings
+        image: ghcr.io/chocomeow/vocard:v2.7.3@sha256:1caa053edd4dea7e8d9cf21cbb4cd6a0c138e0e08f38d4714013bcca553b8387
+        command:
+        - python
+        - -c
+        - |
+          import json, os
+          with open("/cm/settings.json") as f:
+              settings = json.load(f)
+          settings["nodes"]["DEFAULT"]["password"] = os.environ["LAVALINK_PASSWORD"]
+          settings["ipc_client"]["password"] = os.environ["IPC_PASSWORD"]
+          with open("/settings/settings.json", "w") as f:
+              json.dump(settings, f, indent=4)
+        env:
+        - name: LAVALINK_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: vocard
+              key: LAVALINK_PASSWORD
+        - name: IPC_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: vocard
+              key: IPC_PASSWORD
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        volumeMounts:
+        - name: settings-template
+          mountPath: /cm
+          readOnly: true
+        - name: settings
+          mountPath: /settings
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+      containers:
+      - name: vocard
+        image: ghcr.io/chocomeow/vocard:v2.7.3@sha256:1caa053edd4dea7e8d9cf21cbb4cd6a0c138e0e08f38d4714013bcca553b8387
+        env:
+        # voicelink/config.py reads each of these when the matching key is
+        # absent from settings.json, which is why the file in cm/ has no
+        # token and no mongodb_url. client_id is in the file: it is the
+        # application id, not a credential.
+        - name: TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: vocard
+              key: TOKEN
+        - name: MONGODB_URL
+          valueFrom:
+            secretKeyRef:
+              name: vocard
+              key: MONGODB_URL
+        - name: MONGODB_NAME
+          value: vocard
+        # Nothing may write to /app, and CPython would try to leave __pycache__
+        # there on first import.
+        - name: PYTHONDONTWRITEBYTECODE
+          value: "1"
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        volumeMounts:
+        # subPath, because the file has to land inside /app next to main.py —
+        # Vocard resolves it against the directory main.py lives in and the
+        # path is not configurable.
+        #
+        # WHY cm/settings.json PINS "version": "v2.7.2" AND WHY IT IS NOT THE
+        # IMAGE'S OWN VERSION
+        #
+        # That field is read twice during startup and the two readings want
+        # opposite things. The IPC client sends it to the dashboard as
+        # Client-Version, and the dashboard closes the socket with "Version
+        # mismatch!" unless it parses to at least its own VERSION_REQUIRED
+        # (2.7.2 in dashboard v2.0.3) — so it cannot be empty. Then, further
+        # down setup_hook, `version != update.__version__` is the only thing
+        # that triggers tree.sync(), which is what registers the slash commands
+        # with Discord — so it must not equal the image's version either.
+        #
+        # Normally the bot resolves this itself: it writes its own version into
+        # settings.json after the first sync, and the second start reads it
+        # back. Here settings.json is re-rendered from the ConfigMap into a
+        # fresh emptyDir on every start, so that write never survives and the
+        # first-run state is the only state. Pinning it one patch below the
+        # image satisfies both readings: IPC connects, and the commands are
+        # re-synced on every restart.
+        #
+        # On a bot image bump, this stays as it is unless the dashboard raises
+        # VERSION_REQUIRED past it. The symptom if it ever does is the bot
+        # logging "Cannot connected to dashboard!" while everything else works.
+        - name: settings
+          mountPath: /app/settings.json
+          subPath: settings.json
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: "1"
+            memory: 512Mi
+      volumes:
+      - name: settings-template
+        configMap:
+          name: vocard-settings
+      - name: settings
+        emptyDir: {}

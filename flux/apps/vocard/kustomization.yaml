@@ -1,0 +1,28 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: vocard
+
+resources:
+- namespace.yaml
+- secret-sops.yaml
+- mongodb.yaml
+- lavalink.yaml
+- deployment.yaml
+- dashboard.yaml
+- ingress.yaml
+- network-policy.yaml
+
+# All three are mounted as files rather than read as env: both Vocard and its
+# dashboard want a settings.json inside their source tree, and Lavalink wants
+# an application.yml in its working directory. The generator's name hash is
+# what rolls the pods when one of them changes.
+configMapGenerator:
+- name: vocard-settings
+  files:
+  - cm/settings.json
+- name: vocard-dashboard-settings
+  files:
+  - cm/dashboard-settings.json
+- name: lavalink-config
+  files:
+  - cm/application.yml

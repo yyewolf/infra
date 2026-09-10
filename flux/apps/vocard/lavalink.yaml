@@ -1,0 +1,130 @@
+# The audio node. Vocard itself never touches audio: it sends the voice state
+# update to Discord and hands the resulting voice server to Lavalink over the
+# websocket on 2333, and Lavalink is what opens the RTP socket to Discord's
+# voice server. That is why the wide egress (and the UDP range) is on this
+# workload and not on the bot.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lavalink
+  labels:
+    app: lavalink
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lavalink
+  template:
+    metadata:
+      labels:
+        app: lavalink
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        # The uid the image's own `lavalink` user has; fsGroup so the plugins
+        # emptyDir is writable by it.
+        runAsUser: 322
+        runAsGroup: 322
+        fsGroup: 322
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: lavalink
+        image: ghcr.io/lavalink-devs/lavalink:4.2.2@sha256:87ae53e60dc147c9dddb28e126ce503a26bc8d1477ed8d99543614677882afff
+        env:
+        # Spring relaxed binding: this is `lavalink.server.password`, and it
+        # overrides application.yml — which is how the password stays out of
+        # the ConfigMap. The bot side of the same secret is injected into
+        # settings.json by the init container in deployment.yaml.
+        - name: LAVALINK_SERVER_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: vocard
+              key: LAVALINK_PASSWORD
+        # The entrypoint is `java -jar Lavalink.jar` with no wrapper script,
+        # so there is no JAVA_OPTS to read — JDK_JAVA_OPTIONS is the launcher's
+        # own variable. Heap bounded below the container limit so the JVM sizes
+        # itself against the cgroup and not against the node.
+        - name: JDK_JAVA_OPTIONS
+          value: "-Xmx1G"
+        ports:
+        - containerPort: 2333
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        volumeMounts:
+        # subPath so the mount lands as a single file and does not shadow
+        # Lavalink.jar, which sits in the same directory.
+        - name: config
+          mountPath: /opt/Lavalink/application.yml
+          subPath: application.yml
+          readOnly: true
+        # Plugin jars are re-downloaded on every start, so an emptyDir rather
+        # than a claim — the trade is that a start with no internet fails
+        # instead of running without YouTube.
+        - name: plugins
+          mountPath: /plugins
+        # Also where lavaplayer unpacks and dlopen()s libudpqueue.so, its
+        # native UDP sender. If that ever lands on a noexec mount the only
+        # symptom is a stack trace at boot and slightly more CPU per player —
+        # it falls back to the JVM sender and keeps serving.
+        - name: tmp
+          mountPath: /tmp
+        # TCP, not an HTTP GET on /version: as of Lavalink 4 every route is
+        # behind the Authorization header, /version included — it answers 401
+        # with an empty body, which an httpGet probe reads as a failure and no
+        # amount of path-picking fixes. A header could carry the password, but
+        # only as a literal in this manifest, which is the thing the Secret
+        # exists to avoid. The port is opened last, after the plugin jars are
+        # resolved and the sources are registered, so it is a real readiness
+        # signal rather than a liveness proxy.
+        readinessProbe:
+          tcpSocket:
+            port: 2333
+          # Generous: a cold start downloads the YouTube plugin from maven
+          # before the port opens.
+          initialDelaySeconds: 20
+          periodSeconds: 10
+          failureThreshold: 12
+        livenessProbe:
+          tcpSocket:
+            port: 2333
+          initialDelaySeconds: 120
+          periodSeconds: 30
+          failureThreshold: 5
+        resources:
+          requests:
+            cpu: 100m
+            memory: 512Mi
+          limits:
+            cpu: "2"
+            memory: 1536Mi
+      volumes:
+      - name: config
+        configMap:
+          name: lavalink-config
+      - name: plugins
+        emptyDir: {}
+      - name: tmp
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lavalink
+  labels:
+    app: lavalink
+spec:
+  selector:
+    app: lavalink
+  ports:
+  - port: 2333
+    targetPort: 2333
+  type: ClusterIP

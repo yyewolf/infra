@@ -1,0 +1,50 @@
+# Both of this app's listeners are tailnet devices. Nothing here is on the
+# Envoy Gateway and nothing has a yewolf.fr name: the bot is reached through
+# Discord, and these two exist for operating it.
+#
+# A Tailscale Ingress takes its hostname from `tls.hosts` rather than from a
+# rule host, which is why the rules below have none. Both names are new
+# devices; a collision with an existing one is renamed to `<name>-1` silently,
+# so check `tailscale status` if a URL ever 404s at the proxy.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vocard-dashboard
+spec:
+  ingressClassName: tailscale
+  tls:
+  - hosts:
+    - vocard
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: vocard-dashboard
+            port:
+              number: 8000
+---
+# Lavalink's REST and websocket API, for pointing a second bot or a local dev
+# session at the same audio node. The password is still the only thing
+# authorising a client — the tailnet decides who may knock, not who may in.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lavalink
+spec:
+  ingressClassName: tailscale
+  tls:
+  - hosts:
+    - lavalink
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: lavalink
+            port:
+              number: 2333

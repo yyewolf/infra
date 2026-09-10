@@ -1,0 +1,73 @@
+server:
+  port: 2333
+  address: 0.0.0.0
+
+plugins:
+  youtube:
+    enabled: true
+    # The default client set for youtube-source. MUSIC and ANDROID_VR are what
+    # actually resolve most tracks; WEB/WEBEMBEDDED are the fallbacks for
+    # age-gated and embed-only videos.
+    clients:
+    - MUSIC
+    - ANDROID_VR
+    - WEB
+    - WEBEMBEDDED
+
+lavalink:
+  plugins:
+  # YouTube support is not in Lavalink itself any more — the built-in source is
+  # deprecated and disabled below. The jar is downloaded from maven.lavalink.dev
+  # on every start into the plugins emptyDir, which is why the pod needs
+  # internet egress before it can become ready.
+  #
+  # No Renovate manager reads a maven coordinate in a ConfigMap, so unlike
+  # every other version in flux/ this one is invisible to the bot — bump it by
+  # hand when the Lavalink image moves.
+  - dependency: "dev.lavalink.youtube:youtube-plugin:1.18.2"
+    snapshot: false
+  pluginsDir: "/plugins"
+  server:
+    # password comes from LAVALINK_SERVER_PASSWORD (Spring relaxed binding),
+    # not from this file — see secret-sops.yaml.
+    sources:
+      youtube: false
+      bandcamp: true
+      soundcloud: true
+      twitch: true
+      vimeo: true
+      nico: true
+      # Direct stream URLs (internet radio, and anything a user pastes). Safe
+      # here only because the network policy denies this pod the LAN and the
+      # cluster: an http source is an SSRF primitive handed to whoever can talk
+      # to the bot.
+      http: true
+      local: false
+    bufferDurationMs: 400
+    frameBufferDurationMs: 5000
+    opusEncodingQuality: 10
+    resamplingQuality: LOW
+    trackStuckThresholdMs: 10000
+    useSeekGhosting: true
+    youtubePlaylistLoadLimit: 6
+    playerUpdateInterval: 5
+    youtubeSearchEnabled: true
+    soundcloudSearchEnabled: true
+    gc-warnings: true
+
+metrics:
+  prometheus:
+    enabled: false
+
+logging:
+  file:
+    # Under /tmp because the root filesystem is read-only. Left enabled rather
+    # than turned off: Lavalink's logback config writes here regardless, and
+    # pointing it at a path that cannot be created fails the boot.
+    path: /tmp/logs/
+  level:
+    root: INFO
+    lavalink: INFO
+  request:
+    enabled: true
+    includeClientInfo: true

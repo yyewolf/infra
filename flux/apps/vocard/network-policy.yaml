@@ -1,0 +1,227 @@
+# Three policies rather than one namespace-wide rule, because the three
+# workloads here are not peers: the bot talks to Discord, Lavalink talks to
+# half the internet, and MongoDB talks to nobody. Written as one policy the
+# union would give the database Lavalink's egress.
+#
+# Every internet rule is `toCIDRSet: 0.0.0.0/0` with the RFC1918 ranges
+# excepted rather than `toEntities: world` — same reason as apps/servarr:
+# `world` means "outside the cluster" and includes the home LAN and the
+# router. Lavalink resolves arbitrary user-supplied URLs (`http: true` in its
+# config), so the LAN is precisely what it must not reach.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: vocard
+spec:
+  endpointSelector:
+    matchLabels:
+      app: vocard
+  # Nothing connects to the bot — it has no Service and no probes. An empty
+  # list is what turns ingress enforcement on and then permits nothing.
+  ingress: []
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: vocard
+        app: lavalink
+    toPorts:
+    - ports:
+      - port: "2333"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: vocard
+        app: mongodb
+    toPorts:
+    - ports:
+      - port: "27017"
+        protocol: TCP
+  # The dashboard's /ws_bot socket. This direction is the whole IPC link: the
+  # dashboard never dials the bot.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: vocard
+        app: vocard-dashboard
+    toPorts:
+    - ports:
+      - port: "8000"
+        protocol: TCP
+  # The Discord gateway and REST API, and lrclib.net for lyrics. All of it is
+  # HTTPS, so unlike the servarr rule this one can stay on a single port.
+  - toCIDRSet:
+    - cidr: 0.0.0.0/0
+      except:
+      - 10.0.0.0/8
+      - 192.168.0.0/16
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: lavalink
+spec:
+  endpointSelector:
+    matchLabels:
+      app: lavalink
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: vocard
+        app: vocard
+    toPorts:
+    - ports:
+      - port: "2333"
+        protocol: TCP
+  # The tailscale Ingress proxy, which runs as a pod in the tailscale
+  # namespace and connects to this Service like any other client.
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: tailscale
+    toPorts:
+    - ports:
+      - port: "2333"
+        protocol: TCP
+  # The kubelet's probes come from the node identity, not from a pod. Without
+  # this the readiness probe is dropped and the pod never becomes ready while
+  # its own log says it is serving.
+  - fromEntities:
+    - host
+    - remote-node
+    - health
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+  # maven.lavalink.dev for the YouTube plugin at boot, then the track sources
+  # themselves and the Discord voice websocket. 80 as well as 443 because
+  # plenty of internet radio streams are still plain HTTP.
+  - toCIDRSet:
+    - cidr: 0.0.0.0/0
+      except:
+      - 10.0.0.0/8
+      - 192.168.0.0/16
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP
+      - port: "80"
+        protocol: TCP
+  # Voice RTP. Discord hands out a voice server on an ephemeral UDP port in
+  # this range, and Lavalink — not the bot — is the end of that socket. Without
+  # it every command works, the controller appears, and no audio is ever heard.
+  - toCIDRSet:
+    - cidr: 0.0.0.0/0
+      except:
+      - 10.0.0.0/8
+      - 192.168.0.0/16
+    toPorts:
+    - ports:
+      - port: "50000"
+        endPort: 65535
+        protocol: UDP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: mongodb
+spec:
+  endpointSelector:
+    matchLabels:
+      app: mongodb
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: vocard
+        app: vocard
+    toPorts:
+    - ports:
+      - port: "27017"
+        protocol: TCP
+  egress:
+  # DNS only. The readiness probe is an exec, so it needs nothing here, and
+  # mongod has no reason to dial out at all.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: vocard-dashboard
+spec:
+  endpointSelector:
+    matchLabels:
+      app: vocard-dashboard
+  ingress:
+  # Browsers, via the tailnet.
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: tailscale
+    toPorts:
+    - ports:
+      - port: "8000"
+        protocol: TCP
+  # The bot's IPC websocket.
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: vocard
+        app: vocard
+    toPorts:
+    - ports:
+      - port: "8000"
+        protocol: TCP
+  - fromEntities:
+    - host
+    - remote-node
+    - health
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+  # discord.com for the OAuth token exchange and /users/@me, and git.io ->
+  # github release assets for the GeoLite database it downloads once at boot.
+  # Without the latter the login page still works but `/` raises on the
+  # missing .mmdb, which reads as a 500 with nothing wrong in the request.
+  - toCIDRSet:
+    - cidr: 0.0.0.0/0
+      except:
+      - 10.0.0.0/8
+      - 192.168.0.0/16
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP

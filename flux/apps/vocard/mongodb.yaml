@@ -1,0 +1,139 @@
+# Vocard's only datastore. It holds per-guild settings (prefix, request
+# channel, controller layout) and per-user playlists and history — small, but
+# the one thing here that cannot be rebuilt from git, hence the backup group.
+#
+# A plain standalone mongod rather than an operator: this is one database with
+# one client, and the two database operators this cluster runs (CNPG, CNMSQL)
+# do not speak Mongo. Nothing in Vocard uses transactions or change streams, so
+# the single-node deployment costs nothing a replica set would give back.
+#
+# THE KERNEL CEILING: mongod 8.3 refuses to start on Linux 6.19 or newer and
+# says so as a fatal startup message (SERVER-121912), not as a crash. The nodes
+# are on 6.18.48 today, so this runs; the next Talos bump that crosses 6.19 is
+# what breaks it, and the failure will look like a node problem rather than an
+# image one. The fix at that point is a MongoDB release carrying the fix, not a
+# rollback of the node.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vocard-mongodb
+  labels:
+    recurring-job-group.longhorn.io/vocard-backup: enabled
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb
+  labels:
+    app: mongodb
+spec:
+  replicas: 1
+  # RWO claim: the old pod has to detach before the new one can attach, so a
+  # rolling update would sit in Multi-Attach until it timed out.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: mongodb
+  template:
+    metadata:
+      labels:
+        app: mongodb
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: mongodb
+        image: mirror.gcr.io/mongo:8.3.9@sha256:81a1c8842a09589fc8d5f285266f3340bf4abdf66700ba22988f14cc9b2b3118
+        # The root account the entrypoint creates on an empty data directory.
+        # It is only ever created once — changing these later renames nothing,
+        # it just stops matching what is in the database.
+        env:
+        - name: MONGO_INITDB_ROOT_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: vocard
+              key: MONGO_USERNAME
+        - name: MONGO_INITDB_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: vocard
+              key: MONGO_PASSWORD
+        args:
+        - --auth
+        - --bind_ip_all
+        ports:
+        - containerPort: 27017
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        volumeMounts:
+        - name: data
+          mountPath: /data/db
+        # The image declares both of these as volumes and the entrypoint writes
+        # to them; with a read-only root they have to be real mounts. /tmp is
+        # where the entrypoint puts the unix socket of the throwaway mongod it
+        # starts to create the root user.
+        - name: configdb
+          mountPath: /data/configdb
+        - name: tmp
+          mountPath: /tmp
+        readinessProbe:
+          # `ping` is in the set of commands mongod answers before
+          # authentication, so this needs no credentials of its own.
+          exec:
+            command:
+            - mongosh
+            - --quiet
+            - --eval
+            - "db.adminCommand('ping').ok"
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: 50m
+            memory: 256Mi
+          limits:
+            cpu: "1"
+            memory: 1Gi
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: vocard-mongodb
+      - name: configdb
+        emptyDir: {}
+      - name: tmp
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb
+  labels:
+    app: mongodb
+spec:
+  selector:
+    app: mongodb
+  ports:
+  - port: 27017
+    targetPort: 27017
+  type: ClusterIP

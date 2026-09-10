@@ -1,0 +1,12 @@
+{
+    "logging": {
+        "file": {
+            "path": "./logs",
+            "enable": false
+        },
+        "level": {
+            "dashboard": "INFO"
+        },
+        "max_history": 30
+    }
+}

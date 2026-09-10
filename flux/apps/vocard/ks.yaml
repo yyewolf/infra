@@ -1,0 +1,28 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: vocard
+  namespace: flux-system
+spec:
+  # secret-sops.yaml holds the Discord bot token, the MongoDB credentials and
+  # the Lavalink password. Without this block the encrypted Secret is applied
+  # verbatim and the bot logs in with a ciphertext string — which fails as a
+  # 401 from Discord, not as a Flux error.
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-gpg
+  dependsOn:
+  # longhorn provisions the claim MongoDB lives on; tailscale owns the
+  # IngressClass the two devices attach to. No envoy-proxy and no certificates:
+  # nothing here is on a public listener — the bot is reached through Discord,
+  # and the dashboard and the Lavalink API are tailnet-only.
+  - name: longhorn
+  - name: tailscale
+  interval: 10m
+  path: ./flux/apps/vocard
+  prune: true
+  retryInterval: 1m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

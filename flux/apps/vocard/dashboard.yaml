@@ -1,0 +1,143 @@
+# Vocard's own web UI (ChocoMeow/Vocard-Dashboard), on the tailnet only.
+#
+# It is not a second client of the database — it holds no state at all. The bot
+# dials *it* over a websocket (/ws_bot, authorised by IPC_PASSWORD) and the
+# dashboard drives the players through that socket, which is why the bot is the
+# one with the egress rule and this pod has no ingress rule for it beyond the
+# namespace. Browser sessions are Discord OAuth: the application's client
+# secret, not the bot token.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vocard-dashboard
+  labels:
+    app: vocard-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vocard-dashboard
+  template:
+    metadata:
+      labels:
+        app: vocard-dashboard
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: dashboard
+        image: ghcr.io/chocomeow/vocard-dashboard:v2.0.3@sha256:af3d37a58db03e45c8dcf631f1d68c2c9892a34badb08c6d96170068c73af820
+        env:
+        # objects.py falls back to these for every settings key, so the only
+        # thing the mounted settings.json still has to carry is the logging
+        # block — SETTINGS.logging is passed to setup_logging() unguarded and
+        # a missing key there is an AttributeError on None during boot.
+        - name: HOST
+          value: "0.0.0.0"
+        - name: PORT
+          value: "8000"
+        - name: CLIENT_ID
+          value: "1547681887881920582"
+        # The websocket password the bot presents. Same secret key the bot's
+        # init container splices into its settings.json.
+        - name: PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: vocard
+              key: IPC_PASSWORD
+        - name: CLIENT_SECRET_ID
+          valueFrom:
+            secretKeyRef:
+              name: vocard
+              key: DISCORD_CLIENT_SECRET
+        # Signs the Quart session cookie. Rotating it logs everyone out and
+        # nothing else.
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: vocard
+              key: SECRET_KEY
+        # Must match a redirect URI registered on the Discord application,
+        # character for character, or the OAuth exchange comes back
+        # invalid_grant. The tailnet name is the public identity here — there
+        # is no yewolf.fr listener for this app.
+        - name: REDIRECT_URL
+          value: "https://vocard.goby-beaufort.ts.net/callback"
+        - name: PYTHONDONTWRITEBYTECODE
+          value: "1"
+        ports:
+        - containerPort: 8000
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        volumeMounts:
+        - name: settings
+          mountPath: /app/settings.json
+          subPath: settings.json
+          readOnly: true
+        # Three directories the app builds at boot inside its own source tree:
+        # static/css from the SCSS, static/js from the minifier, and
+        # geolite_db from the download below. All three are gitignored
+        # upstream, so none of them exists in the image and an emptyDir here
+        # shadows nothing.
+        - name: css
+          mountPath: /app/static/css
+        - name: js
+          mountPath: /app/static/js
+        - name: geolite
+          mountPath: /app/geolite_db
+        readinessProbe:
+          # The app's own unauthenticated endpoint. Everything else redirects
+          # into the OAuth flow.
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          failureThreshold: 6
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: "1"
+            memory: 512Mi
+      volumes:
+      - name: settings
+        configMap:
+          name: vocard-dashboard-settings
+          items:
+          - key: dashboard-settings.json
+            path: settings.json
+      - name: css
+        emptyDir: {}
+      - name: js
+        emptyDir: {}
+      - name: geolite
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vocard-dashboard
+  labels:
+    app: vocard-dashboard
+spec:
+  selector:
+    app: vocard-dashboard
+  ports:
+  - port: 8000
+    targetPort: 8000
+  type: ClusterIP

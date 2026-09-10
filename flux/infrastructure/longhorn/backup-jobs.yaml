@@ -90,3 +90,22 @@ spec:
   - dawarich-backup
   retain: 30
   concurrency: 1
+---
+# Vocard's MongoDB volume. Small, but it is the only copy of the per-guild
+# settings and the users' saved playlists — everything else in that namespace
+# is rebuilt from the image and the ConfigMaps on every start. Snapshot-based
+# like the rest of these: mongod's on-disk state is crash-consistent, and a
+# single-node deployment has nothing to quiesce.
+apiVersion: longhorn.io/v1beta2
+kind: RecurringJob
+metadata:
+  name: vocard-backup
+  namespace: longhorn-system
+spec:
+  name: vocard-backup
+  cron: "0 4 * * *"
+  task: backup
+  groups:
+  - vocard-backup
+  retain: 30
+  concurrency: 1
