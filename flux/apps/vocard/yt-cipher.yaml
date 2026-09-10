@@ -1,0 +1,108 @@
+# A signature-deciphering service for the YouTube plugin.
+#
+# YouTube signs stream URLs with a function inside its player's base.js and
+# changes that script often. youtube-source extracts the function locally, and
+# when the extraction breaks the failure is "Must find sig function from
+# script: /s/player/<hash>/…" and every WEB-family client stops playing. That
+# is not a version we can chase: upstream's own answer, from the maintainer
+# closing issue #225, is "the consensus is to use a remote cipher server."
+#
+# So this runs kikkia/yt-cipher — the implementation youtube-source's README
+# names — in-cluster rather than pointing at the public instance at
+# cipher.kikkia.dev, which is a third party seeing every player script this
+# node resolves and is rate-limited to 10 req/s.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: yt-cipher
+  labels:
+    app: yt-cipher
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: yt-cipher
+  template:
+    metadata:
+      labels:
+        app: yt-cipher
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        # The image's own `nonroot` user, from the distroless base.
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: yt-cipher
+        image: ghcr.io/kikkia/yt-cipher:master@sha256:4c5ec381ff57336cfc24822d2b526a5ad7cd0171f61065a1bbc87bb736842449
+        env:
+        # Without this the service answers every request unauthenticated, and
+        # anything in the namespace could drive it. Same value the Lavalink
+        # side sends as plugins.youtube.remoteCipher.password.
+        - name: API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: vocard
+              key: CIPHER_PASSWORD
+        # Upstream: "Right now only the IAS script variants consistently work."
+        - name: OVERRIDE_PLAYER_VARIANT
+          value: IAS
+        # The cache path is derived from XDG_CACHE_HOME, then $HOME, then the
+        # working directory — pinning it is what makes the emptyDir below the
+        # right mount point rather than a guess about the distroless image's
+        # home directory. Without a writable one the process dies at startup
+        # with "Read-only file system (os error 30): mkdir".
+        - name: XDG_CACHE_HOME
+          value: /cache
+        ports:
+        - containerPort: 8001
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        volumeMounts:
+        - name: cache
+          mountPath: /cache
+        readinessProbe:
+          # `/` serves the docs page and is handled before the token check, so
+          # it needs no credentials. The API routes below it all 401.
+          httpGet:
+            path: /
+            port: 8001
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: "1"
+            memory: 512Mi
+      volumes:
+      # Cached player scripts. Losing them on a restart costs one re-fetch
+      # per script, not correctness.
+      - name: cache
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: yt-cipher
+  labels:
+    app: yt-cipher
+spec:
+  selector:
+    app: yt-cipher
+  ports:
+  - port: 8001
+    targetPort: 8001
+  type: ClusterIP

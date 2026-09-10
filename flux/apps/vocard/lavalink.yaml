@@ -47,6 +47,14 @@ spec:
         # the key does not exist, the variable is simply absent, and the plugin
         # runs the flow instead of using a token. Adding the key later needs a
         # pod roll — a Secret change does not restart anything by itself.
+        # plugins.youtube.remoteCipher.password. Not optional: a cipher
+        # server that rejects this node's requests fails the same way a
+        # missing one does, so it is better for the pod to refuse to start.
+        - name: PLUGINS_YOUTUBE_REMOTECIPHER_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: vocard
+              key: CIPHER_PASSWORD
         - name: PLUGINS_YOUTUBE_OAUTH_REFRESHTOKEN
           valueFrom:
             secretKeyRef:

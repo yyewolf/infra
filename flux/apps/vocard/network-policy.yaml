@@ -112,6 +112,15 @@ spec:
         protocol: UDP
       - port: "53"
         protocol: TCP
+  # The cipher service, for every signed stream URL it resolves.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: vocard
+        app: yt-cipher
+    toPorts:
+    - ports:
+      - port: "8001"
+        protocol: TCP
   # maven.lavalink.dev for the YouTube plugin at boot, then the track sources
   # themselves and the Discord voice websocket. 80 as well as 443 because
   # plenty of internet radio streams are still plain HTTP.
@@ -216,6 +225,51 @@ spec:
   # github release assets for the GeoLite database it downloads once at boot.
   # Without the latter the login page still works but `/` raises on the
   # missing .mmdb, which reads as a 500 with nothing wrong in the request.
+  - toCIDRSet:
+    - cidr: 0.0.0.0/0
+      except:
+      - 10.0.0.0/8
+      - 192.168.0.0/16
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: yt-cipher
+spec:
+  endpointSelector:
+    matchLabels:
+      app: yt-cipher
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: vocard
+        app: lavalink
+    toPorts:
+    - ports:
+      - port: "8001"
+        protocol: TCP
+  - fromEntities:
+    - host
+    - remote-node
+    - health
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+  # It fetches YouTube's player scripts itself — that is the whole job. Same
+  # CIDR shape as the others: this pod downloads and evaluates JavaScript that
+  # YouTube wrote, so the LAN is the last thing it should be able to reach.
   - toCIDRSet:
     - cidr: 0.0.0.0/0
       except:

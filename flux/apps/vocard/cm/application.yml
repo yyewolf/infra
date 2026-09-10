@@ -31,6 +31,13 @@ plugins:
     # account terminated, and it is not an idle one.
     oauth:
       enabled: true
+    # Signature deciphering, handed to the service in yt-cipher.yaml. The
+    # password comes from the environment, so only the URL and the metrics
+    # label are here. Removing this block puts the local extractor back in
+    # charge and returns the "Must find sig function" failure.
+    remoteCipher:
+      url: "http://yt-cipher:8001"
+      userAgent: "vocard"
 
 lavalink:
   plugins:

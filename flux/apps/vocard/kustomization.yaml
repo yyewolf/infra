@@ -7,6 +7,7 @@ resources:
 - secret-sops.yaml
 - mongodb.yaml
 - lavalink.yaml
+- yt-cipher.yaml
 - deployment.yaml
 - dashboard.yaml
 - ingress.yaml
