@@ -42,6 +42,17 @@ spec:
             secretKeyRef:
               name: vocard
               key: LAVALINK_PASSWORD
+        # plugins.youtube.oauth.refreshToken, via Spring relaxed binding again.
+        # Optional on purpose: until the device flow has been completed once
+        # the key does not exist, the variable is simply absent, and the plugin
+        # runs the flow instead of using a token. Adding the key later needs a
+        # pod roll — a Secret change does not restart anything by itself.
+        - name: PLUGINS_YOUTUBE_OAUTH_REFRESHTOKEN
+          valueFrom:
+            secretKeyRef:
+              name: vocard
+              key: YOUTUBE_OAUTH_REFRESH_TOKEN
+              optional: true
         # The entrypoint is `java -jar Lavalink.jar` with no wrapper script,
         # so there is no JAVA_OPTS to read — JDK_JAVA_OPTIONS is the launcher's
         # own variable. Heap bounded below the container limit so the JVM sizes

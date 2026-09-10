@@ -5,14 +5,32 @@ server:
 plugins:
   youtube:
     enabled: true
-    # The default client set for youtube-source. MUSIC and ANDROID_VR are what
-    # actually resolve most tracks; WEB/WEBEMBEDDED are the fallbacks for
-    # age-gated and embed-only videos.
+    # MUSIC and ANDROID_VR resolve most tracks; WEB/WEBEMBEDDED are the
+    # fallbacks. TV is last and is here only because of the OAuth block below:
+    # per youtube-source's client table it is the *only* client that can use an
+    # OAuth token, and it carries no metadata support of its own — it plays,
+    # it does not search.
     clients:
     - MUSIC
     - ANDROID_VR
     - WEB
     - WEBEMBEDDED
+    - TV
+    # Without this, YouTube answers this server's requests with "This video
+    # requires login" on ANDROID_VR and "No supported audio streams available"
+    # on WEB — its bot detection, on an ordinary public video, not an
+    # age-restricted one. OAuth makes the requests look like a signed-in user.
+    #
+    # The first start with no refreshToken prints a code and a
+    # google.com/device link, and prints the resulting refresh token once the
+    # flow is completed. That token then goes into secret-sops.yaml as
+    # YOUTUBE_OAUTH_REFRESH_TOKEN and is injected as an env var by
+    # lavalink.yaml, so it is never in this ConfigMap.
+    #
+    # Use a burner Google account. Upstream's warning is that this can get an
+    # account terminated, and it is not an idle one.
+    oauth:
+      enabled: true
 
 lavalink:
   plugins:
@@ -68,6 +86,9 @@ logging:
   level:
     root: INFO
     lavalink: INFO
+    # Prints the device code during the OAuth flow, and the refresh token when
+    # it completes. Both are invisible at the default level.
+    dev.lavalink.youtube.http.YoutubeOauth2Handler: INFO
   request:
     enabled: true
     includeClientInfo: true
