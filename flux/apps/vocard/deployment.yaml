@@ -83,6 +83,53 @@ spec:
           limits:
             cpu: 200m
             memory: 128Mi
+      # WHY THE BOT WAITS FOR THE DASHBOARD
+      #
+      # The IPC link is dialled exactly once, from setup_hook, and a failure
+      # there is caught and logged as "Cannot connected to dashboard!" and
+      # never retried — voicelink's reconnect loop only exists after a socket
+      # has been established once. So when the two pods roll together (any
+      # ConfigMap change rolls both) the bot reaches the dashboard's Service
+      # about ten seconds before hypercorn is listening, loses the race, and
+      # stays disconnected until something restarts it. From the dashboard's
+      # side that looks like the bot simply not existing.
+      #
+      # Bounded at two minutes and then continues regardless: a dashboard that
+      # is broken or absent must not be able to keep the music bot off Discord.
+      - name: wait-for-dashboard
+        image: ghcr.io/chocomeow/vocard:v2.7.3@sha256:1caa053edd4dea7e8d9cf21cbb4cd6a0c138e0e08f38d4714013bcca553b8387
+        command:
+        - python
+        - -c
+        - |
+          import sys, time, urllib.request
+          deadline = time.time() + 120
+          while time.time() < deadline:
+              try:
+                  with urllib.request.urlopen("http://vocard-dashboard:8000/health", timeout=3) as r:
+                      if r.status == 200:
+                          print("dashboard is up", flush=True)
+                          sys.exit(0)
+              except Exception as err:
+                  print(f"waiting for dashboard: {err}", flush=True)
+              time.sleep(2)
+          print("dashboard still down after 120s - starting without it", flush=True)
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
       containers:
       - name: vocard
         image: ghcr.io/chocomeow/vocard:v2.7.3@sha256:1caa053edd4dea7e8d9cf21cbb4cd6a0c138e0e08f38d4714013bcca553b8387
