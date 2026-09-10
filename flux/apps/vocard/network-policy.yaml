@@ -121,33 +121,36 @@ spec:
     - ports:
       - port: "8001"
         protocol: TCP
-  # maven.lavalink.dev for the YouTube plugin at boot, then the track sources
-  # themselves and the Discord voice websocket. 80 as well as 443 because
-  # plenty of internet radio streams are still plain HTTP.
+  # maven.lavalink.dev for the plugin at boot, the track sources themselves,
+  # and Discord's voice servers. Every port, minus the LAN — the same shape as
+  # apps/servarr, and the RFC1918 exclusion is the control here, not the ports.
+  #
+  # IT IS NOT A PORT LIST, BECAUSE DISCORD'S VOICE PORTS ARE NOT PREDICTABLE
+  #
+  # This was first written as TCP 443/80 plus UDP 50000-65535, assuming the
+  # voice websocket is HTTPS and voice RTP lands in the ephemeral range. Both
+  # halves were wrong. Observed flows from a working session:
+  #
+  #   10.244.4.176:39124 -> 162.159.130.235:2087  tcp   voice websocket
+  #   10.244.4.176:48073 -> 104.29.148.3:19320    udp   voice RTP
+  #
+  # 2087 is one of Cloudflare's alternate HTTPS ports; 19320 is nowhere near
+  # the ephemeral range. Neither is fixed — the host and port arrive in the
+  # VOICE_SERVER_UPDATE payload and vary by region and session, so any
+  # enumeration here breaks playback again later for one region at a time.
+  #
+  # The failure it produced hid well: the bot's PATCH carrying the voice
+  # credentials hung inside Lavalink while Koe waited on a TCP connection being
+  # dropped, so the bot logged an aiohttp TimeoutError, Lavalink logged nothing
+  # (its request filter logs on completion and the request never completed),
+  # and the player sat holding the track with `"connected": false` and silence.
+  # Track loading, search, the cipher server and OAuth were all fine — the one
+  # broken thing was the only one nothing reported on.
   - toCIDRSet:
     - cidr: 0.0.0.0/0
       except:
       - 10.0.0.0/8
       - 192.168.0.0/16
-    toPorts:
-    - ports:
-      - port: "443"
-        protocol: TCP
-      - port: "80"
-        protocol: TCP
-  # Voice RTP. Discord hands out a voice server on an ephemeral UDP port in
-  # this range, and Lavalink — not the bot — is the end of that socket. Without
-  # it every command works, the controller appears, and no audio is ever heard.
-  - toCIDRSet:
-    - cidr: 0.0.0.0/0
-      except:
-      - 10.0.0.0/8
-      - 192.168.0.0/16
-    toPorts:
-    - ports:
-      - port: "50000"
-        endPort: 65535
-        protocol: UDP
 ---
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
