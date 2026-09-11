@@ -19,10 +19,10 @@ spec:
       # The chart's default is `latest`, which combined with the GitRepository
       # tracking master means the deployed webhook could change under us on any
       # upstream push, with nothing in this repo recording what is running.
-      # v0.3.1 is the digest `latest` points at today, so pinning it changed
+      # v0.4.0 is the digest `latest` points at today, so pinning it changed
       # nothing at the time it was written.
       # renovate: datasource=docker depName=ghcr.io/infomaniak/cert-manager-webhook-infomaniak
-      tag: v0.3.1
+      tag: v0.4.0
 
   # The upstream chart has no securityContext plumbing at all — not on the pod,
   # not on the container, nothing in values.yaml — so there is no value to set
