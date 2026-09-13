@@ -24,7 +24,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: portfolio
-        image: ghcr.io/yyewolf/portfolio:2.3.3
+        image: ghcr.io/yyewolf/portfolio:2.3.3@sha256:2e58a8e65585309fd7f86417a0ecea8e6fc66d39ec0f2e33beb1ff8b61a5bc26
         imagePullPolicy: IfNotPresent
         ports:
         - name: http
