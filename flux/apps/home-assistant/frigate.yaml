@@ -137,7 +137,7 @@ spec:
         - { name: template, mountPath: /template, readOnly: true }
       containers:
       - name: frigate
-        image: ghcr.io/blakeblackshear/frigate:0.17.2@sha256:d4351369984d4a9e2a49ac59736f6490856a7ea11f7790040746d21496967010
+        image: ghcr.io/blakeblackshear/frigate:0.18.0@sha256:9678a83a76e4730ac7d9ea7428370e32ae656d6b312aaad30d6c69f3fef14d35
         # The official Frigate image runs as root and its s6-overlay needs
         # CAP_CHOWN, CAP_SETUID and CAP_SETGID to set up its log/runtime dirs.
         # This namespace is PSA privileged, so it is admissible. Rather than
