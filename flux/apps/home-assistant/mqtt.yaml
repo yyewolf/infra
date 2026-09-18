@@ -61,7 +61,7 @@ spec:
         kubernetes.io/hostname: w-1
       containers:
       - name: mosquitto
-        image: eclipse-mosquitto:2.0@sha256:212f89e1eaeb2c322d6441b64396e3346026674db8fa9c27beac293405c32b3c
+        image: eclipse-mosquitto:2.0@sha256:05b5c328c11046613c4b8137b27021c15342c9fc90ae9c2f4750ed3ece5967bd
         securityContext:
           runAsUser: 1883
           runAsGroup: 1883
