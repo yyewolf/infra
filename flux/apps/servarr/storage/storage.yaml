@@ -1,6 +1,6 @@
-# Every claim in this file is on `big-pool`, which means every one of them lives
-# on w-1's raidz1 and nowhere else. That is deliberate and it is not a fallback
-# from a better option:
+# Every claim in this file but the last is on `big-pool`, which means each of
+# them lives on w-1's raidz1 and nowhere else. That is deliberate and it is not
+# a fallback from a better option:
 #
 #   - servarr-media has to be there. It is 2.1 TiB of media; no other pool in
 #     the cluster is even a tenth of that size.
@@ -164,3 +164,31 @@ spec:
   resources:
     requests:
       storage: 1Gi
+---
+# The one claim here that is not on `big-pool`, and the reason the header says
+# "except the last one".
+#
+# The argument in the header for putting the config volumes on big-pool was that
+# every pod opening one also mounts servarr-media, so it is pinned to w-1 anyway
+# and a sata replica would mean a LAN round trip per sqlite write. Jellystat
+# mounts no media, so neither half of that holds: it is not pinned, and there is
+# no sqlite — all of its real state is in the shared Postgres. What lands here
+# is only the on-demand JSON exports its backup page writes, which are written
+# by hand and read almost never.
+#
+# So it takes `longhorn` instead: three replicas on cp-0/1/2 rather than one on
+# w-1, and no reason for the pod to care where they are. It is also the one
+# workload in this namespace that keeps running when w-1 is down — not that it
+# has anything to scrape while jellyfin is with it.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jellystat-backup
+  annotations:
+    k8up.io/backup: "true"
+spec:
+  accessModes: [ ReadWriteOnce ]
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 2Gi

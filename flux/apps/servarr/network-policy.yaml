@@ -1,14 +1,20 @@
-# One namespace-wide policy rather than eight per-workload ones, which is a
-# departure from how the rest of ng is written and needs the argument made.
+# One namespace-wide policy rather than one per workload, which is a departure
+# from how the rest of ng is written and needs the argument made.
 #
-# The eight workloads here are peers with the same needs: they resolve names,
-# they talk to each other constantly (prowlarr feeds sonarr and radarr, both
-# drive qbittorrent, bazarr follows both, jellyseerr drives all of them, and
-# every one of them reaches an indexer or a metadata API on the internet), and
-# they are reached from the same two places. Split per workload, that produces
-# eight files whose rules are identical, and the useful distinctions — which one
-# may reach the world, which one may be reached from the tailnet — would be
-# invisible in the duplication. Same reasoning as the Longhorn policy, for a
+# The workloads here are peers with the same needs: they resolve names, they
+# talk to each other constantly (prowlarr feeds sonarr and radarr, both drive
+# qbittorrent, bazarr follows both, jellyseerr drives all of them, jellystat
+# scrapes jellyfin, and every one of them reaches an indexer or a metadata API
+# on the internet), and they are reached from the same two places. Split per
+# workload, that produces nine files whose rules are identical, and the useful
+# distinctions — which one may reach the world, which one may be reached from
+# the tailnet — would be invisible in the duplication.
+#
+# The shape has a cost, and jellystat is the first to charge it: the Postgres
+# egress below exists for that pod alone and is granted to all nine. The case
+# for paying it is in the comment on the rule itself. Weigh it again before the
+# next app here that brings a backend of its own; at some point the answer is a
+# second policy, or that app's own namespace. Same reasoning as the Longhorn policy, for a
 # different reason: there, the workload set is unknowable; here, it is knowable
 # and uniform.
 #
@@ -84,6 +90,22 @@ spec:
       - port: "3389"
         protocol: TCP
       - port: "6636"
+        protocol: TCP
+  # The shared Postgres, for jellystat. This is the other half of
+  # platform/postgres/network-policy.yaml's `fromEntities: cluster` rule — the
+  # Postgres side allowing the cluster in does nothing on its own.
+  #
+  # It is namespace-wide like everything else in this file, so it grants the
+  # whole stack reach it does not use rather than jellystat alone. That is the
+  # cost of the one-policy-per-namespace shape argued for in the header, and it
+  # is a smaller widening than it looks: the CIDR rule below already lets every
+  # pod here open arbitrary ports to the internet.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: postgres
+    toPorts:
+    - ports:
+      - port: "5432"
         protocol: TCP
   # The internet, minus the LAN and the cluster. See the header.
   - toCIDRSet:

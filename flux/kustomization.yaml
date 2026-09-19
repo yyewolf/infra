@@ -37,6 +37,7 @@ resources:
 - platform/postgres/applications/cloudbeaver/ks.yaml
 - platform/postgres/applications/k7/ks.yaml
 - platform/postgres/applications/dawarich/ks.yaml
+- platform/postgres/applications/jellystat/ks.yaml
 - platform/mysql/applications/uptime-kuma/ks.yaml
 - platform/mysql/applications/cloudbeaver/ks.yaml
 - apps/cloudbeaver/ks.yaml

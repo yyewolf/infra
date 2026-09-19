@@ -1,0 +1,148 @@
+# Jellyfin playback statistics. It polls the Jellyfin API on a timer and over a
+# websocket, and keeps everything it collects in the shared Postgres — see
+# flux/platform/postgres/applications/jellystat.
+#
+# A StatefulSet for the same at-most-one reason as the rest of this directory,
+# though the argument is weaker here: the backup volume is RWO, so two pods must
+# never exist at once, and a Deployment can only promise that with a rollout
+# policy one field away from a rolling update that deadlocks on Multi-Attach.
+#
+# THE TWO WAYS THIS WORKLOAD IS NOT LIKE ITS NEIGHBOURS
+#
+#   - No nodeSelector. Every other pod here is pinned to w-1 because it mounts
+#     servarr-media, which is RWO and attached there. Jellystat mounts no media
+#     at all — it only ever speaks HTTP to jellyfin and Postgres — so pinning it
+#     would buy nothing and cost it the ability to reschedule.
+#   - Its claim is on `longhorn` (3 replicas, sata, cp-0/1/2), not `big-pool`.
+#     See the note beside it in storage/storage.yaml.
+#
+# It is *not* in its own namespace, which is the other thing worth stating.
+# Everything it talks to inside the cluster is either in servarr or already
+# reachable from it, and the namespace-wide policy in network-policy.yaml
+# already allows this namespace to talk to itself — so living here means
+# scraping Jellyfin needs no new rule at all, only the Postgres egress that was
+# added for it.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: jellystat
+spec:
+  replicas: 1
+  serviceName: jellystat
+  selector:
+    matchLabels:
+      app: jellystat
+  template:
+    metadata:
+      labels:
+        app: jellystat
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: jellystat
+        image: ghcr.io/cyfershepard/jellystat:1.1.12@sha256:e61c759ec706da378bc8374e797da1dfd298ab30f804cefd82d192c301a888c7
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        ports:
+        - containerPort: 3000
+        env:
+        # The two halves of the database identity come from different places on
+        # purpose. The credentials are written into this namespace by the
+        # PushSecret in platform/postgres/applications/jellystat and are not in
+        # git; the coordinates are not secret and are plain values, because
+        # Jellystat has no DSN form to assemble them into.
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: jellystat-db
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: jellystat-db
+              key: POSTGRES_PASSWORD
+        - name: POSTGRES_IP
+          value: postgres-rw.postgres.svc.cluster.local
+        - name: POSTGRES_PORT
+          value: "5432"
+        # Must equal the CNPG Database's name. Left unset it defaults to
+        # `jfstat`, which nothing creates — and the role cannot create it
+        # either. See the comments on both objects in the postgres directory.
+        - name: POSTGRES_DB
+          value: jellystat
+        # Signs the session tokens. Rotating it logs everyone out; it does not
+        # touch any stored data.
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: jellystat-secrets
+              key: JWT_SECRET
+        - name: TZ
+          value: "Europe/Paris"
+        # npm is the entrypoint (`npm run start`), and it writes its logs and
+        # cache under $HOME. Unset, that resolves to root's home for a pod
+        # running as 1000, and npm's failure to write there is an error that
+        # only shows up when something else has already gone wrong.
+        - name: HOME
+          value: /tmp
+        volumeMounts:
+        - name: backup-data
+          mountPath: /app/backend/backup-data
+        - name: tmp
+          mountPath: /tmp
+        # The same endpoint the image's own HEALTHCHECK uses. It answers only
+        # after the knex migrations have finished, which is exactly the point
+        # the app becomes useful — on a first boot against an empty database
+        # that is a few seconds, hence the generous failureThreshold.
+        readinessProbe:
+          httpGet:
+            path: /auth/isConfigured
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 12
+        livenessProbe:
+          httpGet:
+            path: /auth/isConfigured
+            port: 3000
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+        resources:
+          requests:
+            cpu: 50m
+            memory: 192Mi
+          limits:
+            cpu: 1000m
+            memory: 768Mi
+      volumes:
+      - name: backup-data
+        persistentVolumeClaim:
+          claimName: jellystat-backup
+      - name: tmp
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jellystat
+spec:
+  ports:
+  - port: 80
+    targetPort: 3000
+  selector:
+    app: jellystat
