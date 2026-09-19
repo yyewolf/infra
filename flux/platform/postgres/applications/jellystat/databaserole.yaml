@@ -1,0 +1,24 @@
+# Deliberately no `createdb: true`.
+#
+# Jellystat unconditionally issues `CREATE DATABASE <POSTGRES_DB>` at every
+# start. Without CREATEDB that fails with "permission denied to create
+# database", which backend/create_database.js only swallows quietly when the
+# message says "already exists" — so it prints one stack trace per boot and then
+# carries on to the migrations regardless. That trace is cosmetic and expected.
+#
+# The alternative is granting a role in the *shared* cluster the standing right
+# to create databases, permanently, to silence a log line from one statement
+# that only ever needed to succeed once. Same trade as the postgis note in
+# ../dawarich/database.yaml, resolved the same way.
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: jellystat
+  namespace: postgres
+spec:
+  cluster:
+    name: postgres
+  name: jellystat
+  login: true
+  passwordSecret:
+    name: jellystat-db-credentials

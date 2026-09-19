@@ -4,12 +4,14 @@ namespace: servarr
 
 resources:
 - nordvpn-sops.yaml
+- jellystat-sops.yaml
 - jellyfin.yaml
 - sonarr.yaml
 - radarr.yaml
 - prowlarr.yaml
 - bazarr.yaml
 - jellyseerr.yaml
+- jellystat.yaml
 - flaresolverr.yaml
 - torrent.yaml
 - routes.yaml

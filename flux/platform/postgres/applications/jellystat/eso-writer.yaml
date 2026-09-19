@@ -1,0 +1,47 @@
+# The identity the SecretStore authenticates as when it writes the database
+# username and password into the servarr namespace.
+#
+# Its own ServiceAccount, for the same reason as ../umami/eso-writer.yaml: an SA
+# created by a different Flux Kustomization would make this directory silently
+# depend on that one applying first.
+#
+# The Role and RoleBinding carry an app suffix, which umami's do not. servarr is
+# a shared namespace with eight workloads in it, so `eso-push-writer` there is a
+# name a second pushing app would collide with — and a collision here is two
+# Kustomizations fighting over one RoleBinding's subjects list, which resolves
+# by whichever reconciled last. Suffix them while the namespace is shared.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: eso-push-writer-jellystat
+  namespace: postgres
+---
+# In the servarr namespace, not this one: this is what the SA is allowed to do
+# at the far end of the push. Secrets only, and only the verbs a PushSecret
+# needs to create and keep one up to date.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: eso-push-writer-jellystat
+  namespace: servarr
+rules:
+- apiGroups: [""]
+  resources: [secrets]
+  verbs: [get, list, watch, create, update, patch]
+- apiGroups: [authorization.k8s.io]
+  resources: [selfsubjectrulesreviews]
+  verbs: [create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: eso-push-writer-jellystat
+  namespace: servarr
+subjects:
+- kind: ServiceAccount
+  name: eso-push-writer-jellystat
+  namespace: postgres
+roleRef:
+  kind: Role
+  name: eso-push-writer-jellystat
+  apiGroup: rbac.authorization.k8s.io

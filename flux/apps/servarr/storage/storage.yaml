@@ -1,6 +1,6 @@
-# Every claim in this file is on `big-pool`, which means every one of them lives
-# on w-1's raidz1 and nowhere else. That is deliberate and it is not a fallback
-# from a better option:
+# Every claim in this file but the last is on `big-pool`, which means each of
+# them lives on w-1's raidz1 and nowhere else. That is deliberate and it is not
+# a fallback from a better option:
 #
 #   - servarr-media has to be there. It is 2.1 TiB of media; no other pool in
 #     the cluster is even a tenth of that size.
@@ -39,15 +39,33 @@
 # hardlink the same inodes into /data/media, so a completed torrent costs its
 # size once instead of twice. Hardlinks cannot cross a filesystem boundary, so
 # splitting downloads from media would silently turn every import into a copy.
+#
+# BACKUPS
+#
+# Every claim here except servarr-media carries
+# `recurring-job-group.longhorn.io/servarr-backup: enabled`, which enrols it in
+# the RecurringJob of that name in infrastructure/longhorn/backup-jobs.yaml —
+# 04:00 UTC nightly, retain 30, to the Infomaniak bucket.
+#
+# This matters more here than it does for the apps on the `longhorn` class. A
+# three-replica volume survives losing a node on its own and the backup is the
+# second line; a big-pool volume has exactly one replica, on w-1, so the nightly
+# upload is the *only* copy that is not on that one raidz1. Losing w-1 without
+# it loses every indexer definition, every quality profile, every custom format
+# and qbittorrent's whole BT_backup at once.
+#
+# These claims used to carry `k8up.io/backup: "true"` instead. That annotation
+# came across with the migration from the root cluster and meant nothing on ng:
+# k8up is not installed here, nothing reads it, and it read as coverage that did
+# not exist. The label above is the mechanism this cluster actually has.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: servarr-media
-  annotations:
-    # Deliberately not backed up: 2.1 TiB of re-downloadable media, and there
-    # is no S3 target on ng that would take it. The configs beside it are the
-    # part that is expensive to lose.
-    k8up.io/backup: "false"
+  # No `recurring-job-group.longhorn.io/servarr-backup` label, deliberately:
+  # 2.9 TiB of re-downloadable media, and there is no S3 target on ng that
+  # would take it. The configs beside it are the part that is expensive to
+  # lose, and they carry the label.
 spec:
   accessModes: [ ReadWriteOnce ]
   storageClassName: big-pool
@@ -59,8 +77,8 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: jellyfin-config
-  annotations:
-    k8up.io/backup: "true"
+  labels:
+    recurring-job-group.longhorn.io/servarr-backup: enabled
 spec:
   accessModes: [ ReadWriteOnce ]
   storageClassName: big-pool
@@ -74,8 +92,8 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: sonarr-config
-  annotations:
-    k8up.io/backup: "true"
+  labels:
+    recurring-job-group.longhorn.io/servarr-backup: enabled
 spec:
   accessModes: [ ReadWriteOnce ]
   storageClassName: big-pool
@@ -87,8 +105,8 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: radarr-config
-  annotations:
-    k8up.io/backup: "true"
+  labels:
+    recurring-job-group.longhorn.io/servarr-backup: enabled
 spec:
   accessModes: [ ReadWriteOnce ]
   storageClassName: big-pool
@@ -100,8 +118,8 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: prowlarr-config
-  annotations:
-    k8up.io/backup: "true"
+  labels:
+    recurring-job-group.longhorn.io/servarr-backup: enabled
 spec:
   accessModes: [ ReadWriteOnce ]
   storageClassName: big-pool
@@ -113,8 +131,8 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: bazarr-config
-  annotations:
-    k8up.io/backup: "true"
+  labels:
+    recurring-job-group.longhorn.io/servarr-backup: enabled
 spec:
   accessModes: [ ReadWriteOnce ]
   storageClassName: big-pool
@@ -126,8 +144,8 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: jellyseerr-config
-  annotations:
-    k8up.io/backup: "true"
+  labels:
+    recurring-job-group.longhorn.io/servarr-backup: enabled
 spec:
   accessModes: [ ReadWriteOnce ]
   storageClassName: big-pool
@@ -143,8 +161,8 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: qbittorrent-config
-  annotations:
-    k8up.io/backup: "true"
+  labels:
+    recurring-job-group.longhorn.io/servarr-backup: enabled
 spec:
   accessModes: [ ReadWriteOnce ]
   storageClassName: big-pool
@@ -156,11 +174,39 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: rustatio-config
-  annotations:
-    k8up.io/backup: "true"
+  labels:
+    recurring-job-group.longhorn.io/servarr-backup: enabled
 spec:
   accessModes: [ ReadWriteOnce ]
   storageClassName: big-pool
   resources:
     requests:
       storage: 1Gi
+---
+# The one claim here that is not on `big-pool`, and the reason the header says
+# "except the last one".
+#
+# The argument in the header for putting the config volumes on big-pool was that
+# every pod opening one also mounts servarr-media, so it is pinned to w-1 anyway
+# and a sata replica would mean a LAN round trip per sqlite write. Jellystat
+# mounts no media, so neither half of that holds: it is not pinned, and there is
+# no sqlite — all of its real state is in the shared Postgres. What lands here
+# is only the on-demand JSON exports its backup page writes, which are written
+# by hand and read almost never.
+#
+# So it takes `longhorn` instead: three replicas on cp-0/1/2 rather than one on
+# w-1, and no reason for the pod to care where they are. It is also the one
+# workload in this namespace that keeps running when w-1 is down — not that it
+# has anything to scrape while jellyfin is with it.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jellystat-backup
+  labels:
+    recurring-job-group.longhorn.io/servarr-backup: enabled
+spec:
+  accessModes: [ ReadWriteOnce ]
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 2Gi

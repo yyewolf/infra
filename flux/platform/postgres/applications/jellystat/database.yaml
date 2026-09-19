@@ -1,0 +1,23 @@
+# `jellystat`, not Jellystat's own `jfstat` default, and POSTGRES_DB in the
+# StatefulSet is set to match. Two reasons the name has to be stated on both
+# ends rather than left at the default:
+#
+#   - backend/create_database.js opens its first connection with no database
+#     named at all, so node-pg falls back to the *role* name. That connection
+#     has to land somewhere, which means a database called `jellystat` must
+#     exist whatever the schema ends up being called. Having it be the same
+#     database is the simplest way to satisfy that.
+#   - everything else in this directory is named after the app; a lone `jfstat`
+#     in the shared cluster is a name nobody will recognise in two years.
+#
+# No `extensions:` — knex builds the whole schema out of plain CREATE TABLEs.
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: jellystat
+  namespace: postgres
+spec:
+  cluster:
+    name: postgres
+  name: jellystat
+  owner: jellystat

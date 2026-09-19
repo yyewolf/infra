@@ -109,3 +109,31 @@ spec:
   - vocard-backup
   retain: 30
   concurrency: 1
+---
+# The servarr config claims — sonarr, radarr, prowlarr, bazarr, jellyseerr,
+# jellyfin, qbittorrent, rustatio and jellystat. Not servarr-media: 2.9 TiB of
+# re-downloadable files, and no bucket here would take it.
+#
+# Eight of the nine are on `big-pool`, i.e. a single replica on w-1, so unlike
+# the groups above this is not a second line of defence — it is the only copy of
+# those sqlite databases that does not live on w-1's raidz1.
+#
+# concurrency 2 rather than 1: jellyfin-config is ~16 GiB of metadata and image
+# cache against ~3.6 GiB for the other eight combined, and at concurrency 1 it
+# would sit in front of them for the whole of its first full upload. Two at a
+# time lets the small ones finish while it runs, and both replicas being on the
+# same node is not a reason to serialise — the upload is bounded by the uplink,
+# not by w-1's disks.
+apiVersion: longhorn.io/v1beta2
+kind: RecurringJob
+metadata:
+  name: servarr-backup
+  namespace: longhorn-system
+spec:
+  name: servarr-backup
+  cron: "0 4 * * *"
+  task: backup
+  groups:
+  - servarr-backup
+  retain: 30
+  concurrency: 2
