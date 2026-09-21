@@ -1,0 +1,22 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: substrate
+  namespace: flux-system
+spec:
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-gpg
+  dependsOn:
+  # WorkerPool, SandboxConfig and CSIDriverConfig (group ate.dev) come from the
+  # substrate-crds subchart of kagent-crds. Reconciling before those exist is an
+  # unknown-kind error, and the chart's own SandboxConfig is in this release.
+  - name: kagent-crds
+  interval: 10m
+  path: ./flux/platform/substrate
+  prune: true
+  retryInterval: 1m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

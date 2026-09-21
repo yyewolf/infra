@@ -1,0 +1,28 @@
+# No `createdb: true` and no superuser on either. Both components migrate their
+# own schema inside a database that already exists, which is all the owner of
+# that database needs.
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: kagent
+  namespace: postgres
+spec:
+  cluster:
+    name: postgres
+  name: kagent
+  login: true
+  passwordSecret:
+    name: kagent-db-credentials
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: substrate
+  namespace: postgres
+spec:
+  cluster:
+    name: postgres
+  name: substrate
+  login: true
+  passwordSecret:
+    name: substrate-db-credentials

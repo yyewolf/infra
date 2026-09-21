@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Deliberately NO `namespace:` transformer, unlike every other directory in
+# platform/. This directory is not single-namespace: network-policy.yaml carries
+# a third policy for `podcertificate-controller-system`, a namespace the
+# substrate chart creates itself. A blanket transformer silently rewrites that
+# policy's namespace to ate-system, where it selects nothing — and the
+# pod-certificate-controller, which is the signer behind every mTLS identity in
+# the install, stays default-denied by Cilium with no indication why.
+#
+# So every resource here states its own namespace instead. Check `kustomize
+# build` output, not just that it builds, when adding one.
+resources:
+  - namespace.yaml
+  - api-authentication.yaml
+  - s3-sops.yaml
+  - ocirepository.yaml
+  - release.yaml
+  - bucket-init.yaml
+  - network-policy.yaml

@@ -1,0 +1,64 @@
+# The credential substrate uses to read and write actor snapshots in the
+# existing rustfs (apps/rustfs), bucket `ate-snapshots`.
+#
+# Consumed twice, in two different ways, and both have to keep working:
+#   - `atelet.extraEnv` in release.yaml, a values-level secretKeyRef
+#   - the postRenderer patch in the same file, for ate-api-server, which has no
+#     extraEnv hook
+# and once more by bucket-init.yaml, the Job that creates the bucket.
+#
+# This is the rustfs ROOT credential's scope unless it was minted as a service
+# account. If it is root, note what that means: rustfs also holds the
+# `artifacts.yewolf.fr` bucket, and this policy-free key reaches it too. The
+# ingress rule added to apps/rustfs/network-policy.yaml admits the whole
+# ate-system namespace to port 9000 and cannot tell one bucket from another, so
+# the credential is the only thing bounding this. To narrow it later:
+#
+#   kubectl -n rustfs port-forward svc/rustfs 9000:9000
+#   mc alias set ng-rustfs http://127.0.0.1:9000 <root_user> <root_password>
+#   mc admin user svcacct add ng-rustfs <root_user> --policy /dev/stdin <<'POLICY'
+#   { "Version": "2012-10-17", "Statement": [
+#     { "Effect": "Allow",
+#       "Action": ["s3:GetObject","s3:PutObject","s3:DeleteObject","s3:ListBucket","s3:GetBucketLocation"],
+#       "Resource": ["arn:aws:s3:::ate-snapshots","arn:aws:s3:::ate-snapshots/*"] } ] }
+#   POLICY
+#
+# Snapshots are agent process memory, so this is worth doing even though it
+# works as it stands.
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+    name: substrate-s3
+    namespace: ate-system
+stringData:
+    access_key_id: ENC[AES256_GCM,data:eiPtx/FPxbHLN4U+/FtJCtyYiMo=,iv:OTGATKY5f5UEO6RGWFPnPldEDAiNiVI2/WneDWqW3Es=,tag:kRyG6xP3N1+xjUjgrq5iIQ==,type:str]
+    secret_access_key: ENC[AES256_GCM,data:A/XiVaAG/lhWnTraEWMbXnA+wenXFkjm0Rf7fCDHQFbJ8UUVX/y1OA==,iv:u8bBj2+dYXsFc9wtALiksFvYF5xuGU0Fm6NpNtBEa1s=,tag:HKWBr/le4FAJ4CglFQWoBg==,type:str]
+sops:
+    encrypted_regex: ^(data|stringData|secrets)$
+    lastmodified: "2026-09-21T19:01:11Z"
+    mac: ENC[AES256_GCM,data:F7ghzqPH1bcoocQw9PaeC8si53vR5FebP1qfoNqB8/UDMjNTa3aa97LxujoCwdybuDQz20n0IBfJs0n0Cgjm0Yd/VHJ1ihaPPF/2rykZILCdlTtTOvHEeHSksavGAxxcowwBRkqW5xv1INyAtJdKlWpgE1gZsCUuMc6RPZ39paE=,iv:hAIuUDZxAsTHdR3X392LpMaBaHJAVC/IlJ6rYdEbNaM=,tag:VdyI9VCJx1KfLPua9eYiPg==,type:str]
+    pgp:
+        - created_at: "2026-09-21T19:01:11Z"
+          enc: |-
+            -----BEGIN PGP MESSAGE-----
+
+            hF4D7/45ZmvAFBwSAQdAIhZsVk/ah1kAVu4ia4bU4veSTOVTGLoAMkTEr2yOxUow
+            eYXaPqQv3JHzZugWUrzF5ZHlD90eauGKZtjXDVdjlqekUBnm5TcIHfHZ8jeQB4tB
+            0l4BONsLdyh3W4DyCRrzJlZowmIWdE76sESPPVw0zxpeBW5h09SnAhWx4XDZM3Fy
+            ghhPVLVSRhw3OQRqmV8x1uCaSlt2NO3Pw6hsaWpasK2q4CwXei5BDWA7Nua+2wm3
+            =VqRl
+            -----END PGP MESSAGE-----
+          fp: 459895EB0A5F446D3831E99F95F6A162E4A71B06
+        - created_at: "2026-09-21T19:01:11Z"
+          enc: |-
+            -----BEGIN PGP MESSAGE-----
+
+            hF4D8q6e3Tem1ZoSAQdAbmJjVrHgHXyEdDm5BrkEi9awbBD6+LEawbb6zKX7TQsw
+            tvVEKuCvZkzqsTfwA6X+EGyN0wAjL9uQTLirzpnqVPSXiJ9GQyhwuhR7lgezcbhu
+            0l4BdMeQxK3cHQP/Soa16WhfbdP0zBwHkfuFwjCSWxyEjEOIUpUCVemZC8GiK7FO
+            0EfoTmY/Cul72WXaHzWmuCwDddLfetoVKDfpEaY96v4MpU7BINZ42qG6iIWtyDjs
+            =CfzP
+            -----END PGP MESSAGE-----
+          fp: DF7F5D62376A57228F35FE4C665F8C5B8E0732E5
+    version: 3.13.1

@@ -1,0 +1,91 @@
+# The identities the two SecretStores authenticate as when they write the
+# database DSNs into the kagent and ate-system namespaces.
+#
+# Two ServiceAccounts rather than one shared between them, and two rather than
+# reusing another directory's. The first split is because they authenticate
+# against different namespaces and a single SA would have to hold write access
+# to both — there is no reason for the identity that writes into `ate-system`
+# to be able to write into `kagent`. The second is the standing reason in this
+# tree (see ../umami/eso-writer.yaml): an SA created by a different Flux
+# Kustomization would make this directory silently depend on that one applying
+# first, and a SecretStore naming an SA it was not granted fails with the
+# unhelpful "client is not allowed to get secrets".
+#
+# Both target namespaces hold exactly one pushing app, so no app suffix is
+# needed on the far-end Role and RoleBinding the way ../jellystat's needs one
+# for the shared `servarr` namespace. They are suffixed anyway — `kagent` and
+# `ate-system` are both namespaces a second kagent-adjacent thing could
+# plausibly land in, and renaming a RoleBinding later to resolve a collision is
+# more work than naming it correctly now.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: eso-push-writer-kagent
+  namespace: postgres
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: eso-push-writer-substrate
+  namespace: postgres
+---
+# In the kagent namespace, not this one: this is what the SA is allowed to do at
+# the far end of the push. The namespace is created by
+# platform/kagent/crds/namespace.yaml — see the note there for why it is not
+# created by the app directory, which is exactly so that this Kustomization does
+# not have to wait on the app release.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: eso-push-writer-kagent
+  namespace: kagent
+rules:
+- apiGroups: [""]
+  resources: [secrets]
+  verbs: [get, list, watch, create, update, patch]
+- apiGroups: [authorization.k8s.io]
+  resources: [selfsubjectrulesreviews]
+  verbs: [create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: eso-push-writer-kagent
+  namespace: kagent
+subjects:
+- kind: ServiceAccount
+  name: eso-push-writer-kagent
+  namespace: postgres
+roleRef:
+  kind: Role
+  name: eso-push-writer-kagent
+  apiGroup: rbac.authorization.k8s.io
+---
+# ate-system is created by platform/substrate/namespace.yaml, which is why the
+# Kustomization for this directory dependsOn `substrate`.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: eso-push-writer-substrate
+  namespace: ate-system
+rules:
+- apiGroups: [""]
+  resources: [secrets]
+  verbs: [get, list, watch, create, update, patch]
+- apiGroups: [authorization.k8s.io]
+  resources: [selfsubjectrulesreviews]
+  verbs: [create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: eso-push-writer-substrate
+  namespace: ate-system
+subjects:
+- kind: ServiceAccount
+  name: eso-push-writer-substrate
+  namespace: postgres
+roleRef:
+  kind: Role
+  name: eso-push-writer-substrate
+  apiGroup: rbac.authorization.k8s.io

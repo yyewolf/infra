@@ -1,0 +1,35 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kagent-crds
+spec:
+  interval: 30m
+  chartRef:
+    kind: OCIRepository
+    name: kagent-crds
+  # The chart is nothing but CustomResourceDefinitions in templates/ — they are
+  # ordinary templated resources here, not files under a chart's crds/
+  # directory, so `install.crds` does not apply and kustomize-controller's
+  # normal apply handles them.
+  install:
+    crds: CreateReplace
+  upgrade:
+    crds: CreateReplace
+  values:
+    # kmcp's CRDs (MCPServer), used by the kagent chart's own toolserver
+    # template. Left on because the kagent release runs the kmcp subchart.
+    kmcp:
+      enabled: true
+    # Off by default in the chart, and the single most consequential value in
+    # this directory. It adds substrate-crds: WorkerPool, SandboxConfig and
+    # CSIDriverConfig in the ate.dev group.
+    #
+    # It is not optional for this cluster. `Harness.spec.substrate` is a
+    # *required* field on every harness variant — kagent, codex, claude and byo
+    # alike (kagent.dev_harnesses.yaml, `required: [substrate, workload]`, and
+    # HarnessSubstratePolicy additionally requires both `workerPoolRef` and
+    # `snapshotPolicy.location`). So there is no shape of kagent v1 that runs an
+    # agent without Substrate, and no shape of Substrate that works without
+    # these CRDs.
+    substrate:
+      enabled: true

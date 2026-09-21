@@ -1,0 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kagent
+spec:
+  # IngressClass created by the tailscale operator. The operator reads the
+  # hostname off tls.hosts, not off a rule host — the tailnet name is
+  # kagent.<tailnet>.ts.net, and it has to match `ui.externalUrl` in
+  # release.yaml exactly.
+  #
+  # No `-ng` suffix: the root cluster has never held `kagent` on the shared
+  # tailnet, so there is nothing to collide with. If that is ever wrong the
+  # symptom is a device silently named `kagent-1` — the operator resolves a
+  # collision by appending rather than by erroring.
+  ingressClassName: tailscale
+  tls:
+    - hosts:
+        - kagent
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                # The chart templates this as `<release>-ui`.
+                name: kagent-ui
+                port:
+                  number: 8080

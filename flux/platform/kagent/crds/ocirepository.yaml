@@ -1,0 +1,23 @@
+# GHCR-only, like cnmsql — there is no HTTP Helm repository for kagent, so this
+# is an OCIRepository + chartRef rather than the HelmRepository + chart.spec
+# form most of platform/ uses. Renovate's flux manager reads
+# `OCIRepository.spec.ref.tag`, so it is still pinned and still bumped.
+#
+# The chart carries `kmcp-crds` and `substrate-crds` as vendored subcharts
+# (see charts/ inside the package), conditional on `kmcp.enabled` and
+# `substrate.enabled`. Both are switched on in release.yaml, which is why there
+# is no separate substrate-crds release anywhere in this repo: turning that
+# condition on here is what puts the ate.dev CRDs on the cluster.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: kagent-crds
+spec:
+  interval: 1h
+  url: oci://ghcr.io/kagent-dev/kagent/helm/kagent-crds
+  layerSelector:
+    mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+    operation: copy
+  ref:
+    tag: 1.0.0-alpha1
+    digest: sha256:b3827dff329bed1911733d88d23edfbd0d87d4b6c65a3f31c66ec34282a93504

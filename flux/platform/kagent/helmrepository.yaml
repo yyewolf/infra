@@ -1,0 +1,33 @@
+# A `HelmRepository` with `type: oci` plus `chart.spec` on the HelmRelease,
+# rather than the `OCIRepository` + `chartRef` shape used by crds/ next door,
+# platform/substrate, platform/envoy-gateway and platform/cnmsql. That
+# difference is deliberate and it is a workaround — the reason is written out
+# in full at the top of release.yaml.
+#
+# The short version: helm-controller loading a chart through `chartRef` sets
+# `.Chart.Version` to `<version>+<digest[:12]>`, and this chart interpolates
+# `.Chart.Version` into `app.kubernetes.io/version` without sanitising it, so
+# the `+` produces an invalid label on every object and the install fails. The
+# HelmChart that `chart.spec` produces carries the bare version instead —
+# confirmed on this cluster, where `album/immich-charts` is also `type: oci`
+# and its HelmChart's artifact revision is exactly `0.13.2`.
+#
+# THE COST IS THE DIGEST PIN. `chart.spec` has no `digest` field, so this is
+# pinned by version alone and a mutated tag in GHCR would go unnoticed, where
+# crds/ocirepository.yaml still pins `1.0.0-alpha1` to a sha256. Three other
+# apps here already accept that trade (apps/immich, apps/woodpecker,
+# apps/uctf). Renovate is unaffected either way: its flux manager reads
+# `HelmRelease.spec.chart.spec.version` as well as `OCIRepository.spec.ref.tag`.
+#
+# Revert to the OCIRepository shape as soon as the chart sanitises that label
+# the way it already sanitises `helm.sh/chart`.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: kagent
+  namespace: kagent
+spec:
+  type: oci
+  interval: 24h
+  # The repository, not the chart — `chart.spec.chart` names `kagent` under it.
+  url: oci://ghcr.io/kagent-dev/kagent/helm

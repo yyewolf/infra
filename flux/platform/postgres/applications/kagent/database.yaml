@@ -1,0 +1,36 @@
+# Two databases on the shared cluster, one per component, deliberately not one
+# database with two schemas.
+#
+# kagent's controller and substrate's ate-api-server are separate programs on
+# separate release cadences, each of which runs its own migrations at startup
+# and each of which is the sole owner of its tables. Substrate additionally has
+# a `postgres.schema` value, which exists precisely because it expects to be
+# sharing — and sharing is what makes a restore ambiguous. Two databases means
+# either can be dumped, restored or dropped without reference to the other.
+#
+# Neither needs `extensions:`. kagent's own vector features ride on pgvector,
+# which is in template1 already (platform/postgres runs `CREATE EXTENSION
+# vchord CASCADE` in postInitTemplateSQL and CASCADE pulls pgvector in), so it
+# is inherited rather than requested — which is also why `vectorEnabled: true`
+# is safe to set in the HelmRelease.
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: kagent
+  namespace: postgres
+spec:
+  cluster:
+    name: postgres
+  name: kagent
+  owner: kagent
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: substrate
+  namespace: postgres
+spec:
+  cluster:
+    name: postgres
+  name: substrate
+  owner: substrate

@@ -1,0 +1,72 @@
+# The kagent namespace is created *here*, in the CRD directory, rather than
+# next to the app release one level up. It looks misplaced and is deliberate.
+#
+# `platform/postgres/applications/kagent` has to write a Role and a RoleBinding
+# into this namespace — that is how the ESO push gets permission to land the
+# database credentials at the far end — so something has to create it before
+# that Kustomization reconciles. If the app release owned it, `kagent-db` would
+# have to `dependsOn: kagent`, while `kagent` needs the pushed secret to start:
+# a cycle. Creating it in the layer both of them already wait on breaks it, and
+# the dependency graph comes out acyclic:
+#
+#   kagent-crds  -> cilium
+#   substrate    -> kagent-crds
+#   kagent-db    -> external-secrets, postgres, kagent-crds, substrate
+#   kagent       -> substrate, kagent-db, tailscale
+#
+# `pod-security.kubernetes.io/enforce: privileged`, and the argument for it —
+# because granting a namespace the right to exceed `baseline` should be
+# readable, not just present.
+#
+# It is NOT the chart's own workloads. The controller, the UI, kagent-tools and
+# kmcp all run unprivileged with `drop: [ALL]` and satisfy baseline as shipped.
+# It is the WORKER PODS, which are not in this repo and not in the chart: the
+# HelmRelease creates a namespaced `WorkerPool`, and substrate's ate-controller
+# turns it into a Deployment **in the WorkerPool's own namespace**, i.e. here.
+# `WorkerPool.spec.template` exposes only metadata, scheduling and resources, so
+# their security context is the controller's to choose and cannot be overridden.
+#
+# From substrate's source (cmd/atecontroller/internal/controllers/
+# workerpool_apply.go, ateomSecurityContext), a gVisor-class worker is:
+#
+#   privileged: false            <- note this; see the Kyverno paragraph below
+#   runAsUser/Group: 0
+#   capabilities: drop ALL, add  NET_ADMIN SYS_ADMIN SYS_CHROOT SYS_PTRACE
+#                               SETUID SETGID SETPCAP DAC_OVERRIDE FOWNER
+#                               CHOWN MKNOD NET_RAW SETFCAP
+#   seccompProfile: Unconfined   <- runsc's sandbox child pivot_root()s
+#   appArmorProfile: Unconfined  <- runsc's own mounts trip the default profile
+#
+# Three of those are baseline violations, confirmed by server-side dry-run of
+# exactly that pod into a baseline namespace rather than by reading the spec:
+#
+#   forbidden AppArmor profile (must not set AppArmor profile type to
+#   "Unconfined"), non-default capabilities (must not include "NET_ADMIN",
+#   "NET_RAW", "SYS_ADMIN", "SYS_PTRACE" in securityContext.capabilities.add),
+#   seccompProfile (must not set securityContext.seccompProfile.type to
+#   "Unconfined")
+#
+# Worth knowing how this fails without the label, because it is quiet: the
+# Deployment applies cleanly and reports 0 replicas, and the refusal appears
+# only as `FailedCreate` events on the ReplicaSet — never on the Deployment and
+# never as a pod. Agents then sit unschedulable with nothing to point at.
+#
+# NO KYVERNO EXCLUSION IS NEEDED, and that is the tighter outcome worth
+# recording. `require-kata-for-privileged` denies on
+# `securityContext.privileged == true`, and these workers are explicitly
+# `privileged: false` — substrate replaced its formerly-privileged worker with
+# this capability set precisely so it would not need blanket privilege. Verified
+# by dry-running the real spec into `servarr` (privileged PSA, not in the
+# policy's exclusion list): admitted. And with `privileged: true` flipped on as
+# a control, the same pod is denied by the policy — so the pass above is the
+# policy evaluating and allowing, not the webhook being skipped.
+#
+# `warn`/`audit` are deliberately left at the cluster default of `restricted`,
+# same as ate-system: the label is meant to buy exactly one thing, and a
+# `kubectl apply` here should still say what falls short.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kagent
+  labels:
+    pod-security.kubernetes.io/enforce: privileged

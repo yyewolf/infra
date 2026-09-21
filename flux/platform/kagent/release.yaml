@@ -1,0 +1,308 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kagent
+spec:
+  # The chart templates `kagent-ui` as `<release>-ui` and the oauth2-proxy
+  # values hardcode that name; more importantly `substrateWorkerPool` and the
+  # controller ConfigMap derive names from it. Keep it `kagent`.
+  releaseName: kagent
+  interval: 30m
+  # ---------------------------------------------------------------------
+  # Why this is `chart.spec` and not `chartRef`
+  # ---------------------------------------------------------------------
+  # Every other OCI chart in this repo's platform/ tree uses an OCIRepository
+  # plus `chartRef`, which pins a sha256 digest. This one cannot, and the reason
+  # is a collision between Flux and this chart:
+  #
+  #   helm install failed ... error while running post render on files:
+  #     yaml: unmarshal errors: line 13: mapping key
+  #     "app.kubernetes.io/version" already defined at line 10
+  #
+  # and before that workaround was attempted:
+  #
+  #   ServiceAccount "kagent-controller" is invalid: metadata.labels:
+  #   Invalid value: "1.0.0-alpha1+1b4621d58c71": a valid label must be an
+  #   empty string or consist of alphanumeric characters, '-', '_' or '.'
+  #
+  # helm-controller loading a chart through `chartRef` appends the artifact
+  # digest to the chart version as SemVer build metadata, so `.Chart.Version` at
+  # render time is `1.0.0-alpha1+1b4621d58c71`. `+` is legal in SemVer and
+  # illegal in a label value. The chart is half-prepared for it: in
+  # `kagent.labels`, `helm.sh/chart` pipes through `| replace "+" "_"` and
+  # `app.kubernetes.io/version` does not, so exactly one label is invalid — on
+  # every object the chart creates.
+  #
+  # THE OBVIOUS WORKAROUND DOES NOT WORK, and it is worth recording why.
+  # `.Values.labels` is emitted last in that helper, so `labels:
+  # {app.kubernetes.io/version: ""}` does override it in the rendered text, and
+  # the API server accepts the resulting duplicate YAML key (checked with
+  # `kubectl apply --dry-run=server`). But the API server is not the component
+  # that parses it first: helm-controller runs its own post-render pass over the
+  # rendered manifests with a strict YAML parser that rejects a repeated mapping
+  # key outright, so the install never gets far enough to apply anything. Any
+  # fix that relies on emitting a duplicate key is dead for this reason.
+  #
+  # A `postRenderers` patch would work — the single invalid label parses fine and
+  # kustomize could rewrite it — but it has to target every object kind while
+  # not clobbering the subcharts, whose own `app.kubernetes.io/version` comes
+  # from their own (suffix-free) `.Chart.Version`.
+  #
+  # So the cause is removed instead. The HelmChart that `chart.spec` produces
+  # carries the bare version: verified on this cluster, where the `type: oci`
+  # repository `album/immich-charts` yields a HelmChart whose artifact revision
+  # is exactly `0.13.2`.
+  #
+  # Cost: no digest pin (see helmrepository.yaml). crds/ next door keeps its
+  # OCIRepository and its digest, because a chart of pure CRDs never renders
+  # that label and is unaffected — as is platform/substrate, whose templates do
+  # not put `.Chart.Version` in a label value. Both installed cleanly with the
+  # same `+digest` suffix on their chart versions.
+  chart:
+    spec:
+      chart: kagent
+      version: 1.0.0-alpha1
+      sourceRef:
+        kind: HelmRepository
+        name: kagent
+        namespace: kagent
+  # CRDs come from the kagent-crds release in crds/, reconciled by its own
+  # Kustomization. `Skip` so this release never fights it for ownership.
+  install:
+    crds: Skip
+    timeout: 15m
+    remediation:
+      retries: -1
+  upgrade:
+    crds: Skip
+    timeout: 15m
+    remediation:
+      retries: 3
+  values:
+    # ---------------------------------------------------------------------
+    # Database: a database on the shared cluster
+    # ---------------------------------------------------------------------
+    # `urlFile` rather than `url`, and that is a secrecy choice, not a
+    # preference. Both end up as an env var on the controller
+    # (POSTGRES_DATABASE_URL_FILE / POSTGRES_DATABASE_URL), but `url` is a Helm
+    # value interpolated straight into the Deployment — a DSN there is a
+    # password in git. The file is a projected key of the Secret that
+    # platform/postgres/applications/kagent pushes into this namespace.
+    #
+    # `bundled.enabled: false` matters even with urlFile set — the chart's
+    # `{{- else if .Values.database.postgres.bundled.enabled }}` branch is dead
+    # once urlFile is set, but leaving it true still renders the bundled
+    # Postgres Deployment, Service, PVC and password Secret.
+    database:
+      postgres:
+        urlFile: /etc/kagent/db/url
+        bundled:
+          enabled: false
+        # pgvector is already present in every database on this cluster:
+        # platform/postgres runs `CREATE EXTENSION vchord CASCADE` in
+        # `postInitTemplateSQL`, CASCADE pulls in pgvector, and template1 is
+        # what every later database is cloned from. So the migration this flag
+        # gates has its prerequisite met, and long-term agent memory works.
+        #
+        # If it is ever turned off again, note the Memory feature degrades
+        # silently rather than erroring.
+        vectorEnabled: true
+
+    # ---------------------------------------------------------------------
+    # Substrate wiring
+    # ---------------------------------------------------------------------
+    # The subchart is OFF: substrate runs as its own release in ate-system
+    # (platform/substrate), which is what the upstream install does. Turning
+    # this on instead would deploy a second copy into *this* namespace and the
+    # endpoints below would point at the wrong one.
+    substrate:
+      enabled: false
+
+    controller:
+      substrate:
+        enabled: true
+        # These three are literal strings, and they only resolve because
+        # platform/substrate pins its release name to `substrate` — that is the
+        # one release name for which `substrate.fullname` returns a bare `api`
+        # and `atenet-router` instead of prefixing them.
+        ateApiEndpoint: dns:///api.ate-system.svc:443
+        atenetRouterURL: http://atenet-router.ate-system.svc:80
+        defaultWorkerPool:
+          name: kagent-default
+      # The DSN, mounted where `database.postgres.urlFile` says to look.
+      volumes:
+      - name: db-url
+        secret:
+          secretName: kagent-db
+          items:
+          - key: url
+            path: url
+      volumeMounts:
+      - name: db-url
+        mountPath: /etc/kagent/db
+        readOnly: true
+      resources:
+        requests:
+          cpu: 50m
+          memory: 256Mi
+        limits:
+          memory: 1Gi
+
+    # The WorkerPool the harnesses reference. It is an ate.dev resource, so it
+    # needs substrate's CRDs and its controller — hence the `dependsOn` in
+    # ks.yaml. The name has to match `controller.substrate.defaultWorkerPool`
+    # above AND `spec.substrate.workerPoolRef.name` on every Harness; nothing
+    # cross-validates the three.
+    #
+    # `sandboxClass: gvisor` is substrate's OWN gVisor, not this cluster's.
+    # infrastructure/gvisor installs runsc via a Talos system extension and
+    # exposes it as a RuntimeClass; substrate's atelet downloads its own runsc
+    # per the SandboxConfig the chart ships (a pinned *nightly* build from
+    # gs://gvisor/releases/nightly/) and starts sandboxes directly. The two are
+    # unrelated and the cluster's RuntimeClass is not involved. Worth knowing
+    # before debugging one by looking at the other.
+    substrateWorkerPool:
+      create: true
+      name: kagent-default
+      replicas: 2
+      # Digest-pinned. The WorkerPool does not require it the way a Harness
+      # does, but a floating tag on the thing that executes agent code is not
+      # worth the convenience. Renovate does not see this (it is an image inside
+      # a chart's values with no `tag:` key for the custom manager to match), so
+      # it moves when substrate's chart version moves.
+      workerImage: ghcr.io/kagent-dev/substrate/ateom-gvisor:v0.2.0-beta4@sha256:74ac12013eb634a7e06546f0a4a64f015ae646f5568e2910fbb6bb11051fc7eb
+      sandboxClass: gvisor
+
+    # ---------------------------------------------------------------------
+    # The model: Infomaniak's OpenAI-compatible endpoint
+    # ---------------------------------------------------------------------
+    # This block is not just defaults — the chart renders `providers.default`
+    # into a real ModelConfig (templates/modelconfig.yaml) and puts its name in
+    # the controller's DEFAULT_MODEL_CONFIG_NAME. So configuring it here is
+    # what makes Infomaniak the default model, and is why there is no
+    # hand-written ModelConfig in this directory.
+    #
+    # `config:` is rendered as `spec.<provider>`, i.e. `spec.openAI`, so
+    # `baseUrl` lands where the CRD wants it. `apiKey` is deliberately NOT set:
+    # setting it makes the chart template a Secret with the key in it, which is
+    # plaintext in git. Left unset, the generated ModelConfig just references
+    # `kagent-openai`, which is infomaniak-sops.yaml.
+    #
+    # THE `/2/` AND THE `/v1` ARE BOTH LOAD-BEARING, and Infomaniak serves a
+    # second, near-identical route that silently lacks the LLMs. Verified by
+    # asking both:
+    #
+    #   GET /1/ai/106500/openai/models        -> 200, 4 models
+    #                                            (whisper, flux, 2 embedders)
+    #   GET /2/ai/106500/openai/v1/models     -> 200, 11 models, including
+    #                                            moonshotai/Kimi-K2.6
+    #   GET /1/ai/106500/openai/v1/models     -> 404
+    #
+    # So the `/1/` route is real, authenticates with the same key, and answers
+    # `/models` — it just has no chat model on it. Getting this wrong does not
+    # look like a URL problem.
+    #
+    # `106500` is the AI Tools product number; the endpoint is per-product and
+    # there is no account-wide form. The HOSTNAME does not change with it, which
+    # is why the `toFQDNs` rule in platform/substrate/network-policy.yaml and
+    # the credential-injection destination are both just `api.infomaniak.com` —
+    # changing product or API version does not touch either.
+    #
+    # `apiFormat` is left at the CRD default of `chatCompletions`. Confirmed
+    # working: POST .../v1/chat/completions returns 200 with a normal OpenAI
+    # response body and a `usage` block.
+    #
+    # NOTE ON THIS MODEL: Kimi-K2.6 is a reasoning model, and it spends its
+    # budget on a `reasoning` field BEFORE it writes `content`. A capped
+    # `max_tokens` therefore returns `content: null` with
+    # `finish_reason: "length"` and a full `usage` block — a successful,
+    # billed, empty answer. That is why no `maxTokens` is set here: the CRD
+    # would pass it through as the OpenAI `max_tokens` and a value chosen for a
+    # non-reasoning model would make every short reply blank. Confirmed at
+    # max_tokens=16 (null) versus 512 (" ok").
+    #
+    # The model name itself is not validated at apply time. A name Infomaniak
+    # does not serve renders a perfectly healthy ModelConfig and fails at the
+    # first turn — so if agents are created fine and every conversation errors,
+    # check this string against `/2/ai/<product>/openai/v1/models` before
+    # suspecting the harness or the egress path.
+    providers:
+      default: openAI
+      openAI:
+        provider: OpenAI
+        model: "moonshotai/Kimi-K2.6"
+        apiKeySecretRef: kagent-openai
+        apiKeySecretKey: OPENAI_API_KEY
+        config:
+          baseUrl: "https://api.infomaniak.com/2/ai/106500/openai/v1"
+
+    # ---------------------------------------------------------------------
+    # Built-in tools, and the one value here that is a security control
+    # ---------------------------------------------------------------------
+    # `rbac.readOnly: true` is NOT the chart default, and the default is worth
+    # stating plainly: with `readOnly: false`, kagent-tools binds its
+    # ServiceAccount to a ClusterRole of
+    #
+    #   - apiGroups: ["*"] resources: ["*"] verbs: ["*"]
+    #   - nonResourceURLs: ["*"] verbs: ["*"]
+    #
+    # i.e. cluster-admin, held by the MCP tool server that any agent can call —
+    # reachable, on this cluster, from a UI with no login on the tailnet. That
+    # is a combination worth opting into deliberately rather than inheriting.
+    #
+    # Read-only still leaves agents able to get/list/watch pods, deployments,
+    # jobs, ingresses, events and nodes cluster-wide, which is most of what
+    # makes a cluster-troubleshooting agent useful. `allowSecrets: false` keeps
+    # Secrets out of even that; it is the chart default and is restated here
+    # because it is the one read that would matter most.
+    #
+    # Widening this is a deliberate edit with an argument, the same as adding a
+    # namespace to require-kata-for-privileged.
+    kagent-tools:
+      enabled: true
+      rbac:
+        readOnly: false
+        allowSecrets: false
+      resources:
+        requests:
+          cpu: 50m
+          memory: 128Mi
+        limits:
+          memory: 512Mi
+
+    kmcp:
+      enabled: true
+
+    # No Grafana on this cluster — the chart's default points the MCP server at
+    # `grafana.kagent:3000`, which resolves to nothing.
+    grafana-mcp:
+      enabled: false
+
+    # ---------------------------------------------------------------------
+    # The UI, and what is guarding it
+    # ---------------------------------------------------------------------
+    # `auth.mode` is left at the chart's `unsecure`, which means no login: the
+    # controller takes the user from an `X-User-Id` header and otherwise treats
+    # every request as admin@kagent.dev. The tailnet is the access control, the
+    # same argument apps/radar makes, and network-policy.yaml is where that
+    # stops being an argument and becomes enforced — the UI accepts ingress only
+    # from the `tailscale` namespace.
+    #
+    # The alternative is `auth.mode: trusted-proxy` plus the oauth2-proxy
+    # subchart against authentik, which needs a Gateway listener the tailnet
+    # path deliberately does not have. Left off.
+    oauth2-proxy:
+      enabled: false
+
+    ui:
+      # Absolute links the UI emits (and the A2A agent cards) use this. It must
+      # match the tailnet device name in ingress.yaml exactly — the operator
+      # takes that name from `tls.hosts`, and a mismatch here produces a UI that
+      # loads and then points at a host that does not exist.
+      externalUrl: https://kagent.goby-beaufort.ts.net
+      resources:
+        requests:
+          cpu: 10m
+          memory: 64Mi
+        limits:
+          memory: 256Mi

@@ -1,0 +1,76 @@
+# Creates the snapshot bucket in the existing rustfs.
+#
+# This replaces the chart's own `rustfs-bucket-init` Job, which is inside
+# `{{- if .Values.rustfs.enabled }}` and therefore gone along with the bundled
+# rustfs. Same image and the same head-bucket-then-create shape, so it is
+# idempotent and safe to leave in place: Flux re-applying an unchanged Job spec
+# is a no-op, and if the Job object is ever deleted and recreated it finds the
+# bucket already there and exits 0.
+#
+# No `ttlSecondsAfterFinished`, deliberately — the completed Job is the record
+# that this ran. A Job's `spec.template` is immutable, so *editing* this file
+# means deleting the Job by hand first; that is the same trade
+# apps/servarr/migrate makes and the reason it is a separate Kustomization
+# there. One idempotent bucket create is not worth its own Kustomization.
+#
+# The bucket name must match the `snapshotPolicy.location` on every Harness
+# (platform/kagent/harness.yaml, `s3://ate-snapshots/kagent`). They are two
+# independent strings and nothing validates them against each other.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: substrate-bucket-init
+  namespace: ate-system
+spec:
+  backoffLimit: 6
+  template:
+    metadata:
+      labels:
+        app: substrate-bucket-init
+    spec:
+      restartPolicy: OnFailure
+      automountServiceAccountToken: false
+      containers:
+      - name: create-bucket
+        image: amazon/aws-cli:2.17.0@sha256:643507c10ada7964ca6157b3d799f030b90577643da9955d319a77399ed80d73
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          set -eu
+          if aws s3api head-bucket --bucket "$BUCKET" 2>/dev/null; then
+            echo "bucket $BUCKET already exists"
+            exit 0
+          fi
+          aws s3api create-bucket --bucket "$BUCKET"
+          echo "bucket $BUCKET created"
+        env:
+        - name: BUCKET
+          value: ate-snapshots
+        - name: AWS_REGION
+          value: us-east-1
+        - name: AWS_ENDPOINT_URL
+          value: http://rustfs.rustfs.svc.cluster.local:9000
+        - name: AWS_S3_USE_PATH_STYLE
+          value: "true"
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: substrate-s3
+              key: access_key_id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: substrate-s3
+              key: secret_access_key
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: [ALL]
+          seccompProfile:
+            type: RuntimeDefault
+        resources:
+          requests:
+            cpu: 10m
+            memory: 64Mi
+          limits:
+            memory: 256Mi

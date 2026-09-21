@@ -1,0 +1,325 @@
+# Four policies, and the split is deliberate — see the note on each.
+#
+# The first selects the WHOLE ate-system namespace, on purpose, for the same
+# reason infrastructure/longhorn's does. Six workloads come from the chart
+# (ate-api-server, ate-controller, atelet, atenet-router, atenet-egress,
+# k8s-credential-provider) and their ports are not cleanly separable: atelet
+# reaches other nodes' atelets, the router publishes six ports with no
+# documented division of labour, and actor traffic is proxied rather than
+# direct. A per-workload `endpointSelector` would be six near-identical files
+# with the one real distinction — who may reach the internet — buried in the
+# duplication, which is why that distinction is the second policy instead.
+#
+# Note the worker pods are NOT here: the WorkerPool is namespaced and the chart
+# creates it in `kagent`, so the pods that execute agent code are endpoints in
+# that namespace. platform/kagent/network-policy.yaml is what governs them.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: substrate
+  namespace: ate-system
+spec:
+  endpointSelector: {}
+  ingress:
+  # The kagent namespace, portless. It is the only namespace outside this one
+  # with any business here, and it covers two different callers rather than one:
+  # the kagent controller (ate-api on 443, atenet-router on 80) and the WORKER
+  # PODS, which run in `kagent` and not here — the chart creates its WorkerPool
+  # in its own namespace and substrate's ate-controller makes the Deployment
+  # there. Those dial atenet-egress on 443 for every outbound request an agent
+  # makes.
+  #
+  # See the matching egress rule in platform/kagent/network-policy.yaml for why
+  # the ports are not enumerated.
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kagent
+  # Everything inside the namespace talks to everything else, portless.
+  #
+  # Portless because the ports are not knowable from here: atenet-router
+  # publishes six (80, 443, 8081, 8444, 4040, 15020), an actor's private A2A
+  # gRPC is on 80 inside its own sandbox, and the worker pods the WorkerPool
+  # creates negotiate whatever the sandbox class hands them. Same reasoning as
+  # Longhorn's engine-to-replica rule, which is portless for the same reason.
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: ate-system
+  # atelet publishes its gRPC on hostPort 8085 and ate-api-server dials it at
+  # the node address, so depending on whether that path is SNATed the identity
+  # arriving at the atelet endpoint is either the calling pod (covered above) or
+  # the node. This is the same shape as the apiserver-to-webhook problem
+  # documented in platform/cnmsql/network-policy.yaml: naming the two node
+  # entities is the only thing that reliably matches.
+  #
+  # The scoping to 8085/9090 is what keeps this from being a hole — those are
+  # atelet's two hostPorts and nothing else in the namespace listens on them.
+  # Portless, and it was scoped to atelet's two hostPorts (8085/9090) until an
+  # agent turn failed with `upstream call failed: Connect: deadline has
+  # elapsed`. The missing port was **443**: an actor's CONNECT to
+  # atenet-egress arrives with a node identity, not the worker pod's, because
+  # atelet builds the sandbox's networking on the node rather than inside the
+  # worker pod's netns (see the matching note in
+  # platform/kagent/network-policy.yaml). So the traffic this rule has to carry
+  # is not just atelet's own hostPorts — it is every request any agent makes.
+  #
+  # Enumerating was wrong twice here, so it is portless now. The scope is the
+  # four nodes of this cluster, and the workloads behind it are already
+  # protected by mTLS: every control RPC in ate-api's log authenticates a
+  # SPIFFE principal (`principal.Kind: "mtls"`), so a node-identity packet
+  # cannot impersonate a component by arriving on an open port.
+  - fromEntities:
+    - host
+    - remote-node
+  egress:
+  # L7 DNS visibility, and it must remain the ONLY DNS egress rule in this
+  # namespace. `toFQDNs` works by Cilium inspecting DNS answers, so a second
+  # plain allow to kube-dns alongside this one lets lookups bypass inspection
+  # and the FQDN entries in `substrate-egress` below silently never populate —
+  # while the name still resolves fine from inside the pod.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+      rules:
+        dns:
+        - matchPattern: "*"
+  # ate-controller reconciles ActorTemplates and WorkerPools; atelet registers
+  # a CSI plugin and watches its own node; k8s-credential-provider reads the
+  # Secrets a credential grant names.
+  - toEntities:
+    - kube-apiserver
+    toPorts:
+    - ports:
+      - port: "6443"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: ate-system
+  # atelet's own hostPort listeners and the kubelet plugin socket. Scoped to
+  # the same two ports as the ingress rule above.
+  - toEntities:
+    - host
+    - remote-node
+    toPorts:
+    - ports:
+      - port: "8085"
+        protocol: TCP
+      - port: "9090"
+        protocol: TCP
+  # The shared Postgres. ate-api-server only; it is namespace-wide here because
+  # this policy is namespace-wide, which is the standing cost of the shape (the
+  # same one apps/servarr pays and documents).
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: postgres
+    toPorts:
+    - ports:
+      - port: "5432"
+        protocol: TCP
+  # Actor snapshots, to the rustfs in apps/rustfs. ate-api-server and atelet.
+  # Note this is a plain `toEndpoints` and not a `toFQDNs` — rustfs is in the
+  # cluster, so there is no name for Cilium to learn and no world egress
+  # involved.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: rustfs
+        app: rustfs
+    toPorts:
+    - ports:
+      - port: "9000"
+        protocol: TCP
+---
+# The second policy exists so that only the workloads that must reach the
+# internet do, and separating them is the point — exactly the split
+# platform/talos-backup makes. There are two such workloads, this one and
+# atelet below; everything else in the namespace, including anything running
+# agent code, gets the baseline above and nothing more.
+#
+# Cilium unions egress across every policy selecting an endpoint, so
+# atenet-egress gets this *plus* the namespace-wide baseline above, and every
+# other pod here — including the worker pods that actually run agent code —
+# gets only the baseline. That is the whole security story of this install: an
+# agent cannot reach the internet itself, it can only ask the egress gateway to
+# reach it, and the gateway authorizes the actor's identity at CONNECT-accept
+# before terminating any tunnel. Do not fold this back into the policy above.
+#
+# `toFQDNs` rather than `toEntities: world`, and narrow on purpose. The only
+# destination an agent needs today is the model endpoint. ADDING A CAPABILITY
+# TO AN AGENT USUALLY MEANS ADDING AN ENTRY HERE:
+#
+#   - a RemoteMCPServer on the internet          -> its hostname
+#   - a plugin with a `source.git.url`           -> github.com, codeload.github.com
+#   - a Claude or Codex harness                  -> api.anthropic.com / api.openai.com
+#
+# The failure when an entry is missing is a `Policy denied DROPPED (TCP Flags:
+# SYN)` from the atenet-egress pod, which the agent sees as a connection error
+# from the gateway rather than as a policy problem. `hubble observe --verdict
+# DROPPED` on the atenet-egress pod's node is the way to read it.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: substrate-egress
+  namespace: ate-system
+spec:
+  endpointSelector:
+    matchLabels:
+      app: atenet-egress
+  egress:
+  - toFQDNs:
+    # Infomaniak's OpenAI-compatible endpoint. The hostname is what matters to
+    # substrate as well as to Cilium: credential injection matches on exact DNS
+    # hostname, without path, port or scheme, so this same string is what ties
+    # the ModelConfig's baseUrl to the injected Authorization header.
+    - matchName: "api.infomaniak.com"
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP
+---
+# The third policy is atelet's, and it is the registry allow-list for the whole
+# agent platform rather than a one-off for the gVisor download.
+#
+# THE THING TO UNDERSTAND: atelet pulls container images ITSELF. It is not the
+# kubelet fetching the worker pod's image — atelet builds the OCI bundle for
+# each actor from inside the worker, so every image any agent ever runs is
+# fetched by this DaemonSet over this policy. Its own log says so plainly:
+#
+#   while creating "kagent" OCI bundle: in imageCache.EnsureImage:
+#     in remote.Image: Get "https://ghcr.io/v2/": dial tcp 140.82.121.34:443:
+#     i/o timeout
+#   while creating pause OCI bundle: in imageCache.EnsureImage:
+#     while reading image config: Get "https://cdn.registry.k8s.io/containers/
+#     images/sha256:4a83...": dial tcp 151.101.65.91:443: i/o timeout
+#
+# So ADDING A HARNESS MEANS ADDING ITS REGISTRY HERE. The claude and codex
+# harness images are on ghcr.io and so already covered; a BYO image from
+# anywhere else is not.
+#
+# The hostnames, and why each one is not guessable from the manifests:
+#
+#   storage.googleapis.com   the gVisor tarball the SandboxConfig names by
+#                            `gs://` URL. A gs:// URL is not a hostname.
+#   registry.k8s.io          the pause image's /v2/ endpoint...
+#   cdn.registry.k8s.io      ...whose config and blobs are then served from a
+#                            Fastly CDN on a DIFFERENT hostname. Resolves to
+#                            151.101.{1,129,193}.91, which is exactly what
+#                            showed up in `hubble observe --verdict DROPPED`.
+#   *.pkg.dev                registry.k8s.io does not always use that CDN — it
+#                            picks per client, and from a laptop on this LAN the
+#                            same request 307s to europe-west8-docker.pkg.dev
+#                            instead. Both paths are open because either can be
+#                            chosen, and the node's choice is not ours.
+#   ghcr.io                  every kagent and substrate image: the agent runtime
+#                            (golang-adk), the harness images, the ateom worker.
+#   pkg-containers.githubusercontent.com
+#                            where ghcr.io serves the actual blobs.
+#
+# The `*` in a Cilium matchPattern expands to `[-a-zA-Z0-9_]*` and does not
+# cross a dot, so `*.pkg.dev` matches `europe-west8-docker.pkg.dev` and nothing
+# deeper.
+#
+# `endpointSelector: app: atelet` and not the namespace, deliberately. Folding
+# these into the namespace-wide policy above would hand internet egress to
+# every pod in ate-system, which is the property the atenet-egress split exists
+# to preserve. Cilium unions egress across policies selecting an endpoint, so
+# atelet gets this plus the baseline and nothing else gets any of it.
+#
+# THE ALTERNATIVE, if this list keeps needing extensions: `toEntities: world`
+# on 443 for atelet alone. That is a real widening — atelet is a privileged
+# node agent — but it is bounded to one workload whose entire outbound purpose
+# is pulling images, and it would stop the "agent fails to start because a
+# registry hostname is missing" class of failure. Enumerating was tried first
+# and needed two corrections; a third would be the argument for switching.
+#
+# HOW THIS FAILS, which is why it took two passes to find: the prewarm path
+# logs `Sandbox asset prewarm failed; will retry` at WARN and then
+# `giving up` after 8 attempts, while the pod stays 1/1 Running the whole time.
+# Nothing is unhealthy. The only visible symptom is an AgentTemplate stuck on
+# `Ready=False reason=ActorTemplatePending`, "waiting for the ActorTemplate
+# golden snapshot" — which points at the snapshot, not at a registry.
+#
+# Because it gives up, a policy fix does not take effect on its own:
+#   kubectl -n ate-system rollout restart daemonset/atelet
+#
+# The L7 DNS rule in the baseline policy above is what makes any of these work
+# at all; without `rules.dns` these entries never populate and every fetch is
+# dropped while the names still resolve fine from inside the pod.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: substrate-assets
+  namespace: ate-system
+spec:
+  endpointSelector:
+    matchLabels:
+      app: atelet
+  egress:
+  - toFQDNs:
+    - matchName: "storage.googleapis.com"
+    - matchName: "registry.k8s.io"
+    - matchName: "cdn.registry.k8s.io"
+    - matchName: "ghcr.io"
+    - matchName: "pkg-containers.githubusercontent.com"
+    - matchPattern: "*.pkg.dev"
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP
+---
+# The fourth policy covers a namespace this repo does not create. The substrate
+# chart declares `podcertificate-controller-system` itself, unconditionally, in
+# pod-certificate-controller.yaml — so it arrives unlabelled and, under Cilium's
+# default-deny, with a controller that cannot reach anything.
+#
+# It is the signer behind `podidentity.podcert.ate.dev` and
+# `servicedns.podcert.ate.dev`, which is to say behind every mTLS identity in
+# this install *and* the two projected volumes the kagent controller itself
+# mounts. The API server is the only thing it talks to: it watches
+# PodCertificateRequests, signs them from the two CA pools mounted off disk, and
+# publishes ClusterTrustBundles. No egress to the cluster and none to the world.
+#
+# Worth knowing that this controller is only here because of the chart's own
+# support floor. Pod certificates and cluster trust bundles went GA and
+# locked-on in Kubernetes 1.37, which is what talos/cluster.yaml pins, so the
+# kubelet can issue these natively; the chart still ships its own signer and
+# beta4 has no switch to turn it off.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: podcertificate-controller
+  namespace: podcertificate-controller-system
+spec:
+  endpointSelector: {}
+  # Nothing calls it — it is a controller, not a webhook or an APIService. An
+  # empty list is not the same as an absent one, and not the same as a list
+  # holding an empty rule: `ingress: []` turns ingress enforcement on and then
+  # permits nothing, while `ingress: [{}]` is a rule with no selectors, which
+  # matches every source and allows all. Same trick as apps/dashboard's
+  # `egress: []`, in the other direction.
+  ingress: []
+  egress:
+  - toEntities:
+    - kube-apiserver
+    toPorts:
+    - ports:
+      - port: "6443"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+      rules:
+        dns:
+        - matchPattern: "*"

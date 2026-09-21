@@ -1,0 +1,50 @@
+# ate-api-server mounts this ConfigMap unconditionally and NOT as optional
+# (ate-api-server.yaml, volume `authentication-config`), so without it the pod
+# never starts. The upstream install builds it with a shell heredoc in
+# scripts/setup-cluster/setup-cluster.sh step 5; there is nothing cluster-
+# specific in it except the issuer, so it belongs in git rather than in
+# somebody's terminal history.
+#
+# It tells ate-api-server how to verify the identity an actor presents: the
+# actor holds a projected Kubernetes ServiceAccount token, and this names the
+# issuer to trust, the audience the token must carry, and the two files every
+# pod already has mounted for talking to the API server.
+#
+# THE ISSUER IS NOT `https://kubernetes.default.svc.cluster.local`. It was
+# written that way first, on the reasoning that nothing in talos/patches/
+# overrides `service-account-issuer` so it must be at the Talos default — and
+# the live cluster disagrees:
+#
+#   $ kubectl get --raw /.well-known/openid-configuration | jq -r .issuer
+#   https://10.200.0.10:6443
+#
+# Talos issues under the control-plane ENDPOINT, which on this cluster is the
+# shared VIP from talos/cluster.yaml, not the in-cluster DNS name. So this field
+# tracks `network.vip` and changing the VIP means changing it here too.
+#
+# It is worth knowing how a wrong value fails, because it is the reason this is
+# checked rather than assumed: ate-api-server does not fail to start and logs no
+# configuration error. It comes up healthy and rejects every actor's token,
+# which surfaces as agents that are created, report ready, and then fail every
+# turn on an authentication error from a component nobody was looking at.
+#
+# Re-verify with the command above after any change to the control-plane
+# endpoint.
+#
+# The audience is `api.<namespace>.svc` — it has to match the Service name that
+# `substrate.fullname` produces for a release called "substrate", which is the
+# bare `api`. Renaming the release changes this too.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ate-api-authentication
+  namespace: ate-system
+data:
+  authentication.yaml: |
+    actorIdentityJWTProvider: kubernetes
+    jwtProviders:
+    - name: kubernetes
+      issuer: https://10.200.0.10:6443
+      audiences: [api.ate-system.svc]
+      certificateAuthorityFile: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+      discoveryTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token

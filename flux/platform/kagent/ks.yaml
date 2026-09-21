@@ -1,0 +1,30 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: kagent
+  namespace: flux-system
+spec:
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-gpg
+  dependsOn:
+  # The controller mounts two projected volumes signed by substrate's
+  # pod-certificate-controller and dials ate-api on start, and the WorkerPool in
+  # release.yaml is an ate.dev resource reconciled by substrate's controller.
+  - name: substrate
+  # Not the other way round. This one holds the Secret the controller reads its
+  # database URL out of, so it is the half that has to land first — and because
+  # `kagent-db` writes its RoleBinding into a namespace created by crds/ rather
+  # than by this directory, there is no cycle. See crds/namespace.yaml.
+  - name: kagent-db
+  # Owns the `tailscale` IngressClass and the proxy that fronts the UI. Without
+  # it the Ingress is admitted and simply never gets an address.
+  - name: tailscale
+  interval: 10m
+  path: ./flux/platform/kagent
+  prune: true
+  retryInterval: 1m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

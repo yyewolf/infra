@@ -17,6 +17,9 @@ resources:
 - platform/keda/ks.yaml
 - platform/kyverno/ks.yaml
 - platform/kyverno/policies/ks.yaml
+- platform/kagent/crds/ks.yaml
+- platform/substrate/ks.yaml
+- platform/kagent/ks.yaml
 - platform/metrics-server/ks.yaml
 - platform/tailscale/ks.yaml
 - platform/cnpg/ks.yaml
@@ -38,6 +41,7 @@ resources:
 - platform/postgres/applications/k7/ks.yaml
 - platform/postgres/applications/dawarich/ks.yaml
 - platform/postgres/applications/jellystat/ks.yaml
+- platform/postgres/applications/kagent/ks.yaml
 - platform/mysql/applications/uptime-kuma/ks.yaml
 - platform/mysql/applications/cloudbeaver/ks.yaml
 - apps/cloudbeaver/ks.yaml

@@ -16,6 +16,25 @@ spec:
         protocol: TCP
       - port: "9001"
         protocol: TCP
+  # Substrate stores kagent's actor snapshots here, in the `ate-snapshots`
+  # bucket (platform/substrate). Two of its components write them —
+  # ate-api-server and the atelet DaemonSet — and the namespace-wide shape of
+  # platform/substrate/network-policy.yaml means the grant is to the namespace
+  # rather than to those two endpoints.
+  #
+  # The S3 API only: no 9001, because nothing there needs the console. The
+  # credential it uses is `substrate-s3` and is meant to be a bucket-scoped
+  # service account rather than the rustfs root — see the note in
+  # platform/substrate/s3-sops.yaml. That scoping is the thing that bounds this
+  # rule, since a snapshot store and the `artifacts.yewolf.fr` bucket share one
+  # rustfs and this policy cannot tell one bucket from another.
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: ate-system
+    toPorts:
+    - ports:
+      - port: "9000"
+        protocol: TCP
   egress:
   - toEndpoints:
     - matchLabels:

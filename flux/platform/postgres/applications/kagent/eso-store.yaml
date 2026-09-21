@@ -1,0 +1,38 @@
+# One SecretStore per target namespace: the kagent controller's credential goes
+# to `kagent`, ate-api-server's to `ate-system`. Each authenticates as its own
+# ServiceAccount — see the note in eso-writer.yaml for why they are not shared.
+apiVersion: external-secrets.io/v1
+kind: SecretStore
+metadata:
+  name: kagent
+  namespace: postgres
+spec:
+  provider:
+    kubernetes:
+      remoteNamespace: kagent
+      server:
+        caProvider:
+          type: ConfigMap
+          name: kube-root-ca.crt
+          key: ca.crt
+      auth:
+        serviceAccount:
+          name: eso-push-writer-kagent
+---
+apiVersion: external-secrets.io/v1
+kind: SecretStore
+metadata:
+  name: substrate
+  namespace: postgres
+spec:
+  provider:
+    kubernetes:
+      remoteNamespace: ate-system
+      server:
+        caProvider:
+          type: ConfigMap
+          name: kube-root-ca.crt
+          key: ca.crt
+      auth:
+        serviceAccount:
+          name: eso-push-writer-substrate

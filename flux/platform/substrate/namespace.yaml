@@ -1,0 +1,44 @@
+# Substrate — the sandboxing runtime kagent v1 runs every agent inside. It is
+# here rather than folded into platform/kagent because the upstream install
+# does it that way (scripts/setup-cluster/setup-cluster.sh steps 3-6): its own
+# release, in ate-system, with kagent pointed at it over
+# `controller.substrate.ateApiEndpoint`. The kagent chart does vendor it as a
+# subchart, but installing it that way puts the ate-api Service in the kagent
+# namespace and the endpoints the reference install hardcodes stop resolving.
+#
+# `pod-security.kubernetes.io/enforce: privileged`, and the argument for it —
+# because granting a namespace the right to run privileged on the host should be
+# readable, not just present.
+#
+# ONE workload justifies it: `atelet`, the DaemonSet that runs the sandboxes.
+# It is `privileged: true` (atelet.yaml) with four hostPath mounts
+# (/var/lib/ateom-gvisor, /var/lib/kubelet/plugins, /var/lib/kubelet/device-plugins,
+# /host/dev) and hostPorts 8085/9090. It is the node-side half of the runtime:
+# it fetches runsc, registers a CSI plugin with the kubelet, and starts gVisor
+# sandboxes directly. None of that means anything from inside a sandbox, so the
+# policy's usual escape hatch does not apply — the thing asking for privilege is
+# the thing that *provides* the isolation. Same shape as longhorn-system.
+#
+# It is also outside kata's reach for the simpler reason every other exclusion
+# in platform/kyverno/policies/require-kata-for-privileged.yaml gives: the kata
+# RuntimeClass pins scheduling to control-plane nodes, and this is a DaemonSet
+# that has to run on every node that will host an agent.
+#
+# Nothing else here needs the label and it was checked rather than assumed:
+# ate-api-server, ate-controller, atenet-router and k8s-credential-provider all
+# drop ALL capabilities; atenet-egress adds none and its one sysctl
+# (net.ipv4.ip_unprivileged_port_start) is on PodSecurity's safe list; the
+# pod-certificate-controller adds only NET_BIND_SERVICE, which baseline permits,
+# and lives in its own namespace that the chart creates unlabelled.
+#
+# `warn`/`audit` are deliberately left at the cluster default of `restricted`.
+# The Talos apiserver config sets those globally, and leaving them means a
+# `kubectl apply` here still prints which pods fall short of restricted instead
+# of going quiet — the label is meant to buy exactly one thing, and saying so is
+# cheaper than discovering later that it bought three.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ate-system
+  labels:
+    pod-security.kubernetes.io/enforce: privileged

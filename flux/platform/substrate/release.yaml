@@ -1,0 +1,199 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: substrate
+  namespace: ate-system
+spec:
+  # The release name decides the resource names, and the reference install
+  # hardcodes the short forms. `substrate.fullname` returns a bare name only
+  # when `.Release.Name` is exactly "substrate" and otherwise prefixes it — so
+  # renaming this release turns `api.ate-system.svc:443` into
+  # `<name>-api.ate-system.svc:443` and quietly breaks every endpoint that
+  # platform/kagent/release.yaml, the egress gateway's own agentgateway config
+  # and the atenet router all name as a literal string. Do not rename it.
+  releaseName: substrate
+  interval: 30m
+  chartRef:
+    kind: OCIRepository
+    name: substrate
+  install:
+    crds: Skip
+    # The CA and JWT pools are minted out of band (see the long note at the
+    # bottom of this file), so on a cold cluster every workload here sits
+    # Pending on a missing Secret volume until they exist. Without a timeout
+    # longer than the default 5m the install is declared failed and retried
+    # from scratch on a loop while somebody runs kubectl-ate.
+    timeout: 15m
+    remediation:
+      retries: -1
+  upgrade:
+    crds: Skip
+    timeout: 15m
+    remediation:
+      retries: 3
+  values:
+    # platform/substrate/namespace.yaml owns it, because it carries a
+    # PodSecurity label the chart cannot express.
+    createNamespace: false
+
+    # ---------------------------------------------------------------------
+    # Postgres: the shared cluster, not the bundled one
+    # ---------------------------------------------------------------------
+    # Same rule as everything else here — there is one Postgres for the whole
+    # cluster (platform/postgres) and an app gets a database on it, not an
+    # instance of its own. The bundled chart Postgres is a single pod on a 1Gi
+    # PVC with no backup and no failover.
+    #
+    # The DSN below is deliberately PASSWORDLESS and is deliberately not the one
+    # the server ends up using. `--postgres-connection-string=@env` makes
+    # ate-api-server read ATE_API_POSTGRES_CONNECTION_STRING, and the chart puts
+    # that in a plain ConfigMap (ate-api-server-envvars.yaml) — a password
+    # written here would be plaintext in git *and* in a ConfigMap on the
+    # cluster. The postRenderer below re-declares the same variable as a
+    # `secretKeyRef` in the container's own `env`, which takes precedence over
+    # `envFrom`, so the real credential only ever exists in the pushed Secret.
+    #
+    # It still names the right host and database rather than a dummy, so that
+    # if the patch ever stops matching the failure is an authentication error
+    # against the correct server — loud — instead of a connection to nothing.
+    # The chart `fail`s outright on an empty string when postgres.enabled=false,
+    # so it cannot simply be omitted.
+    postgres:
+      enabled: false
+      connectionString: "postgresql://substrate@postgres-rw.postgres.svc.cluster.local:5432/substrate?sslmode=require"
+      schema: public
+
+    # ---------------------------------------------------------------------
+    # Snapshots: the existing rustfs, not the bundled one
+    # ---------------------------------------------------------------------
+    # Turning this off removes three things, and only the first is obvious:
+    # the rustfs Deployment and its PVC, the bucket-init Job (replaced by
+    # bucket-init.yaml here), and — the one that bites — the whole S3 env block
+    # on BOTH ate-api-server and atelet. Those five variables are inside
+    # `{{- if .Values.rustfs.enabled }}` in each of those two templates, so with
+    # it off the two components that read and write snapshots have no endpoint,
+    # no region and no credentials at all. They are put back below.
+    #
+    # Leaving it on was not an option regardless of the duplicate storage:
+    # the chart takes `rustfs.accessKey`/`secretKey` as plain Helm values and
+    # interpolates them straight into a Deployment's env, i.e. into git.
+    rustfs:
+      enabled: false
+
+    atelet:
+      storageBackend: s3
+      # atelet's half of the S3 configuration. It has an `extraEnv` hook, which
+      # ate-api-server does not — that asymmetry is why one of these two lives
+      # in values and the other in the postRenderer at the bottom of this file.
+      # THE TWO LISTS MUST STAY IN STEP. If they drift, the component that kept
+      # the right endpoint works and the other one fails on snapshot IO only,
+      # which presents as agents that start and then cannot be suspended.
+      extraEnv:
+        - name: AWS_REGION
+          value: us-east-1
+        - name: AWS_ENDPOINT_URL
+          value: http://rustfs.rustfs.svc.cluster.local:9000
+        - name: AWS_S3_USE_PATH_STYLE
+          value: "true"
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: substrate-s3
+              key: access_key_id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: substrate-s3
+              key: secret_access_key
+
+    ateApi:
+      extraArgs:
+        # The minimum supported interval for discovering and reconciling actor
+        # templates. The chart's own comment calls it the minimum; the upstream
+        # install and CI both set it, and leaving it at the default made
+        # template preparation lag visibly behind an AgentTemplate edit.
+        - --template-resync-interval=250ms
+
+    # ---------------------------------------------------------------------
+    # Credential injection
+    # ---------------------------------------------------------------------
+    # This is what lets an agent use the Infomaniak API key without the key
+    # entering the agent's process. Substrate's egress gateway fetches the
+    # referenced Secret and rewrites the outgoing header; the SDK inside the
+    # sandbox holds an inert placeholder. kagent compiles same-namespace
+    # references of the form ate-secret://kubernetes.io/kagent/<secret>/<key>.
+    #
+    # An empty list — the chart default — denies every credential fetch, so
+    # without this entry the model call fails with no credential and nothing
+    # in the agent's log to say a grant is missing.
+    #
+    # One atespace, one namespace: agents live in `kagent` and their Secrets
+    # live in `kagent`. Adding a namespace here lets agents read Secrets there.
+    credentialProvider:
+      namespacePolicies:
+        - atespace: kagent
+          allowedNamespaces: [kagent]
+
+    # No collector on this cluster. Left explicitly off rather than at the
+    # chart defaults, which are `enabled: true` with an empty endpoint — the
+    # chart's own README notes the Go components do not honour the disable flag,
+    # so they fall back to the SDK default of localhost:4317 and retry against
+    # nothing forever.
+    otel:
+      endpoint: ""
+      traces:
+        enabled: false
+      metrics:
+        enabled: false
+      logs:
+        enabled: false
+
+  # -----------------------------------------------------------------------
+  # The database credential, and why it is a patch
+  # -----------------------------------------------------------------------
+  # See the postgres block above for the reasoning. `env` entries merge by
+  # `name` and take precedence over `envFrom`, so this single entry overrides
+  # the ConfigMap's passwordless placeholder with the DSN that
+  # platform/postgres/applications/kagent pushes into this namespace.
+  #
+  # The other five variables are ate-api-server's half of the S3 configuration
+  # — the half that has no `extraEnv` hook. Keep them identical to
+  # `atelet.extraEnv` above.
+  postRenderers:
+  - kustomize:
+      patches:
+      - target:
+          kind: Deployment
+          name: ate-api-server
+        patch: |
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: ate-api-server
+          spec:
+            template:
+              spec:
+                containers:
+                - name: ate-api-server
+                  env:
+                  - name: ATE_API_POSTGRES_CONNECTION_STRING
+                    valueFrom:
+                      secretKeyRef:
+                        name: substrate-db
+                        key: connection-string
+                  - name: AWS_REGION
+                    value: us-east-1
+                  - name: AWS_ENDPOINT_URL
+                    value: http://rustfs.rustfs.svc.cluster.local:9000
+                  - name: AWS_S3_USE_PATH_STYLE
+                    value: "true"
+                  - name: AWS_ACCESS_KEY_ID
+                    valueFrom:
+                      secretKeyRef:
+                        name: substrate-s3
+                        key: access_key_id
+                  - name: AWS_SECRET_ACCESS_KEY
+                    valueFrom:
+                      secretKeyRef:
+                        name: substrate-s3
+                        key: secret_access_key

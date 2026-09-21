@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: kagent
+
+# namespace.yaml is deliberately absent — crds/namespace.yaml owns it, and says
+# why. harness-claude.yaml is deliberately absent too; see the header of that
+# file for what enabling it needs.
+resources:
+  - infomaniak-sops.yaml
+  - helmrepository.yaml
+  - release.yaml
+  - harness.yaml
+  - ingress.yaml
+  - network-policy.yaml

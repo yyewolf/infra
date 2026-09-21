@@ -1,0 +1,31 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: kagent-db
+  namespace: flux-system
+spec:
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-gpg
+  dependsOn:
+  - name: external-secrets
+  - name: postgres
+  # This one writes Roles and RoleBindings into TWO namespaces it does not
+  # create. `kagent` comes from platform/kagent/crds and `ate-system` from
+  # platform/substrate; without both, the bindings fail to apply on a cold
+  # cluster and neither push ever authenticates.
+  #
+  # Note what is deliberately NOT here: `kagent`. That Kustomization dependsOn
+  # *this* one, because the controller cannot start without the DSN this pushes.
+  # Depending on crds/ rather than on the app release is what keeps the two from
+  # forming a cycle — see platform/kagent/crds/namespace.yaml.
+  - name: kagent-crds
+  - name: substrate
+  interval: 10m
+  path: ./flux/platform/postgres/applications/kagent
+  prune: true
+  retryInterval: 1m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

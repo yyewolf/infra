@@ -115,6 +115,39 @@ spec:
           # additionally accept world UDP ingress — so the exposure is
           # calibrated and deliberate.
           - tailscale
+          # ate-system, and the argument for it — same shape as longhorn-system
+          # above, and the sharpest version of it in this list.
+          #
+          # ONE workload justifies this: `atelet`, the DaemonSet in
+          # platform/substrate that runs kagent's agent sandboxes. It is
+          # `privileged: true` with hostPath mounts of /var/lib/ateom-gvisor,
+          # /var/lib/kubelet/plugins, /var/lib/kubelet/device-plugins and
+          # /host/dev, and hostPorts 8085/9090. It fetches its own runsc binary,
+          # registers a CSI plugin with the kubelet, and starts gVisor sandboxes
+          # on the node directly.
+          #
+          # The policy's escape hatch is inapplicable in a way worth naming:
+          # this rule exists to push privileged workloads inside a sandbox, and
+          # atelet IS the thing that provides the sandbox. Running it inside one
+          # is not a stricter version of the same arrangement, it is a
+          # contradiction — and every agent that runs on this cluster runs
+          # inside a gVisor sandbox *because* this exclusion lets atelet start.
+          # The privilege buys isolation rather than spending it.
+          #
+          # It is also outside kata's reach for the ordinary reason: the kata
+          # RuntimeClass pins scheduling to control-plane nodes, and this is a
+          # DaemonSet that has to run on every node meant to host an agent.
+          #
+          # WHAT THIS EXCLUSION IS NOT COVERING, deliberately: the other five
+          # workloads in ate-system. ate-api-server, ate-controller,
+          # atenet-router and k8s-credential-provider all drop ALL
+          # capabilities; atenet-egress adds none and its one sysctl
+          # (net.ipv4.ip_unprivileged_port_start) is on PodSecurity's safe
+          # list. The namespace label in platform/substrate/namespace.yaml is
+          # what those are actually subject to, and none of them needs it
+          # either — the label and this entry both exist for atelet alone. If
+          # substrate ever stops shipping a privileged node agent, remove this.
+          - ate-system
     validate:
       failureAction: Enforce
       message: >-

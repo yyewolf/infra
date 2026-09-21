@@ -25,6 +25,47 @@ machine:
         - talos-backup
 
 cluster:
+  apiServer:
+    extraArgs:
+      # Re-enable the certificates.k8s.io/v1beta1 API, which Substrate
+      # (platform/substrate, kagent's sandboxing runtime) requires and which
+      # Kubernetes 1.37 does not serve by default.
+      #
+      # Pod certificates and cluster trust bundles went GA in 1.37 and this
+      # cluster serves `certificates.k8s.io/v1` accordingly. The beta version is
+      # deprecated-but-present until 1.40; it is off because new beta APIs have
+      # been disabled by default since 1.24, not because it was removed. So
+      # `kubectl get --raw /apis/certificates.k8s.io` lists only `v1` on a stock
+      # Talos 1.37 cluster.
+      #
+      # Substrate v0.2.0-beta4 uses the beta version EXCLUSIVELY. It imports
+      # `k8s.io/api/certificates/v1beta1` in four binaries and
+      # `k8s.io/api/certificates/v1` in none:
+      #
+      #   cmd/podcertcontroller  signercontroller, servicednssigner,
+      #                          podidentitysigner, podcertificate/publickey
+      #   cmd/atelet             trustbundle.go, systeminfovolume.go
+      #   cmd/atecontroller      egressmitmtrust_controller.go
+      #
+      # (Its chart README asks for the feature gates plus "the
+      # certificates.k8s.io/v1beta1 API" — the gates are moot at 1.37, the API
+      # is not.) Without this the signer's informers cannot list
+      # PodCertificateRequests or ClusterTrustBundles, so no pod certificate is
+      # ever issued and every substrate workload — plus the kagent controller,
+      # which mounts two of those projected volumes — hangs waiting for a
+      # credential bundle that never appears.
+      #
+      # The pod-spec side needs nothing: `podCertificate:` and
+      # `clusterTrustBundle:` projected volume sources are version-independent
+      # fields, and both are GA here.
+      #
+      # THIS HAS AN EXPIRY. The API is gone in Kubernetes 1.40, so substrate
+      # must move to `certificates.k8s.io/v1` before this cluster reaches it.
+      # Re-check on every substrate bump and delete this argument as soon as a
+      # release imports the GA version — carrying a dead runtime-config entry
+      # into 1.40 fails the apiserver's own flag validation at start.
+      runtime-config: certificates.k8s.io/v1beta1=true
+
   network:
     # Cilium replaces both of these, so Talos must not install its own. The
     # cluster comes up with every node NotReady until Cilium is applied — that

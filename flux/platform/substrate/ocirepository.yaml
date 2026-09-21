@@ -1,0 +1,21 @@
+# GHCR-only. The version is not free: docs/architecture/credential-injection.md
+# in kagent v1.0.0-alpha1 opens with "Kagent requires Substrate v0.2.0-beta4",
+# and both the kagent and kagent-crds charts declare exactly that version for
+# their vendored copies. Bumping this without bumping kagent is not a patch.
+#
+# Renovate reads `ref.tag` here. It is a pre-release, so expect it to sit still
+# until the constraint moves.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: substrate
+  namespace: ate-system
+spec:
+  interval: 1h
+  url: oci://ghcr.io/kagent-dev/substrate/helm/substrate
+  layerSelector:
+    mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+    operation: copy
+  ref:
+    tag: 0.2.0-beta4
+    digest: sha256:96582a7fa698e254aa656c970d43c7a1af3abf97c906c47a27c46cc8c50bd1b1

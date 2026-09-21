@@ -1,0 +1,94 @@
+# NOT APPLIED. Deliberately absent from kustomization.yaml.
+#
+# This is the Claude Code harness — Claude Code run as a kagent runtime, one
+# turn per Substrate actor, streamed back over A2A. It is written out because
+# enabling it is then a one-line edit rather than a research task, and because
+# the reason it is off is not obvious from the outside.
+#
+# WHY IT IS OFF: it cannot use the Infomaniak key. The claude compiler accepts
+# exactly three providers —
+#
+#   go/core/internal/translator/claude/compiler.go, func (c *Compiler) provider:
+#     case ModelProviderAnthropic          -> ANTHROPIC_API_KEY, optional baseUrl
+#     case ModelProviderBedrock            -> requires bedrock.region, AWS keys
+#     case ModelProviderAnthropicVertexAI  -> requires projectID + location
+#     default: "Claude does not support ModelConfig provider %q"
+#
+# — and an OpenAI-compatible gateway is none of them. `anthropic.baseUrl` is
+# allowed, but it has to speak the Anthropic Messages API, not OpenAI's. The
+# harness README says the same thing in one line: "Anthropic API keys and
+# Amazon Bedrock bearer tokens, injected by the gateway."
+#
+# TO ENABLE, three steps:
+#
+#   1. Create the credential. Write a Secret named `kagent-anthropic` with key
+#      `ANTHROPIC_API_KEY` in this namespace, as `anthropic-sops.yaml`, encrypt
+#      it (`sops -e -i`), and add it to kustomization.yaml. Do NOT put the key
+#      in `providers.anthropic.apiKey` in release.yaml — that templates it into
+#      git.
+#   2. Add the egress. platform/substrate/network-policy.yaml has one
+#      `toFQDNs` entry today. Claude Code dials `api.anthropic.com`, and without
+#      an entry the turn fails as a connection error from the egress gateway
+#      rather than as anything mentioning policy.
+#   3. Add this file and modelconfig-anthropic.yaml to kustomization.yaml.
+#
+# Note step 1 creates a SECOND model on the cluster rather than replacing the
+# Infomaniak one: `providers.default` in release.yaml stays as it is, this
+# harness names its own ModelConfig, and the two coexist. Two harnesses, two
+# model endpoints, one worker pool.
+#
+# Credential injection needs no extra grant — `credentialProvider` in
+# platform/substrate/release.yaml already grants the `kagent` atespace access to
+# Secrets in the `kagent` namespace, which is where this one lives.
+apiVersion: kagent.dev/v1alpha3
+kind: ModelConfig
+metadata:
+  name: anthropic
+  namespace: kagent
+spec:
+  provider: Anthropic
+  model: claude-haiku-4-5
+  apiKeySecret: kagent-anthropic
+  apiKeySecretKey: ANTHROPIC_API_KEY
+---
+apiVersion: kagent.dev/v1alpha3
+kind: Harness
+metadata:
+  name: claude
+  namespace: kagent
+spec:
+  claude: {}
+  workload:
+    # Same digest rule as the kagent harness, same version as the chart.
+    image: ghcr.io/kagent-dev/kagent/claude-harness@sha256:23b59459d66ce3162892239b035ba924cd1d64a6e3826db277599e9a98b2f36a
+  substrate:
+    workerPoolRef:
+      name: kagent-default
+    snapshotPolicy:
+      location: s3://ate-snapshots/kagent
+  allowedAgentTemplates:
+    selector:
+      matchLabels:
+        kagent.dev/harness: claude
+---
+apiVersion: kagent.dev/v1alpha3
+kind: AgentTemplate
+metadata:
+  name: claude-assistant
+  namespace: kagent
+  labels:
+    kagent.dev/harness: claude
+spec:
+  description: Claude Code, with the cluster's read-only tools.
+  modelConfig:
+    name: anthropic
+  systemPrompt: |
+    You are Claude Code running as an agent against a small Kubernetes cluster
+    managed entirely by Flux from a git repository. Your Kubernetes tools are
+    read-only and cannot see Secrets. A change that is wanted belongs in the
+    git repository; describe the manifest edit rather than a kubectl command.
+  tools:
+    - mcp:
+        server:
+          kind: RemoteMCPServer
+          name: kagent-tool-server

@@ -1,0 +1,225 @@
+# Two policies. The first is the namespace baseline; the second is the one that
+# turns "the tailnet is the access control" from a sentence into a control.
+#
+# The baseline selects the whole namespace, for the same reason
+# platform/substrate's does and infrastructure/longhorn's does before it: only
+# three workloads here come from the chart (kagent-controller, kagent-ui and the
+# kagent-tools server, plus kmcp's controller), and the objects that carry agent
+# work are reconciled at runtime from AgentTemplates and Harnesses. A
+# per-workload `endpointSelector` would cover the static Deployments and
+# default-deny whatever an AgentInstance turns out to create.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: kagent
+  namespace: kagent
+spec:
+  endpointSelector: {}
+  ingress:
+  # The pods here talk to each other constantly: nginx in the UI pod proxies
+  # /api/ and /a2a/ to the controller on 8083, the controller dials the
+  # kagent-tools MCP server, and kmcp's controller is reconciled against both.
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kagent
+  # ate-system, portless — and this rule's absence is what made the first
+  # working agent turn fail with
+  #
+  #   failed to extract tools from the tool set "mcp_tool_set": failed to list
+  #   MCP tools: failed to init MCP session: calling "initialize": rejected by
+  #   transport: sending "initialize": Service Unavailable
+  #
+  # Substrate's traffic into this namespace is not incidental, it is the whole
+  # runtime path, in both directions:
+  #
+  #   atenet-egress -> kagent-tools:8084   an actor's MCP tool calls are
+  #                                        proxied by the egress gateway, so the
+  #                                        gateway is the client, not the actor
+  #   atenet-router -> the actor           A2A requests are routed into the
+  #                                        sandbox; clients never get actor
+  #                                        addresses and never dial them direct
+  #
+  # The `Service Unavailable` is the gateway's own 503 after it could not reach
+  # the upstream — so the error surfaces as a transport rejection at the actor
+  # and says nothing about a policy in a namespace nobody was looking at.
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: ate-system
+  # The node entities, portless, and this is the part that is not guessable.
+  #
+  # AN ACTOR IS NOT THE WORKER POD'S CILIUM ENDPOINT. atelet builds the
+  # sandbox's networking on the node rather than inside the worker pod's
+  # netns, so traffic leaving a gVisor sandbox arrives with `host` (same node)
+  # or `remote-node` identity — not the worker pod's. Two observations that only
+  # make sense once you know it: `hubble observe --from-pod
+  # kagent/kagent-default-...` returns **zero flows** for a worker that is
+  # demonstrably running an actor, and the MCP call that did get through showed
+  # up as `10.244.1.109 (host) -> kagent/kagent-tools:8084`.
+  #
+  # Portless rather than enumerated, deliberately, after getting the port list
+  # wrong twice on this datapath: an actor's private A2A is on 80 inside the
+  # sandbox, MCP is 8084, and substrate is free to add more. It also costs
+  # little — Cilium already auto-allows `host` to pods on the same node, so the
+  # only thing this actually widens is `remote-node`, i.e. the other three
+  # nodes of this cluster.
+  - fromEntities:
+    - host
+    - remote-node
+  egress:
+  # L7 DNS visibility. It must remain the ONLY DNS egress rule in this
+  # namespace — a second plain allow to kube-dns beside it lets lookups bypass
+  # inspection, and any `toFQDNs` rule added here later then silently never
+  # populates while the name still resolves fine from inside the pod.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+      rules:
+        dns:
+        - matchPattern: "*"
+  # The controller reconciles kagent's own CRDs cluster-wide; kagent-tools reads
+  # workload objects for the agents (read-only — see the rbac block in
+  # release.yaml); kmcp reconciles MCPServers.
+  - toEntities:
+    - kube-apiserver
+    toPorts:
+    - ports:
+      - port: "6443"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kagent
+  # Everything in ate-system, portless — and the portless part is deliberate
+  # rather than lazy, because more than the controller is covered by this rule.
+  #
+  # The WorkerPool the chart creates is a NAMESPACED ate.dev resource and it is
+  # created HERE, in `kagent`, not in ate-system (verified by rendering the
+  # chart). Substrate's ate-controller turns it into a Deployment in the
+  # WorkerPool's own namespace, so the worker pods that actually execute agent
+  # code are endpoints in this namespace and are selected by this policy. That
+  # makes the set of destinations:
+  #
+  #   controller    -> api:443              (prepare templates, create/suspend actors)
+  #   controller    -> atenet-router:80     (`controller.substrate.atenetRouterURL`;
+  #                                          actor addresses are never handed to
+  #                                          clients, every dial goes via the router)
+  #   worker pods   -> api:443              (actor identity, template resolution)
+  #   worker pods   -> atenet-egress:443    (the CONNECT proxy — this is the only
+  #                                          way an agent reaches the internet)
+  #
+  # Four ports across two directions today, and the router alone publishes six
+  # (80, 443, 8081, 8444, 4040, 15020) whose division of labour is not
+  # documented. Enumerating them buys nothing: the trust boundary here is the
+  # namespace, and the thing that actually bounds an agent is that ate-system
+  # holds the only `world` egress on the cluster and authorizes the actor's
+  # identity at CONNECT-accept before terminating a tunnel.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: ate-system
+  # Deliberately no `world` egress and no `toFQDNs`, even though the worker pods
+  # in this namespace are what run agent code. An agent does not dial the
+  # internet itself — it dials atenet-egress, which is the only endpoint on this
+  # cluster holding a `world` rule (platform/substrate/network-policy.yaml). So
+  # if a model call fails, this file is the wrong place to look.
+  #
+  # This is the load-bearing omission of the whole install. Adding a `toFQDNs`
+  # rule here would let a sandbox reach that name directly, bypassing the
+  # gateway that authorizes the actor and injects the credential — and the
+  # symptom of having done so is that everything keeps working.
+---
+# The controller's database, and it is a THIRD policy rather than a rule in the
+# baseline above — which is the whole reason this exists as its own object.
+#
+# The baseline selects the entire namespace, and the worker pods that execute
+# agent code are endpoints in this namespace (see the note there). A
+# `postgres:5432` rule added to it would therefore hand every sandbox a direct
+# route to the shared Postgres — the one holding vaultwarden, authentik, immich
+# and everything else — which is exactly what the rest of this install exists to
+# prevent. Cilium unions egress across policies selecting an endpoint, so
+# scoping it to the controller gives the controller its database and leaves the
+# workers with the baseline and nothing more.
+#
+# This is the standing cost of the namespace-wide shape that apps/servarr pays
+# and documents; here it is worth the extra file to avoid it.
+#
+# WHY THE DESTINATION IS A POD AND NOT A SERVICE. The controller dials
+# `postgres-rw.postgres.svc.cluster.local:5432` (the DSN pushed by
+# platform/postgres/applications/kagent), but socket-LB is off on this cluster,
+# so the ClusterIP is translated in the tc datapath and by the time Cilium
+# evaluates policy the destination carries the *instance pod's* identity. A
+# `toServices` or Service-labelled rule matches nothing. The drop reads
+#
+#   kagent-controller-... -> postgres-1  tcp:5432  DROPPED
+#
+# naming the pod rather than the Service, which is the tell.
+#
+# Scoped to `cnpg.io/podRole: instance`, tighter than the convention elsewhere
+# in this repo (apps/immich, apps/authentik and the rest grant the whole
+# namespace). Only the two instances serve 5432; the controller has no reason to
+# reach the operator's pods or a backup sidecar.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: kagent-controller
+  namespace: kagent
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: kagent
+      app.kubernetes.io/instance: kagent
+      app.kubernetes.io/component: controller
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: postgres
+        cnpg.io/cluster: postgres
+        cnpg.io/podRole: instance
+    toPorts:
+    - ports:
+      - port: "5432"
+        protocol: TCP
+---
+# The UI is unauthenticated. `controller.auth.mode` is the chart default
+# `unsecure`, which means the controller takes the caller's identity from an
+# `X-User-Id` header and otherwise treats every request as admin@kagent.dev —
+# so anything that can reach port 8080 can create agents, start conversations,
+# and drive every tool the kagent-tools ClusterRole grants.
+#
+# THIS INGRESS RULE IS A SECURITY CONTROL, NOT TIDINESS. It is the same shape
+# and the same argument as apps/radar's: the app is unauthenticated on purpose
+# and the tailnet is its only access control, so the policy admits the
+# `tailscale` namespace and nothing else. The baseline policy above already
+# permits the whole namespace to talk to itself, and Cilium unions ingress
+# across policies selecting an endpoint, so this adds the tailscale proxy to
+# that set without opening anything wider.
+#
+# Two ways this quietly stops being true, both worth knowing:
+#   - giving the UI an HTTPRoute on the shared Gateway would put it on the
+#     public internet with no login. The tailnet Ingress is the only path.
+#   - adding a namespace to this selector is granting whatever is in it the
+#     admin rights above.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: kagent-ui
+  namespace: kagent
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: kagent
+      app.kubernetes.io/instance: kagent
+      app.kubernetes.io/component: ui
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: tailscale
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP

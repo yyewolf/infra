@@ -1,0 +1,59 @@
+# The Infomaniak API key, for the OpenAI-compatible endpoint configured in
+# `providers.openAI` in release.yaml.
+#
+# The name and key are not free choices — they must match `apiKeySecretRef` and
+# `apiKeySecretKey` in release.yaml, which are what the generated ModelConfig
+# references. `OPENAI_API_KEY` is the chart's own convention for an
+# OpenAI-provider secret and is kept even though the provider is Infomaniak.
+#
+# HOW THE KEY REACHES THE MODEL. It does not enter the agent's process. The
+# agent runs in a Substrate sandbox holding an inert placeholder; substrate's
+# egress gateway fetches this Secret and rewrites the outgoing
+# `authorization: Bearer <key>` header on the way out. That is what the
+# `credentialProvider.namespacePolicies` grant in
+# platform/substrate/release.yaml is for, and why the grant names this
+# namespace. It also means the destination is matched on EXACT DNS HOSTNAME,
+# without path or port — so `api.infomaniak.com` has to be the host in the
+# ModelConfig's baseUrl, in that grant's reach, and in the `toFQDNs` rule in
+# platform/substrate/network-policy.yaml. All three, or the call fails at
+# whichever one disagrees.
+#
+# Rotating it: replace the value, `sops -e -i` this file, and let Flux
+# reconcile. Nothing restarts — the gateway re-reads the Secret, and its
+# credential cache can take up to five minutes to pick up the new value.
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+    name: kagent-openai
+    namespace: kagent
+stringData:
+    OPENAI_API_KEY: ENC[AES256_GCM,data:P1Awj4oAR20Okw5GhArbMPRJLtfUe7JJf2kI6NfcNP/vfKXKdvniU4EFwzyQEAzYu7D0n8EG8cxaboam0sSV8iOyBaSUp/86chabZD0FV5I=,iv:LJieE64xcFr9MSq2BeC9SMzfd7rI5FC8ncmDr91aBVw=,tag:6/qgZCW5LXqQ8uM9rWv13g==,type:str]
+sops:
+    encrypted_regex: ^(data|stringData|secrets)$
+    lastmodified: "2026-09-21T19:01:11Z"
+    mac: ENC[AES256_GCM,data:URWR7eDVDRZzY7TealVwv+f1hqW4UHBwtWMEOpL+OLpJBG6CQuq6YkXZnsSus2jlaPa7z1zfBTSvpy6Xq5eIoHUbflC1LxINHToANbuaejBhmZaArjCbajbuW36RUbr9Q8IdEY37hds7uwiyML1rR+bL5DwxMiCcJXMOqRlNfXg=,iv:IwxG3Va91h5mqSC5t/QBg06MUfOpS/k+qWPV8KgqwX8=,tag:BSUA7OgQp4Ms0BI7U/LqTA==,type:str]
+    pgp:
+        - created_at: "2026-09-21T19:01:11Z"
+          enc: |-
+            -----BEGIN PGP MESSAGE-----
+
+            hF4D7/45ZmvAFBwSAQdATym+E9se6pmSF9dBhrlFDpO9WMdLFIFylmh2FfVQKVcw
+            +P0JRzdoh+8+R25kPnwu4Sw8uhp7P3lJNSlz+nZp03nw0SJwp5vUN0a0QcxrvwFH
+            0l4Bx5c+VVSRv4VBOCZpu5YXUDwo6GUjZ1F40HagODg+EfHh4wECnJuRd1dgdyhy
+            Z312VGXKumb0jgswrZch+KY42uzueaNdJk1YUOr/mo5ZMXPoV8DiyjOxv2myTEss
+            =4v3w
+            -----END PGP MESSAGE-----
+          fp: 459895EB0A5F446D3831E99F95F6A162E4A71B06
+        - created_at: "2026-09-21T19:01:11Z"
+          enc: |-
+            -----BEGIN PGP MESSAGE-----
+
+            hF4D8q6e3Tem1ZoSAQdA/RCZ1BsEjcdmSgH5IZIBcvsRp+nMmGVT18sViQOG1AIw
+            oCivoSc/FgUVqoe2TX3aReZ2C7HjGBmjCHR5jwV2xmtDzaCloP6ggyhGMmPbwSPL
+            0l4BfLf0xNcGzhMxBQ/EM6HJAHoWXIimkGl+UcNQ8aGmQV4noopHw0f8IrInKKl1
+            JJj3N4xHbRt0VzKyiRDYnkhB5dwNF23+pgrrpNb2KHf8Op+VrQWmPBaAO9lTuZ9P
+            =YSKS
+            -----END PGP MESSAGE-----
+          fp: DF7F5D62376A57228F35FE4C665F8C5B8E0732E5
+    version: 3.13.1
