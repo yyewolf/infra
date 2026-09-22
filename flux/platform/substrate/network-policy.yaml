@@ -101,6 +101,52 @@ spec:
   - toEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: ate-system
+  # The kagent namespace, portless — and this rule's absence is what broke the
+  # runtime path between the two namespaces, in a way that reads as a kagent
+  # problem and is not one.
+  #
+  # Cilium enforces egress at the SOURCE endpoint and ingress at the
+  # DESTINATION endpoint, and a flow needs both. The matching ingress rule in
+  # platform/kagent/network-policy.yaml (`fromEndpoints: namespace: ate-system`)
+  # has always been there and is correct; it just never got the chance to apply,
+  # because the packet was already dropped on the way OUT of this namespace.
+  # `hubble observe --verdict DROPPED` on the ate-system pod's node shows it as
+  # an EGRESS DENIED from atenet-egress or atenet-router — not as an ingress
+  # denial at kagent, which is where the comments here and there both point.
+  #
+  # Substrate's traffic into kagent is not incidental, it is the runtime path:
+  #
+  #   atenet-egress -> kagent-tools:8084      an actor's MCP tool calls are
+  #                                           proxied by the egress gateway, so
+  #                                           the GATEWAY is the MCP client and
+  #                                           the actor never dials the tool
+  #                                           server itself
+  #   atenet-router -> worker pod:443/8443    A2A requests are routed into the
+  #                                           sandbox over the worker's atunnel
+  #                                           listeners; clients never receive
+  #                                           actor addresses
+  #
+  # The worker pods are in `kagent`, not here — the chart creates its WorkerPool
+  # in its own release namespace and ate-controller makes the Deployment there.
+  # So both destinations above are endpoints in kagent and both need this rule.
+  #
+  # The symptom of its absence is atenet-egress's own 503 surfacing at the actor
+  # as a transport rejection that names neither a namespace nor a policy:
+  #
+  #   failed to extract tools from the tool set "mcp_tool_set": failed to list
+  #   MCP tools: failed to init MCP session: calling "initialize": rejected by
+  #   transport: sending "initialize": Service Unavailable
+  #
+  # Portless for the same reason the ingress rule above is, and the same reason
+  # kagent's egress rule to this namespace is: enumerating this datapath was
+  # wrong twice already. The destinations are 8084 (MCP), 443 and 8443 (atunnel)
+  # and 8080 (readyz) today, and substrate is free to add more. The trust
+  # boundary is the namespace pair, and it is not weakened by this: `kagent`
+  # holds no `world` egress and no `toFQDNs`, so nothing reachable through here
+  # is a route off the cluster.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kagent
   # atelet's own hostPort listeners and the kubelet plugin socket. Scoped to
   # the same two ports as the ingress rule above.
   - toEntities:
