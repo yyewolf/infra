@@ -223,3 +223,46 @@ spec:
     - ports:
       - port: "8080"
         protocol: TCP
+---
+# The shim's egress, and it is a FOURTH policy rather than a rule in the
+# baseline for the same reason the database one is separate — only more so.
+#
+# The baseline above selects the whole namespace, and the worker pods that run
+# agent code are endpoints in it. Its closing comment is explicit that a
+# `toFQDNs` rule added *there* would let a sandbox reach that name directly,
+# bypassing the gateway that authorizes the actor and injects the credential,
+# and that the symptom of having done so is that everything keeps working. So
+# the one rule that reaches Infomaniak is pinned to `app: anthropic-shim`
+# alone. Cilium unions egress across the policies selecting an endpoint, so the
+# shim gets this plus the baseline and every other pod here gets only the
+# baseline. Same split as substrate-egress and talos-backup-api.
+#
+# Note what this does NOT contain: a DNS rule. The baseline's kube-dns rule
+# carries `rules.dns.matchPattern: "*"` and must remain the only DNS egress in
+# this namespace — a second plain allow beside it lets lookups bypass L7
+# inspection, and the `toFQDNs` entry below then silently never populates while
+# the name still resolves fine from inside the pod. The shim inherits that rule
+# by being in the namespace; adding one here would break FQDN policy for
+# everything in `kagent`, not just for the shim.
+#
+# This is still a widening, and it should be named as one: before this, exactly
+# one endpoint on the cluster could reach the model. Now there are two. What
+# keeps that bounded is that the shim re-signs the caller's credential rather
+# than holding its own (see anthropic-shim.yaml) — it can reach Infomaniak, but
+# only on behalf of someone who already had the token.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: anthropic-shim
+  namespace: kagent
+spec:
+  endpointSelector:
+    matchLabels:
+      app: anthropic-shim
+  egress:
+  - toFQDNs:
+    - matchName: "api.infomaniak.com"
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP

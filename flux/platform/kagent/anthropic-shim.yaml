@@ -1,0 +1,161 @@
+# A header shim in front of Infomaniak's Anthropic-compatible route.
+#
+# WHY IT EXISTS: kagent's claude harness injects the model credential as
+# `x-api-key` and there is no field that changes it —
+# go/core/internal/translator/credentials.go, modelCredentialTarget:
+#
+#   case ModelProviderOpenAI:    header, prefix = "authorization", "Bearer "
+#   case ModelProviderAnthropic: header         = "x-api-key"
+#
+# Infomaniak's /2/ai/<product>/anthropic route accepts only `Authorization:
+# Bearer` — verified directly: x-api-key -> 401, bearer -> 200. So the two do
+# not meet, and this moves the token from one header to the other. The codex
+# harness would have used Bearer natively and needs no shim, but it hard-
+# requires openAI.apiFormat `responses`, and Infomaniak 404s /v1/responses
+# while serving /v1/chat/completions.
+#
+# THE SHIM HOLDS NO CREDENTIAL, AND THAT IS THE POINT. It re-signs whatever
+# `x-api-key` the caller presented. The only thing that presents a real one is
+# atenet-egress, which fetches the Secret and injects it after authorizing the
+# actor's SPIFFE identity. A worker pod that dialled this Service directly
+# would arrive holding the inert `kagent-credential-injected` placeholder and
+# get a 401 from Infomaniak — so this is not an open relay onto the model, and
+# the gateway remains the only thing that can actually reach it. Giving the
+# shim its own token instead would quietly turn it into one, because the
+# namespace baseline lets every pod in `kagent` dial every other.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: anthropic-shim
+  namespace: kagent
+data:
+  Caddyfile: |
+    {
+    	admin off
+    	auto_https off
+    	persist_config off
+    }
+
+    :8080 {
+    	# Claude Code appends /v1/messages to ANTHROPIC_BASE_URL. Infomaniak
+    	# carries the same surface under a product-scoped prefix, so the only
+    	# path work is prepending it. {uri} is path plus query.
+    	@api path /v1/*
+    	handle @api {
+    		rewrite * /2/ai/106500/anthropic{uri}
+    		reverse_proxy https://api.infomaniak.com {
+    			header_up Host api.infomaniak.com
+    			header_up Authorization "Bearer {http.request.header.X-Api-Key}"
+    			header_up -X-Api-Key
+    			# Token streaming is server-sent events. Caddy stops buffering on its
+    			# own for text/event-stream, but a turn that streams is the normal
+    			# case here rather than the exception, so it is stated.
+    			flush_interval -1
+    		}
+    	}
+
+    	# Nothing else is proxied. The prefix above is the whole reason this
+    	# exists; a catch-all would forward arbitrary paths to api.infomaniak.com
+    	# under a Bearer token, which is a wider grant than the model.
+    	handle {
+    		respond "not found" 404
+    	}
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: anthropic-shim
+  namespace: kagent
+spec:
+  type: ClusterIP
+  selector:
+    app: anthropic-shim
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: anthropic-shim
+  namespace: kagent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: anthropic-shim
+  template:
+    metadata:
+      labels:
+        app: anthropic-shim
+    spec:
+      automountServiceAccountToken: false
+      # Same shape as platform/booting-up: the caddy image has no non-root
+      # variant, but nothing here needs root — the config is a ConfigMap and
+      # the two writable paths below are emptyDirs.
+      #
+      # NET_BIND_SERVICE below is an EXEC GATE, not a port permission, and the
+      # distinction is the whole reason it is easy to remove by mistake. The
+      # binary ships with file capabilities (`getcap` reports
+      # `/usr/bin/caddy cap_net_bind_service=ep` — note the effective bit), and
+      # the kernel refuses to exec a file-capable binary as non-root unless
+      # that capability is in the container's permitted set. Dropping it does
+      # not produce a bind error on startup; the container never starts at all
+      # and the log is one line, `exec /usr/bin/caddy: operation not
+      # permitted`, which reads like a broken image. :8080 needs no privilege
+      # to bind and binds fine either way — that is exactly why the reasoning
+      # "unprivileged port, so the capability is unnecessary" is wrong, and it
+      # is why booting-up carries the same add on the same port.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+        - name: caddy
+          image: mirror.gcr.io/caddy:2.11.4@sha256:14a9c00d4e833ebc2b65d36515b37bde3b73f0b323a2663aaafc88953d8c4e3f
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - NET_BIND_SERVICE
+            readOnlyRootFilesystem: true
+            seccompProfile:
+              type: RuntimeDefault
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 2
+          volumeMounts:
+            - name: config
+              mountPath: /etc/caddy/Caddyfile
+              subPath: Caddyfile
+            # Caddy writes an instance UUID under XDG_DATA_HOME and autosaves
+            # its adapted config under XDG_CONFIG_HOME; the image points both
+            # into /data and /config. With a read-only rootfs both have to be
+            # real writable mounts or it fails at startup.
+            - name: data
+              mountPath: /data
+            - name: caddy-home
+              mountPath: /config
+          resources:
+            requests:
+              cpu: "0"
+              memory: "0Mi"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+      volumes:
+        - name: config
+          configMap:
+            name: anthropic-shim
+        - name: data
+          emptyDir: {}
+        - name: caddy-home
+          emptyDir: {}

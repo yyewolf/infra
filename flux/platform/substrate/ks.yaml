@@ -13,6 +13,29 @@ spec:
   # substrate-crds subchart of kagent-crds. Reconciling before those exist is an
   # unknown-kind error, and the chart's own SandboxConfig is in this release.
   - name: kagent-crds
+  # bucket-init.yaml is a Job, and a Job's `spec.template` is immutable. Its
+  # image is pinned and therefore Renovate-managed, so every bump of
+  # amazon/aws-cli rewrites that template, the apply fails with `field is
+  # immutable`, and this whole Kustomization wedges until someone deletes the
+  # Job by hand. That is not hypothetical — it is what cbb9b773 (2.17.0 ->
+  # 2.36.50) did, and because `kagent` and `kagent-db` both dependOn this
+  # Kustomization, a stuck bucket-init silently stops the entire agent platform
+  # from reconciling. `force` makes Flux delete and recreate on exactly that
+  # error.
+  #
+  # Recreating this particular Job is safe because it is a one-shot that is
+  # idempotent by construction: it runs `head-bucket` first and exits 0 if the
+  # bucket is already there, so a re-run against a live rustfs is a no-op that
+  # touches no snapshot data.
+  #
+  # The hazard to know about is that `force` is a property of the Kustomization
+  # rather than of one file, so it would also recreate anything else here that
+  # ever reported an immutable-field error — including namespace.yaml, and
+  # recreating a Namespace takes everything in ate-system with it. A Namespace
+  # spec holds only `finalizers` and has no field that reports immutable, so
+  # this should never fire; it is written down because the consequence if it
+  # did is severe and is not obvious from the one-line field.
+  force: true
   interval: 10m
   path: ./flux/platform/substrate
   prune: true

@@ -1,45 +1,35 @@
-# NOT APPLIED. Deliberately absent from kustomization.yaml.
+# The Claude Code harness — Claude Code run as a kagent runtime, one turn per
+# Substrate actor, streamed back over A2A.
 #
-# This is the Claude Code harness — Claude Code run as a kagent runtime, one
-# turn per Substrate actor, streamed back over A2A. It is written out because
-# enabling it is then a one-line edit rather than a research task, and because
-# the reason it is off is not obvious from the outside.
+# It reaches Infomaniak through anthropic-shim.yaml rather than directly, and
+# the reason is a single header. The claude compiler accepts three providers
+# (go/core/internal/translator/claude/compiler.go): Anthropic, Bedrock and
+# AnthropicVertexAI. Anthropic takes an optional baseUrl, so Infomaniak's
+# Anthropic-compatible route looks like a fit — but credentials.go pins the
+# injected header per provider and offers no field to change it:
 #
-# WHY IT IS OFF: it cannot use the Infomaniak key. The claude compiler accepts
-# exactly three providers —
+#   case ModelProviderOpenAI:    header, prefix = "authorization", "Bearer "
+#   case ModelProviderAnthropic: header         = "x-api-key"
 #
-#   go/core/internal/translator/claude/compiler.go, func (c *Compiler) provider:
-#     case ModelProviderAnthropic          -> ANTHROPIC_API_KEY, optional baseUrl
-#     case ModelProviderBedrock            -> requires bedrock.region, AWS keys
-#     case ModelProviderAnthropicVertexAI  -> requires projectID + location
-#     default: "Claude does not support ModelConfig provider %q"
+# and Infomaniak's route takes only Bearer. Measured against the live endpoint,
+# not inferred: x-api-key -> 401, Authorization: Bearer -> 200. The shim exists
+# to move the token between those two headers, and holds no credential of its
+# own — read the note at the top of anthropic-shim.yaml before changing it,
+# because "give the shim its own token" is the obvious simplification and it
+# turns the shim into an open relay onto the model.
 #
-# — and an OpenAI-compatible gateway is none of them. `anthropic.baseUrl` is
-# allowed, but it has to speak the Anthropic Messages API, not OpenAI's. The
-# harness README says the same thing in one line: "Anthropic API keys and
-# Amazon Bedrock bearer tokens, injected by the gateway."
+# The codex harness needs no shim — it is OpenAI-shaped and already uses
+# Bearer — but its compiler hard-requires openAI.apiFormat `responses`, and
+# Infomaniak 404s /v1/responses while serving /v1/chat/completions. That is why
+# this is the claude harness and not that one.
 #
-# TO ENABLE, three steps:
-#
-#   1. Create the credential. Write a Secret named `kagent-anthropic` with key
-#      `ANTHROPIC_API_KEY` in this namespace, as `anthropic-sops.yaml`, encrypt
-#      it (`sops -e -i`), and add it to kustomization.yaml. Do NOT put the key
-#      in `providers.anthropic.apiKey` in release.yaml — that templates it into
-#      git.
-#   2. Add the egress. platform/substrate/network-policy.yaml has one
-#      `toFQDNs` entry today. Claude Code dials `api.anthropic.com`, and without
-#      an entry the turn fails as a connection error from the egress gateway
-#      rather than as anything mentioning policy.
-#   3. Add this file and modelconfig-anthropic.yaml to kustomization.yaml.
-#
-# Note step 1 creates a SECOND model on the cluster rather than replacing the
-# Infomaniak one: `providers.default` in release.yaml stays as it is, this
-# harness names its own ModelConfig, and the two coexist. Two harnesses, two
-# model endpoints, one worker pool.
+# This coexists with the Infomaniak model the chart generates rather than
+# replacing it: `providers.default` in release.yaml stays as it is, this
+# harness names its own ModelConfig, and the two share one worker pool.
 #
 # Credential injection needs no extra grant — `credentialProvider` in
-# platform/substrate/release.yaml already grants the `kagent` atespace access to
-# Secrets in the `kagent` namespace, which is where this one lives.
+# platform/substrate/release.yaml already grants the `kagent` atespace access
+# to Secrets in the `kagent` namespace, which is where this one lives.
 apiVersion: kagent.dev/v1alpha3
 kind: ModelConfig
 metadata:
@@ -47,9 +37,28 @@ metadata:
   namespace: kagent
 spec:
   provider: Anthropic
-  model: claude-haiku-4-5
-  apiKeySecret: kagent-anthropic
-  apiKeySecretKey: ANTHROPIC_API_KEY
+  # The same model the chart-generated OpenAI ModelConfig names — one product
+  # (106500), one catalogue, reached over two wire formats. Deliberately NOT an
+  # Anthropic model name: nothing behind this route is Claude, the route only
+  # speaks the Messages API. If a turn fails claiming an unknown model, list
+  # what the anthropic route actually offers, which may differ from the openai
+  # one:
+  #   curl -H "Authorization: Bearer $TOKEN" \
+  #     https://api.infomaniak.com/2/ai/106500/anthropic/v1/models
+  model: moonshotai/Kimi-K2.6
+  # The shim, not api.anthropic.com. Only the hostname is used to derive the
+  # actor's egress destination; the whole URL is passed to Claude Code as
+  # ANTHROPIC_BASE_URL, which appends /v1/messages. http:// is accepted by the
+  # compiler's validator (scheme http or https, no credentials, query or
+  # fragment), and the hop is inside the cluster.
+  anthropic:
+    baseUrl: http://anthropic-shim.kagent.svc.cluster.local:8080
+  # The Infomaniak token. It is the same credential the chart-generated
+  # OpenAI ModelConfig uses, hence the `openai` name on a ModelConfig whose
+  # provider is Anthropic — one token, two routes on the same product. The
+  # compiler only requires that the Secret exists and the key is non-empty.
+  apiKeySecret: kagent-openai
+  apiKeySecretKey: OPENAI_API_KEY
 ---
 apiVersion: kagent.dev/v1alpha3
 kind: Harness

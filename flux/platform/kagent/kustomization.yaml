@@ -3,12 +3,20 @@ kind: Kustomization
 namespace: kagent
 
 # namespace.yaml is deliberately absent — crds/namespace.yaml owns it, and says
-# why. harness-claude.yaml is deliberately absent too; see the header of that
-# file for what enabling it needs.
+# why.
+#
+# harness-claude.yaml is now applied. It needs anthropic-shim.yaml beside it:
+# the claude harness injects the model credential as `x-api-key` and Infomaniak
+# accepts only Bearer, so the shim re-signs the header. Removing the shim
+# without also removing the harness leaves a ModelConfig pointing at a Service
+# that does not exist, which fails as a connection error from the egress
+# gateway rather than as anything naming this file.
 resources:
   - infomaniak-sops.yaml
   - helmrepository.yaml
   - release.yaml
   - harness.yaml
+  - anthropic-shim.yaml
+  - harness-claude.yaml
   - ingress.yaml
   - network-policy.yaml
