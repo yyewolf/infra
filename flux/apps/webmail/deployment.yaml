@@ -28,7 +28,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: webmail
-        image: ghcr.io/bulwarkmail/webmail:1.10.0@sha256:f3b59980ccccb45e710f3e4e93cd5c1a66a6175fbf64493e0c86aa6f7fe6ac6b
+        image: ghcr.io/bulwarkmail/webmail:1.11.0@sha256:555965b469a8dfa58b8a2733184b55baa74d8fe2d2922db0f8df5669913180e7
         securityContext:
           allowPrivilegeEscalation: false
           runAsNonRoot: true
