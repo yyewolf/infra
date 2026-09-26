@@ -46,7 +46,7 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
       - name: home-assistant
-        image: mirror.gcr.io/homeassistant/home-assistant:2026.8@sha256:14931c6b13756317849f46da1d01b45937a1150db66c081cfe529d48215943fe
+        image: mirror.gcr.io/homeassistant/home-assistant:2026.9@sha256:d8922685169707fd91e8b9729902d975f06157d005e422874d201e0261dda196
         securityContext:
           # One of only two privileged workloads in this namespace, and the
           # reason ns/home-assistant is excluded from require-kata-for-privileged.
