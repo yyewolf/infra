@@ -121,7 +121,9 @@ spec:
     # entering the agent's process. Substrate's egress gateway fetches the
     # referenced Secret and rewrites the outgoing header; the SDK inside the
     # sandbox holds an inert placeholder. kagent compiles same-namespace
-    # references of the form ate-secret://kubernetes.io/kagent/<secret>/<key>.
+    # references of the form ate-secret://k8s.io/default/kagent/<secret>/<key>
+    # (the authority was `kubernetes.io` before substrate 0.3.0-alpha1; the
+    # egress gateway config and the kagent compiler moved together).
     #
     # An empty list — the chart default — denies every credential fetch, so
     # without this entry the model call fails with no credential and nothing

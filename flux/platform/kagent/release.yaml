@@ -61,7 +61,7 @@ spec:
   chart:
     spec:
       chart: kagent
-      version: 1.0.0-alpha1
+      version: 1.0.0-alpha5
       sourceRef:
         kind: HelmRepository
         name: kagent
@@ -121,14 +121,16 @@ spec:
     controller:
       substrate:
         enabled: true
-        # These three are literal strings, and they only resolve because
+        # These two are literal strings, and they only resolve because
         # platform/substrate pins its release name to `substrate` — that is the
         # one release name for which `substrate.fullname` returns a bare `api`
         # and `atenet-router` instead of prefixing them.
+        #
+        # There is no `defaultWorkerPool` any more (removed in 1.0.0-alpha5):
+        # every Harness names its pool in `spec.substrate.workerPoolRef`, and
+        # that is now the only place the controller reads it from.
         ateApiEndpoint: dns:///api.ate-system.svc:443
         atenetRouterURL: http://atenet-router.ate-system.svc:80
-        defaultWorkerPool:
-          name: kagent-default
       # The DSN, mounted where `database.postgres.urlFile` says to look.
       volumes:
       - name: db-url
@@ -150,9 +152,8 @@ spec:
 
     # The WorkerPool the harnesses reference. It is an ate.dev resource, so it
     # needs substrate's CRDs and its controller — hence the `dependsOn` in
-    # ks.yaml. The name has to match `controller.substrate.defaultWorkerPool`
-    # above AND `spec.substrate.workerPoolRef.name` on every Harness; nothing
-    # cross-validates the three.
+    # ks.yaml. The name has to match `spec.substrate.workerPoolRef.name` on
+    # every Harness; nothing cross-validates the two.
     #
     # `sandboxClass: gvisor` is substrate's OWN gVisor, not this cluster's.
     # infrastructure/gvisor installs runsc via a Talos system extension and
@@ -170,7 +171,7 @@ spec:
       # worth the convenience. Renovate does not see this (it is an image inside
       # a chart's values with no `tag:` key for the custom manager to match), so
       # it moves when substrate's chart version moves.
-      workerImage: ghcr.io/kagent-dev/substrate/ateom-gvisor:v0.2.0-beta4@sha256:74ac12013eb634a7e06546f0a4a64f015ae646f5568e2910fbb6bb11051fc7eb
+      workerImage: ghcr.io/kagent-dev/substrate/ateom-gvisor:v0.3.0-alpha1@sha256:b4ed1735ca686f367cfb45c593ca95b26527f18eaaec10fe07bf4a5537889c90
       sandboxClass: gvisor
 
     # ---------------------------------------------------------------------
@@ -281,7 +282,9 @@ spec:
     # ---------------------------------------------------------------------
     # The UI, and what is guarding it
     # ---------------------------------------------------------------------
-    # `auth.mode` is left at the chart's `unsecure`, which means no login: the
+    # `auth.mode` is left at the chart's `insecure` (spelled `unsecure` before
+    # 1.0.0-alpha5 — set it by hand and the old spelling is what you would
+    # reach for), which means no login: the
     # controller takes the user from an `X-User-Id` header and otherwise treats
     # every request as admin@kagent.dev. The tailnet is the access control, the
     # same argument apps/radar makes, and network-policy.yaml is where that

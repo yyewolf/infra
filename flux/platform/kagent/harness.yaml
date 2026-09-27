@@ -1,10 +1,18 @@
-# An agent is a Harness x AgentTemplate PAIR. Neither half does anything alone,
-# and the way they fail to pair is the most confusing state to arrive in: a
-# harness admits templates by label selector, so an AgentTemplate that no
-# harness admits is created successfully, reports no error, and is simply never
-# listed as an agent. If the UI shows nothing, check the labels before anything
-# else.
-apiVersion: kagent.dev/v1alpha3
+# An agent is a Harness x AgentTemplate PAIR, and since 1.0.0-alpha5 the pair is
+# an object of its own: the `Agent` at the bottom of this file names one of
+# each. Neither half does anything alone — a Harness and an AgentTemplate that
+# no Agent references are created successfully, report no error, and are never
+# listed. The old label-selector pairing (`Harness.allowedAgentTemplates`) is
+# gone from the CRD. Readiness now lives on the Agent (`kubectl -n kagent get
+# agents.api.kagent.dev`); AgentTemplate carries no status at all.
+#
+# The group is `api.kagent.dev`, not `kagent.dev`. The move happened in alpha5
+# as brand-new CRDs, not a conversion, so nothing carries over from the old
+# group — the objects below are simply created afresh (see crds/release.yaml
+# for why the old CRDs had to be kept alive through the upgrade). The
+# qualified name matters when typing kubectl too: kmcp's MCPServer stayed on
+# `kagent.dev`.
+apiVersion: api.kagent.dev/v1alpha3
 kind: Harness
 metadata:
   name: kagent
@@ -29,11 +37,10 @@ spec:
     # Renovate cannot see this (no `image:` key, no `tag:` value), so it moves
     # by hand alongside `chart.spec.version` in release.yaml. The two must stay
     # on the same version.
-    image: ghcr.io/kagent-dev/kagent/golang-adk@sha256:c8ab012e9774d50e20ffa8cd035ddebff69486a2843b3af281f5f6ebc67ab512
+    image: ghcr.io/kagent-dev/kagent/golang-adk@sha256:ed668c38a5805723912497d4ea085e711cf585d440907abfff3dd27991d768cc
   substrate:
-    # Must match `substrateWorkerPool.name` in release.yaml and
-    # `controller.substrate.defaultWorkerPool.name` beside it. Three
-    # independent strings, no cross-validation.
+    # Must match `substrateWorkerPool.name` in release.yaml. Two independent
+    # strings, no cross-validation.
     workerPoolRef:
       name: kagent-default
     # The bucket half must match the Job in platform/substrate/bucket-init.yaml.
@@ -43,10 +50,6 @@ spec:
     # script* uses the s3 form too.
     snapshotPolicy:
       location: s3://ate-snapshots/kagent
-  allowedAgentTemplates:
-    selector:
-      matchLabels:
-        kagent.dev/harness: kagent
 ---
 # One template, so the UI has an agent in it on first boot rather than an empty
 # list that looks like a broken install.
@@ -61,13 +64,11 @@ spec:
 # It is also the value the chart puts in the controller's
 # DEFAULT_MODEL_CONFIG_NAME, so a template that omits `modelConfig` entirely
 # would resolve to the same object.
-apiVersion: kagent.dev/v1alpha3
+apiVersion: api.kagent.dev/v1alpha3
 kind: AgentTemplate
 metadata:
   name: assistant
   namespace: kagent
-  labels:
-    kagent.dev/harness: kagent
 spec:
   description: General-purpose cluster assistant, read-only.
   modelConfig:
@@ -91,3 +92,14 @@ spec:
         server:
           kind: RemoteMCPServer
           name: kagent-tool-server
+---
+apiVersion: api.kagent.dev/v1alpha3
+kind: Agent
+metadata:
+  name: assistant
+  namespace: kagent
+spec:
+  templateRef:
+    name: assistant
+  harnessRef:
+    name: kagent

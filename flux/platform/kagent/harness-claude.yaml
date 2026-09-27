@@ -30,7 +30,7 @@
 # Credential injection needs no extra grant — `credentialProvider` in
 # platform/substrate/release.yaml already grants the `kagent` atespace access
 # to Secrets in the `kagent` namespace, which is where this one lives.
-apiVersion: kagent.dev/v1alpha3
+apiVersion: api.kagent.dev/v1alpha3
 kind: ModelConfig
 metadata:
   name: anthropic
@@ -60,7 +60,7 @@ spec:
   apiKeySecret: kagent-openai
   apiKeySecretKey: OPENAI_API_KEY
 ---
-apiVersion: kagent.dev/v1alpha3
+apiVersion: api.kagent.dev/v1alpha3
 kind: Harness
 metadata:
   name: claude
@@ -69,24 +69,18 @@ spec:
   claude: {}
   workload:
     # Same digest rule as the kagent harness, same version as the chart.
-    image: ghcr.io/kagent-dev/kagent/claude-harness@sha256:23b59459d66ce3162892239b035ba924cd1d64a6e3826db277599e9a98b2f36a
+    image: ghcr.io/kagent-dev/kagent/claude-harness@sha256:866e979376d1fbe98282211dbca023018585cc5b067fc789fc3821927329ab4b
   substrate:
     workerPoolRef:
       name: kagent-default
     snapshotPolicy:
       location: s3://ate-snapshots/kagent
-  allowedAgentTemplates:
-    selector:
-      matchLabels:
-        kagent.dev/harness: claude
 ---
-apiVersion: kagent.dev/v1alpha3
+apiVersion: api.kagent.dev/v1alpha3
 kind: AgentTemplate
 metadata:
   name: claude-assistant
   namespace: kagent
-  labels:
-    kagent.dev/harness: claude
 spec:
   description: Claude Code, with the cluster's read-only tools.
   modelConfig:
@@ -101,3 +95,14 @@ spec:
         server:
           kind: RemoteMCPServer
           name: kagent-tool-server
+---
+apiVersion: api.kagent.dev/v1alpha3
+kind: Agent
+metadata:
+  name: claude-assistant
+  namespace: kagent
+spec:
+  templateRef:
+    name: claude-assistant
+  harnessRef:
+    name: claude

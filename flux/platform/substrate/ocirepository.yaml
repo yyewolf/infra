@@ -1,10 +1,13 @@
 # GHCR-only. The version is not free: docs/architecture/credential-injection.md
-# in kagent v1.0.0-alpha1 opens with "Kagent requires Substrate v0.2.0-beta4",
+# in kagent v1.0.0-alpha5 opens with "Kagent requires Substrate v0.3.0-alpha1",
 # and both the kagent and kagent-crds charts declare exactly that version for
-# their vendored copies. Bumping this without bumping kagent is not a patch.
+# their vendored copies. Bumping this without bumping kagent is not a patch —
+# 0.3.0-alpha1 alone renamed the credential URI authority from `kubernetes.io`
+# to `k8s.io`, which only works because kagent's compiler moved with it.
 #
-# Renovate reads `ref.tag` here. It is a pre-release, so expect it to sit still
-# until the constraint moves.
+# Renovate reads `ref.tag` here, and will offer every substrate pre-release
+# (they ship near-daily). Take the one kagent's Chart.yaml names, not the
+# newest.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
 metadata:
@@ -17,5 +20,5 @@ spec:
     mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
     operation: copy
   ref:
-    tag: 0.2.0-beta4
-    digest: sha256:96582a7fa698e254aa656c970d43c7a1af3abf97c906c47a27c46cc8c50bd1b1
+    tag: 0.3.0-alpha1
+    digest: sha256:5ccf66a27b9285148db5ce0feb989b2626bd53c65e75c2a69d83a9a46113181f

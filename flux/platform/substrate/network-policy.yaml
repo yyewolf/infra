@@ -334,7 +334,7 @@ spec:
 # support floor. Pod certificates and cluster trust bundles went GA and
 # locked-on in Kubernetes 1.37, which is what talos/cluster.yaml pins, so the
 # kubelet can issue these natively; the chart still ships its own signer and
-# beta4 has no switch to turn it off.
+# 0.3.0-alpha1 still has no switch to turn it off.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:

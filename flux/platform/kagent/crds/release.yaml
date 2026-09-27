@@ -15,6 +15,31 @@ spec:
     crds: CreateReplace
   upgrade:
     crds: CreateReplace
+  # -------------------------------------------------------------------------
+  # The 1.0.0-alpha1 -> alpha5 upgrade moved every kagent CRD except kmcp's
+  # MCPServer from `kagent.dev` to `api.kagent.dev`, as new CRDs rather than a
+  # served version. This chart simply stops rendering the old five, so Helm
+  # deletes them — and that breaks the OTHER release: the `kagent` release's
+  # stored manifest still lists a `kagent.dev` ModelConfig and RemoteMCPServer,
+  # and Helm (v4.2, pkg/action/upgrade.go) refuses any upgrade whose *current*
+  # manifest names a kind the API server no longer serves — "unable to build
+  # kubernetes objects from current release manifest". No remediation fixes
+  # that, and neither does deleting the HelmRelease: rollback and uninstall
+  # parse the same manifest, so the way out after the fact is deleting Helm's
+  # release Secret by hand.
+  #
+  # The cheap way in is to annotate the five old CRDs BEFORE pushing
+  #
+  #   kubectl annotate crd agenttemplates.kagent.dev harnesses.kagent.dev \
+  #     modelconfigs.kagent.dev modelproviderconfigs.kagent.dev \
+  #     remotemcpservers.kagent.dev helm.sh/resource-policy=keep
+  #
+  # which Helm reads off the LIVE object when deciding what to delete. Once
+  # both releases are on alpha5 and the `kagent` Kustomization has pruned its
+  # old-group Harness/AgentTemplate/ModelConfig, the five are orphans and are
+  # deleted by hand. The same trap applies to any future chart that drops a
+  # CRD another release still has objects of.
+  # -------------------------------------------------------------------------
   values:
     # kmcp's CRDs (MCPServer), used by the kagent chart's own toolserver
     # template. Left on because the kagent release runs the kmcp subchart.
@@ -26,7 +51,7 @@ spec:
     #
     # It is not optional for this cluster. `Harness.spec.substrate` is a
     # *required* field on every harness variant — kagent, codex, claude and byo
-    # alike (kagent.dev_harnesses.yaml, `required: [substrate, workload]`, and
+    # alike (api.kagent.dev_harnesses.yaml, `required: [substrate, workload]`, and
     # HarnessSubstratePolicy additionally requires both `workerPoolRef` and
     # `snapshotPolicy.location`). So there is no shape of kagent v1 that runs an
     # agent without Substrate, and no shape of Substrate that works without

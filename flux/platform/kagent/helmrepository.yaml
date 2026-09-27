@@ -14,12 +14,13 @@
 #
 # THE COST IS THE DIGEST PIN. `chart.spec` has no `digest` field, so this is
 # pinned by version alone and a mutated tag in GHCR would go unnoticed, where
-# crds/ocirepository.yaml still pins `1.0.0-alpha1` to a sha256. Three other
+# crds/ocirepository.yaml still pins its tag to a sha256. Three other
 # apps here already accept that trade (apps/immich, apps/woodpecker,
 # apps/uctf). Renovate is unaffected either way: its flux manager reads
 # `HelmRelease.spec.chart.spec.version` as well as `OCIRepository.spec.ref.tag`.
 #
 # Revert to the OCIRepository shape as soon as the chart sanitises that label
+# (still unsanitised as of 1.0.0-alpha5 — checked in `kagent.labels`)
 # the way it already sanitises `helm.sh/chart`.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
