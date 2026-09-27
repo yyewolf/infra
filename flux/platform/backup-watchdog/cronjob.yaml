@@ -43,7 +43,7 @@ spec:
             # incarnation of this job ran `apk add curl jq` at the top of
             # every execution, which put a package mirror on the critical path
             # of the thing meant to tell you when things are broken.
-            image: mirror.gcr.io/alpine/k8s:1.37.0@sha256:b421c2e9419edb98db39b6ab641669f4db7bb2acf354f22450c6b7e7176d1ff4
+            image: mirror.gcr.io/alpine/k8s:1.37.1@sha256:712dc5385d1c1a3f83b747fa9e40f64d433a97f72ff42f9755ff7dd1f62846e4
             imagePullPolicy: IfNotPresent
             env:
             # How old the newest backup may be before it is flagged. 26h,
