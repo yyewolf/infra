@@ -20,12 +20,15 @@ spec:
   # CNMSQL's own instance image, not stock `percona/percona-server`. Same
   # arrangement as CNPG: the operator drives an instance manager that has to be
   # in the image, so a stock Percona image is not a substitute. The tag tracks
-  # the MySQL series (8.4) with a build revision; `8.4-4` is what the floating
+  # the MySQL series (8.4) with a build revision; `8.4-5` is what the floating
   # `8.4` tag currently resolves to, pinned so Renovate has something to bump.
+  # It is also the floor: `8.4-5` is the first build that ships `mysqldump`,
+  # and on anything older a `method: logical` Backup fails with
+  # `LogicalToolUnavailable` (cnmsql >= 0.8.0).
   #
   # amd64 only. Fine for cp-0/1/2, which is where this is pinned to run.
   # renovate: datasource=docker
-  imageName: ghcr.io/cnmsql/cnmsql-instance:8.4-4
+  imageName: ghcr.io/cnmsql/cnmsql-instance:8.4-5
 
   # Roll updates without being asked, moving the primary by switchover rather
   # than restarting it in place.
