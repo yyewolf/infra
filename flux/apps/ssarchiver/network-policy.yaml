@@ -1,0 +1,50 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: ssarchiver
+spec:
+  endpointSelector:
+    matchLabels:
+      app: ssarchiver
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: envoy-gateway-system
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
+  # The kubelet's probes originate from the node, not from a pod identity.
+  - fromEntities:
+    - host
+    - remote-node
+    - health
+  egress:
+  # DNS, with L7 visibility so the toFQDNs rule below can learn what
+  # scoresaber.com resolves to. This must stay the only DNS rule: a second,
+  # plain allow to kube-dns lets lookups bypass inspection and the FQDN entry
+  # never populates.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+      rules:
+        dns:
+        - matchPattern: "*"
+  # The ScoreSaber API, and the replays themselves, which it streams directly
+  # rather than redirecting to a CDN. The only thing the server fetches: the
+  # avatars and covers on cdn.scoresaber.com, the ArcViewer map downloads and
+  # the API docs assets are all loaded by the browser, and the ArcViewer build
+  # is embedded in the binary.
+  - toFQDNs:
+    - matchName: scoresaber.com
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP

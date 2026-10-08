@@ -1,0 +1,81 @@
+# A StatefulSet at one replica for the same at-most-one reason as the servarr
+# apps: the claim holds a sqlite database, and a StatefulSet waits for the old
+# pod to be gone before starting its replacement.
+#
+# The image is FROM scratch, runs as 65532 and writes only to /data, so the
+# root filesystem is read-only and there is no /tmp to provide.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ssarchiver
+spec:
+  replicas: 1
+  serviceName: ssarchiver
+  selector:
+    matchLabels:
+      app: ssarchiver
+  template:
+    metadata:
+      labels:
+        app: ssarchiver
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      automountServiceAccountToken: false
+      containers:
+      - name: ssarchiver
+        image: ghcr.io/yyewolf/ssarchiver:0.3.0
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        env:
+        - name: SSA_BASE_URL
+          value: https://ssarchiver.yewolf.fr
+        # Envoy appends the downstream address to X-Forwarded-For and sets
+        # X-Forwarded-Proto, which is what SSArchiver reads under this flag —
+        # the rightmost XFF entry as the client IP, and https for the cookies.
+        - name: SSA_TRUST_PROXY
+          value: "true"
+        ports:
+        - name: http
+          containerPort: 8080
+        startupProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          periodSeconds: 5
+          failureThreshold: 24
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          periodSeconds: 30
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          periodSeconds: 10
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        resources:
+          requests:
+            cpu: 20m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: ssarchiver-data

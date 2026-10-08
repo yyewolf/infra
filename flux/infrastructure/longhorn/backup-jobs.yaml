@@ -137,3 +137,21 @@ spec:
   - servarr-backup
   retain: 30
   concurrency: 2
+---
+# SSArchiver's one claim: the sqlite database and the archived replay files.
+# The replays are the part that matters — ScoreSaber prunes them, so an
+# archived one may exist nowhere else — and the claim is on longhorn-yolo with a
+# single replica, which makes this the only second copy.
+apiVersion: longhorn.io/v1beta2
+kind: RecurringJob
+metadata:
+  name: ssarchiver-backup
+  namespace: longhorn-system
+spec:
+  name: ssarchiver-backup
+  cron: "0 4 * * *"
+  task: backup
+  groups:
+  - ssarchiver-backup
+  retain: 30
+  concurrency: 1
