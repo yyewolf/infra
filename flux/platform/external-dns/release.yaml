@@ -57,7 +57,7 @@ spec:
         image:
           repository: ghcr.io/m0nsterrr/external-dns-webhook-infomaniak
           # renovate: datasource=docker depName=ghcr.io/m0nsterrr/external-dns-webhook-infomaniak
-          tag: v0.1.4@sha256:5e5f711944feaf7c3289a55dd4fd8519c97ef7b2ba832c0a7d70f7baedd2923e
+          tag: v0.1.5@sha256:553269b1f0f6e916addc7aefa6b08bd4fe2620b85ae8ce471769298a3d4c94b8
         env:
         - name: INFOMANIAK_API_TOKEN
           valueFrom:
