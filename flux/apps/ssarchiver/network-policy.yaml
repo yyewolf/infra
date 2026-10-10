@@ -44,6 +44,8 @@ spec:
   # is embedded in the binary.
   - toFQDNs:
     - matchName: scoresaber.com
+    - matchName: beatleader.com
+    - matchName: api.beatleader.xyz
     toPorts:
     - ports:
       - port: "443"
