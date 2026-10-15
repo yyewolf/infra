@@ -102,7 +102,9 @@ metadata:
   name: claude-assistant
   namespace: kagent
 spec:
-  templateRef:
-    name: claude-assistant
+  # alpha13: `template.ref` (or `template.inline`) replaced `templateRef`.
+  template:
+    ref:
+      name: claude-assistant
   harnessRef:
     name: claude
