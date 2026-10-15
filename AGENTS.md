@@ -354,7 +354,7 @@ kubectl create secret generic actor-id-ca-certs -n ate-system --from-literal=ca.
     | jq -r '.CAs[0].RootCertificateDER' | base64 -d | openssl x509 -inform der -outform pem)"
 
 # Substrate's read/write role needs default privileges CNPG cannot declare. Run
-# once, before ate-api-server's first start; the statements are in
+# once (late is fine: it includes grants on existing tables); the statements are in
 # flux/platform/postgres/applications/kagent/databaserole.yaml.
 #   kubectl -n postgres exec -it postgres-1 -c postgres -- psql -d substrate
 

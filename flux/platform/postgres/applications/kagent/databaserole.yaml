@@ -76,12 +76,19 @@ spec:
 #     GRANT EXECUTE ON ROUTINES TO substrate_readwrite;
 #   ALTER DEFAULT PRIVILEGES FOR ROLE substrate_owner IN SCHEMA substrate
 #     GRANT USAGE ON TYPES TO substrate_readwrite;
+#   -- and for whatever already exists, so the order stops mattering:
+#   GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA substrate TO substrate_readwrite;
+#   GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA substrate TO substrate_readwrite;
+#   GRANT EXECUTE ON ALL ROUTINES IN SCHEMA substrate TO substrate_readwrite;
 #
-# A rebuilt cluster needs it again, and it has to land before ate-api-server's
-# first start: default privileges apply to tables created *afterwards*, so
-# running it late leaves every table the migrations already made unreadable to
-# the read/write pool. Without it the server migrates fine as the owner and then
-# fails every request with `permission denied for table ...`.
+# A rebuilt cluster needs it again. Default privileges only cover tables
+# created *afterwards*, and the race is real: on 2026-10-15 a crash-looping
+# ate-api-server migrated within seconds of CNPG creating the schema, before
+# the SQL ran, so the first three statements alone left all 22 tables
+# unreadable. The symptom is the server migrating fine as the owner and then
+# dying on `Failed to initialize OpenFGA authz ... list stores: Internal Server
+# Error`, which is Postgres saying `permission denied for table store`. The
+# three ON ALL grants are what fix it after the fact.
 apiVersion: postgresql.cnpg.io/v1
 kind: DatabaseRole
 metadata:
