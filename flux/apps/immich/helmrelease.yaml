@@ -16,6 +16,10 @@ spec:
   values:
     controllers:
       main:
+        # Shared by server and machine-learning; both mount an RWO Longhorn
+        # claim, and the chart hardcodes RollingUpdate, which wedges forever on
+        # Multi-Attach whenever the new pod lands on a different node.
+        strategy: Recreate
         containers:
           main:
             image:
