@@ -171,7 +171,7 @@ spec:
       # worth the convenience. Renovate does not see this (it is an image inside
       # a chart's values with no `tag:` key for the custom manager to match), so
       # it moves when substrate's chart version moves.
-      workerImage: ghcr.io/kagent-dev/substrate/ateom-gvisor:v0.5.0-alpha1@sha256:79ca058d6e56fd4f4fe4a46bbedff16b5bf48c1b2bd59bdbc07b7b4bf3bad94f
+      workerImage: ghcr.io/kagent-dev/substrate/ateom-gvisor:v0.6.0-alpha1@sha256:4292e8f0e726e1b8c32718320fb289846e1bc030dbd1a33aadc361c63232f8f6
       sandboxClass: gvisor
 
     # ---------------------------------------------------------------------
