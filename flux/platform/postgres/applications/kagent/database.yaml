@@ -22,7 +22,13 @@ spec:
   cluster:
     name: postgres
   name: kagent
-  owner: kagent
+  # The group role, not the login. alpha13's migration runner opens with
+  # `CREATE SCHEMA IF NOT EXISTS kagent` as `kagent_owner`, and Postgres checks
+  # CREATE on the database *before* it checks whether the schema exists — so
+  # even with the schema below already in place, a role without it fails with
+  # `permission denied for database`. CNPG has no grant field; ownership is the
+  # declarative way to give it. The login reaches it through SET ROLE.
+  owner: kagent_owner
   # Since 1.0.0-alpha13 kagent sets `search_path` to this schema alone and
   # creates its tables there as `kagent_owner`. The alpha5 tables are still in
   # `public`, owned by the `kagent` login, and nothing reads them: a fresh
@@ -42,7 +48,10 @@ spec:
   cluster:
     name: postgres
   name: substrate
-  owner: substrate
+  # The group role, for the same reason as kagent above: ate-api-server runs
+  # `CREATE SCHEMA IF NOT EXISTS substrate` as `substrate_owner` and failed with
+  # `permission denied for database substrate` while the login owned it.
+  owner: substrate_owner
   # Owned by the group role, not the login: substrate creates its tables after
   # `SET ROLE substrate_owner`, and CREATE in a schema needs the role it runs as
   # to own it (or hold CREATE on it). The 0.3-era tables are still in `public`
