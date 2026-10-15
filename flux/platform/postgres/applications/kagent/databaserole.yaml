@@ -11,8 +11,26 @@ spec:
     name: postgres
   name: kagent
   login: true
+  # kagent 1.0.0-alpha13 has the same shape as substrate below: it assumes
+  # `kagent_owner` on every connection (`config.database.role` in
+  # platform/kagent/release.yaml) and keeps its tables in the `kagent` schema
+  # that role owns. NOINHERIT for the same reason as substrate's login.
+  inRoles:
+  - kagent_owner
+  inherit: false
   passwordSecret:
     name: kagent-db-credentials
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: kagent-owner
+  namespace: postgres
+spec:
+  cluster:
+    name: postgres
+  name: kagent_owner
+  login: false
 ---
 apiVersion: postgresql.cnpg.io/v1
 kind: DatabaseRole
@@ -24,5 +42,64 @@ spec:
     name: postgres
   name: substrate
   login: true
+  # Both, because one login serves both of substrate's pools (see
+  # platform/substrate/release.yaml). NOINHERIT, as upstream's setup creates its
+  # logins: the role's rights are only in effect after the SET ROLE substrate
+  # issues, never ambiently on the login itself.
+  inRoles:
+  - substrate_owner
+  - substrate_readwrite
+  inherit: false
   passwordSecret:
     name: substrate-db-credentials
+---
+# Substrate (0.4+) never acts as its login. It runs `SET ROLE` on every new
+# connection — `substrate_owner` for the migration pool, `substrate_readwrite`
+# for everything else — and refuses a login that is not a member of the role it
+# is told to assume. These two are those roles: NOLOGIN, no password, just
+# privilege sets. The names are the chart defaults and are restated in
+# platform/substrate/release.yaml.
+#
+# What CNPG cannot declare is the half that makes the split mean anything:
+# `substrate_readwrite`'s rights on the tables `substrate_owner` creates. That is
+# ALTER DEFAULT PRIVILEGES, which has no CRD field, so it was run once by hand
+# as superuser against the `substrate` database — the same statements as
+# upstream's pkg/postgressetup/setup.sql:
+#
+#   REVOKE ALL ON SCHEMA substrate FROM PUBLIC;
+#   GRANT USAGE ON SCHEMA substrate TO substrate_readwrite;
+#   ALTER DEFAULT PRIVILEGES FOR ROLE substrate_owner IN SCHEMA substrate
+#     GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO substrate_readwrite;
+#   ALTER DEFAULT PRIVILEGES FOR ROLE substrate_owner IN SCHEMA substrate
+#     GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO substrate_readwrite;
+#   ALTER DEFAULT PRIVILEGES FOR ROLE substrate_owner IN SCHEMA substrate
+#     GRANT EXECUTE ON ROUTINES TO substrate_readwrite;
+#   ALTER DEFAULT PRIVILEGES FOR ROLE substrate_owner IN SCHEMA substrate
+#     GRANT USAGE ON TYPES TO substrate_readwrite;
+#
+# A rebuilt cluster needs it again, and it has to land before ate-api-server's
+# first start: default privileges apply to tables created *afterwards*, so
+# running it late leaves every table the migrations already made unreadable to
+# the read/write pool. Without it the server migrates fine as the owner and then
+# fails every request with `permission denied for table ...`.
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: substrate-owner
+  namespace: postgres
+spec:
+  cluster:
+    name: postgres
+  name: substrate_owner
+  login: false
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: substrate-readwrite
+  namespace: postgres
+spec:
+  cluster:
+    name: postgres
+  name: substrate_readwrite
+  login: false

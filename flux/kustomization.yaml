@@ -18,6 +18,7 @@ resources:
 - platform/kyverno/ks.yaml
 - platform/kyverno/policies/ks.yaml
 - platform/kagent/crds/ks.yaml
+- platform/substrate/crds/ks.yaml
 - platform/substrate/ks.yaml
 - platform/kagent/ks.yaml
 - platform/metrics-server/ks.yaml

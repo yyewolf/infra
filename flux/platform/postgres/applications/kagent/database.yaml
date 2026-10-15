@@ -23,6 +23,15 @@ spec:
     name: postgres
   name: kagent
   owner: kagent
+  # Since 1.0.0-alpha13 kagent sets `search_path` to this schema alone and
+  # creates its tables there as `kagent_owner`. The alpha5 tables are still in
+  # `public`, owned by the `kagent` login, and nothing reads them: a fresh
+  # schema is a fresh goose history, which is why this upgrade did not need the
+  # `DROP OWNED BY kagent` reset the earlier alphas did. pgvector stays where
+  # template1 put it, in `public` — hence `vectorSchema: public` in the release.
+  schemas:
+  - name: kagent
+    owner: kagent_owner
 ---
 apiVersion: postgresql.cnpg.io/v1
 kind: Database
@@ -34,3 +43,10 @@ spec:
     name: postgres
   name: substrate
   owner: substrate
+  # Owned by the group role, not the login: substrate creates its tables after
+  # `SET ROLE substrate_owner`, and CREATE in a schema needs the role it runs as
+  # to own it (or hold CREATE on it). The 0.3-era tables are still in `public`
+  # and unread.
+  schemas:
+  - name: substrate
+    owner: substrate_owner

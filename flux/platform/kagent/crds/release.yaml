@@ -45,16 +45,11 @@ spec:
     # template. Left on because the kagent release runs the kmcp subchart.
     kmcp:
       enabled: true
-    # Off by default in the chart, and the single most consequential value in
-    # this directory. It adds substrate-crds: WorkerPool, SandboxConfig and
-    # CSIDriverConfig in the ate.dev group.
-    #
-    # It is not optional for this cluster. `Harness.spec.substrate` is a
-    # *required* field on every harness variant — kagent, codex, claude and byo
-    # alike (api.kagent.dev_harnesses.yaml, `required: [substrate, workload]`, and
-    # HarnessSubstratePolicy additionally requires both `workerPoolRef` and
-    # `snapshotPolicy.location`). So there is no shape of kagent v1 that runs an
-    # agent without Substrate, and no shape of Substrate that works without
-    # these CRDs.
-    substrate:
-      enabled: true
+    # There used to be a `substrate.enabled` here, adding the ate.dev CRDs
+    # (WorkerPool, SandboxConfig, CSIDriverConfig) as a `substrate-crds`
+    # subchart. 1.0.0-alpha13 dropped that subchart; those CRDs are now the
+    # `substrate-crds` release in platform/substrate/crds. The upgrade that
+    # removed it is exactly the trap described above, one group over: this chart
+    # stopped rendering three CRDs that every WorkerPool and SandboxConfig on the
+    # cluster depends on, so they were annotated `helm.sh/resource-policy: keep`
+    # and handed to the new release before it went out.

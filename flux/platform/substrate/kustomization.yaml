@@ -17,5 +17,7 @@ resources:
   - s3-sops.yaml
   - ocirepository.yaml
   - release.yaml
+  - podcert-ocirepository.yaml
+  - podcert-release.yaml
   - bucket-init.yaml
   - network-policy.yaml

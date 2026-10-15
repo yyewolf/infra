@@ -1,13 +1,17 @@
-# GHCR-only. The version is not free: docs/architecture/credential-injection.md
-# in kagent v1.0.0-alpha5 opens with "Kagent requires Substrate v0.3.0-alpha1",
-# and both the kagent and kagent-crds charts declare exactly that version for
-# their vendored copies. Bumping this without bumping kagent is not a patch —
-# 0.3.0-alpha1 alone renamed the credential URI authority from `kubernetes.io`
-# to `k8s.io`, which only works because kagent's compiler moved with it.
+# GHCR-only. The version is not free: it is whatever kagent's go.mod pins
+# (`replace github.com/agent-substrate/substrate => github.com/kagent-dev/substrate
+# <version>` in kagent's go/go.mod at the kagent tag in ../kagent/release.yaml).
+# kagent 1.0.0-alpha13 pins v0.5.0-alpha2. The controller is a substrate API
+# client built against that version's protos, and substrate changes them
+# between pre-releases ("upgrade clients and components together") — 0.6.0
+# renumbered proto fields outright.
 #
-# Renovate reads `ref.tag` here, and will offer every substrate pre-release
-# (they ship near-daily). Take the one kagent's Chart.yaml names, not the
-# newest.
+# FOUR pins move together and must all name that version: this one,
+# crds/ocirepository.yaml, podcert-ocirepository.yaml, and the ateom
+# `workerImage` in ../kagent/release.yaml. Renovate is told to leave all four
+# alone (renovate.json), because it bumped them independently of kagent from
+# 0.3 to 0.6 and every one of those upgrades failed: the release sat in a
+# rollback loop for two weeks while git said 0.6.0 and the cluster ran 0.3.0.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
 metadata:
@@ -20,5 +24,5 @@ spec:
     mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
     operation: copy
   ref:
-    tag: 0.6.0-alpha1
-    digest: sha256:33aafbe24834487865c3d31191741bc9e6745ad3f778bb2e8f4d582534f91258
+    tag: 0.5.0-alpha2
+    digest: sha256:361504a126e02473b78a0e9e10b1c613b62a2ec7429419cf6a83e808b9808a34

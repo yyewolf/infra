@@ -41,27 +41,36 @@ spec:
     # ---------------------------------------------------------------------
     # Same rule as everything else here — there is one Postgres for the whole
     # cluster (platform/postgres) and an app gets a database on it, not an
-    # instance of its own. The bundled chart Postgres is a single pod on a 1Gi
-    # PVC with no backup and no failover.
+    # instance of its own. Since 0.4 the chart has no bundled Postgres at all.
     #
-    # The DSN below is deliberately PASSWORDLESS and is deliberately not the one
-    # the server ends up using. `--postgres-connection-string=@env` makes
-    # ate-api-server read ATE_API_POSTGRES_CONNECTION_STRING, and the chart puts
-    # that in a plain ConfigMap (ate-api-server-envvars.yaml) — a password
-    # written here would be plaintext in git *and* in a ConfigMap on the
-    # cluster. The postRenderer below re-declares the same variable as a
-    # `secretKeyRef` in the container's own `env`, which takes precedence over
-    # `envFrom`, so the real credential only ever exists in the pushed Secret.
+    # The contract changed in 0.4 and is easy to half-satisfy. Substrate opens
+    # two pools, and runs `SET ROLE <role>` on every new connection: the OWNER
+    # pool (migrations) as `substrate_owner`, the READ/WRITE pool (everything
+    # else) as `substrate_readwrite`. Both are NOLOGIN group roles; a login
+    # without membership in the role it is asked to assume is rejected at
+    # connect time. Tables live in the `substrate` schema, owned by
+    # `substrate_owner`, and `substrate_readwrite` gets DML on them through
+    # default privileges. All of that is declared in
+    # platform/postgres/applications/kagent except the default privileges, which
+    # CNPG cannot express — see the SQL in databaserole.yaml there.
     #
-    # It still names the right host and database rather than a dummy, so that
-    # if the patch ever stops matching the failure is an authentication error
-    # against the correct server — loud — instead of a connection to nothing.
-    # The chart `fail`s outright on an empty string when postgres.enabled=false,
-    # so it cannot simply be omitted.
+    # One login (`substrate`) is a member of both roles, so both secret refs
+    # name the same pushed Secret. Upstream recommends a login per role; the
+    # SET ROLE is what actually separates the two privilege sets, so two logins
+    # would buy a second password to rotate and nothing else here.
+    #
+    # The old 0.3 tables are still in `public` and nothing reads them. Dropping
+    # them is a separate, later decision.
     postgres:
-      enabled: false
-      connectionString: "postgresql://substrate@postgres-rw.postgres.svc.cluster.local:5432/substrate?sslmode=require"
-      schema: public
+      readWriteConnectionStringSecretRef:
+        name: substrate-db
+        key: connection-string
+      ownerConnectionStringSecretRef:
+        name: substrate-db
+        key: connection-string
+      readWriteRole: substrate_readwrite
+      ownerRole: substrate_owner
+      schema: substrate
 
     # ---------------------------------------------------------------------
     # Snapshots: the existing rustfs, not the bundled one
@@ -151,16 +160,15 @@ spec:
         enabled: false
 
   # -----------------------------------------------------------------------
-  # The database credential, and why it is a patch
+  # ate-api-server's S3 configuration, and why it is a patch
   # -----------------------------------------------------------------------
-  # See the postgres block above for the reasoning. `env` entries merge by
-  # `name` and take precedence over `envFrom`, so this single entry overrides
-  # the ConfigMap's passwordless placeholder with the DSN that
-  # platform/postgres/applications/kagent pushes into this namespace.
+  # These five variables are ate-api-server's half of the S3 configuration —
+  # the half with no `extraEnv` hook (see `rustfs.enabled` above). Keep them
+  # identical to `atelet.extraEnv`.
   #
-  # The other five variables are ate-api-server's half of the S3 configuration
-  # — the half that has no `extraEnv` hook. Keep them identical to
-  # `atelet.extraEnv` above.
+  # Until 0.4 this patch also carried the Postgres DSN, because the chart put
+  # it in a ConfigMap. The chart now reads both connection strings from Secret
+  # refs itself, so that half is gone.
   postRenderers:
   - kustomize:
       patches:
@@ -178,11 +186,6 @@ spec:
                 containers:
                 - name: ate-api-server
                   env:
-                  - name: ATE_API_POSTGRES_CONNECTION_STRING
-                    valueFrom:
-                      secretKeyRef:
-                        name: substrate-db
-                        key: connection-string
                   - name: AWS_REGION
                     value: us-east-1
                   - name: AWS_ENDPOINT_URL

@@ -61,7 +61,7 @@ spec:
   chart:
     spec:
       chart: kagent
-      version: 1.0.0-alpha5
+      version: 1.0.0-alpha13
       sourceRef:
         kind: HelmRepository
         name: kagent
@@ -82,67 +82,59 @@ spec:
     # ---------------------------------------------------------------------
     # Database: a database on the shared cluster
     # ---------------------------------------------------------------------
-    # `urlFile` rather than `url`, and that is a secrecy choice, not a
-    # preference. Both end up as an env var on the controller
-    # (POSTGRES_DATABASE_URL_FILE / POSTGRES_DATABASE_URL), but `url` is a Helm
-    # value interpolated straight into the Deployment — a DSN there is a
-    # password in git. The file is a projected key of the Secret that
-    # platform/postgres/applications/kagent pushes into this namespace.
-    #
-    # `bundled.enabled: false` matters even with urlFile set — the chart's
-    # `{{- else if .Values.database.postgres.bundled.enabled }}` branch is dead
-    # once urlFile is set, but leaving it true still renders the bundled
-    # Postgres Deployment, Service, PVC and password Secret.
+    # The DSN comes from the Secret that platform/postgres/applications/kagent
+    # pushes into this namespace. Since 1.0.0-alpha13 the chart takes a Secret
+    # ref directly (a secretKeyRef env on the controller), which is what the
+    # `urlFile` + hand-mounted volume used to emulate — the reason was the same
+    # both times: `url` would be a Helm value, i.e. a password in git.
     database:
       postgres:
-        urlFile: /etc/kagent/db/url
-        bundled:
-          enabled: false
-        # pgvector is already present in every database on this cluster:
+        connectionStringSecretRef:
+          name: kagent-db
+          key: url
+
+    config:
+      database:
+        # alpha13 runs `SET ROLE kagent_owner` on every connection and puts its
+        # tables in the `kagent` schema, which that role owns. Both are chart
+        # defaults, restated because platform/postgres/applications/kagent has
+        # to create exactly these names and nothing cross-checks the two.
+        role: kagent_owner
+        schema: kagent
+        # pgvector is in every database on this cluster already:
         # platform/postgres runs `CREATE EXTENSION vchord CASCADE` in
         # `postInitTemplateSQL`, CASCADE pulls in pgvector, and template1 is
-        # what every later database is cloned from. So the migration this flag
-        # gates has its prerequisite met, and long-term agent memory works.
+        # what every later database is cloned from. That puts it in `public`,
+        # not in the chart's default `extensions` schema — the vector migration
+        # types its column as `<vectorSchema>.vector(768)`, so the default would
+        # fail at migrate time with `type "extensions.vector" does not exist`.
         #
-        # If it is ever turned off again, note the Memory feature degrades
-        # silently rather than erroring.
+        # If vectorEnabled is ever turned off again, note the Memory feature
+        # degrades silently rather than erroring.
         vectorEnabled: true
-
-    # ---------------------------------------------------------------------
-    # Substrate wiring
-    # ---------------------------------------------------------------------
-    # The subchart is OFF: substrate runs as its own release in ate-system
-    # (platform/substrate), which is what the upstream install does. Turning
-    # this on instead would deploy a second copy into *this* namespace and the
-    # endpoints below would point at the wrong one.
-    substrate:
-      enabled: false
+        vectorSchema: public
+      # These two are literal strings, and they only resolve because
+      # platform/substrate pins its release name to `substrate` — that is the
+      # one release name for which `substrate.fullname` returns a bare `api`
+      # and `atenet-router` instead of prefixing them. Both are also the chart
+      # defaults (they moved here from `controller.substrate` in alpha13).
+      #
+      # Every Harness names its pool in `spec.substrate.workerPoolRef`; there
+      # is no default pool.
+      substrate:
+        apiEndpoint: dns:///api.ate-system.svc:443
+        routerUrl: http://atenet-router.ate-system.svc:80
 
     controller:
-      substrate:
+      # Off in the chart, on in upstream's own installer (`kagent install`,
+      # go/core/cli/internal/commands/install.go), and required here: ate-api
+      # serves TLS from the pod certificate controller's private CA, so without
+      # the servicedns trust bundle the controller cannot verify it, and without
+      # the podidentity certificate it has nothing to present. Both are the
+      # `podCertificate:`/`clusterTrustBundle:` projections the
+      # podcertificate-controller in platform/substrate signs.
+      substrateClientCertificate:
         enabled: true
-        # These two are literal strings, and they only resolve because
-        # platform/substrate pins its release name to `substrate` — that is the
-        # one release name for which `substrate.fullname` returns a bare `api`
-        # and `atenet-router` instead of prefixing them.
-        #
-        # There is no `defaultWorkerPool` any more (removed in 1.0.0-alpha5):
-        # every Harness names its pool in `spec.substrate.workerPoolRef`, and
-        # that is now the only place the controller reads it from.
-        ateApiEndpoint: dns:///api.ate-system.svc:443
-        atenetRouterURL: http://atenet-router.ate-system.svc:80
-      # The DSN, mounted where `database.postgres.urlFile` says to look.
-      volumes:
-      - name: db-url
-        secret:
-          secretName: kagent-db
-          items:
-          - key: url
-            path: url
-      volumeMounts:
-      - name: db-url
-        mountPath: /etc/kagent/db
-        readOnly: true
       resources:
         requests:
           cpu: 50m
@@ -168,10 +160,14 @@ spec:
       replicas: 2
       # Digest-pinned. The WorkerPool does not require it the way a Harness
       # does, but a floating tag on the thing that executes agent code is not
-      # worth the convenience. Renovate does not see this (it is an image inside
-      # a chart's values with no `tag:` key for the custom manager to match), so
-      # it moves when substrate's chart version moves.
-      workerImage: ghcr.io/kagent-dev/substrate/ateom-gvisor:v0.6.0-alpha1@sha256:4292e8f0e726e1b8c32718320fb289846e1bc030dbd1a33aadc361c63232f8f6
+      # worth the convenience.
+      #
+      # Its version is substrate's, not kagent's: it must equal the substrate
+      # chart in platform/substrate/ocirepository.yaml (see the note there).
+      # Renovate DOES see this line and is told to leave it alone — bumped on
+      # its own to v0.6.0, the worker crash-looped on `--dns-egress-policy is
+      # required`, a flag only a 0.6 ate-controller passes.
+      workerImage: ghcr.io/kagent-dev/substrate/ateom-gvisor:v0.5.0-alpha2@sha256:5869cdace628f93d39d913e41f91f2862db8bb7ca8ae2c6c756ee31015b3d719
       sandboxClass: gvisor
 
     # ---------------------------------------------------------------------

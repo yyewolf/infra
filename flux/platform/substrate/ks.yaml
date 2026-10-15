@@ -10,9 +10,9 @@ spec:
       name: sops-gpg
   dependsOn:
   # WorkerPool, SandboxConfig and CSIDriverConfig (group ate.dev) come from the
-  # substrate-crds subchart of kagent-crds. Reconciling before those exist is an
+  # substrate-crds release in crds/. Reconciling before those exist is an
   # unknown-kind error, and the chart's own SandboxConfig is in this release.
-  - name: kagent-crds
+  - name: substrate-crds
   # bucket-init.yaml is a Job, and a Job's `spec.template` is immutable. Its
   # image is pinned and therefore Renovate-managed, so every bump of
   # amazon/aws-cli rewrites that template, the apply fails with `field is

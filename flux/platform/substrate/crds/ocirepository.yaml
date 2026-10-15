@@ -1,0 +1,15 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: substrate-crds
+spec:
+  interval: 1h
+  url: oci://ghcr.io/kagent-dev/substrate/helm/substrate-crds
+  layerSelector:
+    mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+    operation: copy
+  # Must equal the substrate version kagent is built against — see the note in
+  # ../ocirepository.yaml. Renovate is told to leave it alone.
+  ref:
+    tag: 0.5.0-alpha2
+    digest: sha256:328bd7a125d4e3f223309851cee74c8cb7a53c5613523f7d2bb7cd5b56aebc49

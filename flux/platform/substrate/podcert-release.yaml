@@ -1,0 +1,38 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: substrate-podcert
+  namespace: ate-system
+spec:
+  # The pod certificate controller: the signer behind every `podCertificate:`
+  # projected volume substrate mounts (service DNS, pod identity, and since 0.5
+  # the Postgres client identities). Up to substrate 0.3 it was a template in
+  # the application chart; from 0.4 it is this separate release, and "one
+  # controller serves the cluster".
+  #
+  # How that split went wrong is worth knowing, because it was silent: the
+  # failed 0.5 upgrade attempt on 2026-10-08 got far enough to delete what the
+  # application chart no longer rendered — including the
+  # podcertificate-controller-system Namespace, and with it the two CA pool
+  # Secrets that were minted into it by hand. The rollback recreated an empty
+  # Namespace, and the controller sat ContainerCreating on a missing Secret for
+  # a week, during which no substrate pod could start. That Namespace is now
+  # declared in namespace.yaml rather than by any chart.
+  releaseName: substrate-podcert
+  targetNamespace: podcertificate-controller-system
+  interval: 30m
+  chartRef:
+    kind: OCIRepository
+    name: substrate-podcert
+  install:
+    # It cannot become Ready until the three CA pool Secrets exist, which are
+    # minted out of band (see AGENTS.md).
+    timeout: 15m
+    remediation:
+      retries: -1
+  upgrade:
+    timeout: 15m
+    remediation:
+      retries: 3
+  values:
+    createNamespace: false

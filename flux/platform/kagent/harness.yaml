@@ -37,7 +37,7 @@ spec:
     # Renovate cannot see this (no `image:` key, no `tag:` value), so it moves
     # by hand alongside `chart.spec.version` in release.yaml. The two must stay
     # on the same version.
-    image: ghcr.io/kagent-dev/kagent/golang-adk@sha256:ed668c38a5805723912497d4ea085e711cf585d440907abfff3dd27991d768cc
+    image: ghcr.io/kagent-dev/kagent/golang-adk@sha256:ae01c3a6d7e0ed2e044253a26abbfb1a9426f3176363842ca9a954762c274d36
   substrate:
     # Must match `substrateWorkerPool.name` in release.yaml. Two independent
     # strings, no cross-validation.

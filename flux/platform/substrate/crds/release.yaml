@@ -1,0 +1,20 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: substrate-crds
+spec:
+  # The ate.dev CRDs (WorkerPool, SandboxConfig, CSIDriverConfig). Until kagent
+  # 1.0.0-alpha13 they were a `substrate-crds` subchart of kagent-crds; upstream
+  # split them out, and since substrate 0.4 the application chart expects them
+  # to be installed — and upgraded first — as this separate release.
+  #
+  # They are templates, not `crds/`, so Helm would delete them (and with them
+  # every WorkerPool and SandboxConfig on the cluster) if this release were
+  # uninstalled or stopped rendering one. The live CRDs carry
+  # `helm.sh/resource-policy: keep`, added by hand when ownership moved here
+  # from kagent-crds; it is what stopped kagent-crds' upgrade from deleting
+  # them, and it is worth keeping for the same reason.
+  interval: 30m
+  chartRef:
+    kind: OCIRepository
+    name: substrate-crds

@@ -11,9 +11,10 @@
 # readable, not just present.
 #
 # ONE workload justifies it: `atelet`, the DaemonSet that runs the sandboxes.
-# It is `privileged: true` (atelet.yaml) with four hostPath mounts
-# (/var/lib/ateom-gvisor, /var/lib/kubelet/plugins, /var/lib/kubelet/device-plugins,
-# /host/dev) and hostPorts 8085/9090. It is the node-side half of the runtime:
+# Since substrate 0.4 it is no longer `privileged: true` — it runs as root with
+# ALL dropped and DAC_OVERRIDE added — but it keeps four hostPath mounts
+# (/var/lib/ate, /var/lib/kubelet/plugins, /var/lib/kubelet/device-plugins,
+# /host/dev) and hostPorts 8085/9090, and baseline forbids hostPath outright. It is the node-side half of the runtime:
 # it fetches runsc, registers a CSI plugin with the kubelet, and starts gVisor
 # sandboxes directly. None of that means anything from inside a sandbox, so the
 # policy's usual escape hatch does not apply — the thing asking for privilege is
@@ -29,7 +30,7 @@
 # drop ALL capabilities; atenet-egress adds none and its one sysctl
 # (net.ipv4.ip_unprivileged_port_start) is on PodSecurity's safe list; the
 # pod-certificate-controller adds only NET_BIND_SERVICE, which baseline permits,
-# and lives in its own namespace that the chart creates unlabelled.
+# and lives in its own namespace, declared below without the label.
 #
 # `warn`/`audit` are deliberately left at the cluster default of `restricted`.
 # The Talos apiserver config sets those globally, and leaving them means a
@@ -42,3 +43,16 @@ metadata:
   name: ate-system
   labels:
     pod-security.kubernetes.io/enforce: privileged
+---
+# Home of the substrate-podcert release (podcert-release.yaml) and of the three
+# CA pool Secrets it signs with, which nothing in git can create. Declared here,
+# not by the chart, because a chart that owns a Namespace deletes it the day it
+# stops rendering it — which is how those Secrets were lost once already.
+# `keep` so that an uninstall of that release, or a prune of this file, does
+# not take them with it either.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: podcertificate-controller-system
+  annotations:
+    helm.sh/resource-policy: keep

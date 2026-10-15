@@ -62,6 +62,16 @@
       ],
       "enabled": true,
       "groupName": "docker dependencies"
+    },
+    {
+      "description": "Substrate follows kagent, not its own releases. Its version is whatever kagent's go.mod pins (`replace github.com/agent-substrate/substrate => github.com/kagent-dev/substrate <version>`), because the kagent controller is a substrate API client and substrate changes its protos between pre-releases. Bumped on its own, 0.3 -> 0.6 failed every time and left the release in a rollback loop for two weeks. Move these by hand with a kagent bump; see flux/platform/substrate/ocirepository.yaml.",
+      "matchPackageNames": ["ghcr.io/kagent-dev/substrate/**"],
+      "enabled": false
+    },
+    {
+      "description": "kagent's chart, CRD chart and images must land together, and a pre-1.0 bump can change the database contract (see flux/platform/kagent/release.yaml) - one PR to review, not three to merge in the wrong order.",
+      "matchPackageNames": ["kagent", "ghcr.io/kagent-dev/kagent/**"],
+      "groupName": "kagent"
     }
   ]
 }
