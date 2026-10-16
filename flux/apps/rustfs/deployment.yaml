@@ -21,7 +21,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: rustfs
-        image: mirror.gcr.io/rustfs/rustfs:latest@sha256:1803faef57627e2d9c2e7d89d655d712ddded5389040054987163043fecb6a3c
+        image: mirror.gcr.io/rustfs/rustfs:latest@sha256:7e948dad4748bda48f8985fda7195f8cf2e4259427011f6120acc2c9acf51587
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 9000
