@@ -30,7 +30,7 @@ spec:
       automountServiceAccountToken: false
       containers:
       - name: ssarchiver
-        image: ghcr.io/yyewolf/ssarchiver:0.7.0
+        image: ghcr.io/yyewolf/ssarchiver:0.7.0@sha256:d8822988b682981a2a041378a0ea44468718f308c0738641f1898b4414687a1a
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
