@@ -1,0 +1,15 @@
+# A second Uptime Kuma, run for @unshade. Its own namespace, named for the
+# tenant like `nounoursdestavernes` is, so the two tenants share nothing but the
+# MySQL cluster — and there each has its own database and its own login, with
+# grants that name only that database.
+#
+# `restricted` rather than the cluster-wide `baseline`: the pod already meets
+# it (non-root, every capability dropped, RuntimeDefault seccomp), so the label
+# costs nothing today and stops this namespace from ever quietly growing a
+# workload that does not. apps/uptime-kuma could carry the same label.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: unshade
+  labels:
+    pod-security.kubernetes.io/enforce: restricted

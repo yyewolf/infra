@@ -1,0 +1,120 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: uptime-kuma
+  labels:
+    app: uptime-kuma
+spec:
+  replicas: 1
+  # Recreate, not RollingUpdate. Uptime Kuma runs its knex migrations from the
+  # entrypoint and holds long-lived socket.io sessions; a rolling window would
+  # put two versions against one schema for no benefit at a single replica.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: uptime-kuma
+  template:
+    metadata:
+      labels:
+        app: uptime-kuma
+    spec:
+      # The app never talks to the API server, and this one is driven from a UI
+      # by someone outside the cluster — there is no reason for a token to be
+      # sitting on its filesystem, however little the default SA can do.
+      automountServiceAccountToken: false
+      securityContext:
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: uptime-kuma
+        # Kept on the same build as apps/uptime-kuma so the two instances move
+        # together. A fresh install of this build against MySQL 9.7 was tested
+        # before this landed: knex's own DDL comes out as expression defaults
+        # (`DEFAULT ('[]')`), so none of the MariaDB-dump rewriting the first
+        # instance needed applies to a database this creates itself.
+        image: louislam/uptime-kuma:2.0.0-beta.4@sha256:128685b2fb6e6caa4765220edb4458e107bb2b26af7ba43c320df8e3c3ea8e92
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 1000
+          runAsGroup: 1000
+          # No NET_RAW, so no ICMP `ping` monitors — see apps/uptime-kuma. Here
+          # it is doubly out of reach: the namespace enforces `restricted`,
+          # which forbids adding any capability but NET_BIND_SERVICE.
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        ports:
+        - containerPort: 3001
+          name: http
+        env:
+        - name: NODE_ENV
+          value: "production"
+
+        # 'mariadb' is the knex dialect name (mysql2 under the hood), not a
+        # statement about the server — see apps/uptime-kuma.
+        - name: UPTIME_KUMA_DB_TYPE
+          value: "mariadb"
+        - name: UPTIME_KUMA_DB_HOSTNAME
+          value: "mysql-rw.mysql.svc.cluster.local"
+        - name: UPTIME_KUMA_DB_PORT
+          value: "3306"
+        - name: UPTIME_KUMA_DB_NAME
+          value: "unshade_uptime"
+
+        # Written into this namespace by the PushSecret in
+        # platform/mysql/applications/uptime-kuma-unshade. It is not in git,
+        # and the pod stays in CreateContainerConfigError until that push has
+        # run.
+        - name: UPTIME_KUMA_DB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: uptime-kuma-db
+              key: UPTIME_KUMA_DB_USERNAME
+        - name: UPTIME_KUMA_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: uptime-kuma-db
+              key: UPTIME_KUMA_DB_PASSWORD
+
+        - name: UPTIME_KUMA_HOST
+          value: "0.0.0.0"
+
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3001
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3001
+            scheme: HTTP
+          initialDelaySeconds: 2
+          periodSeconds: 5
+          timeoutSeconds: 3
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        volumeMounts:
+        - name: data
+          mountPath: /app/data
+      volumes:
+      # emptyDir, as in apps/uptime-kuma: everything that matters is in MySQL,
+      # and only status-page icons uploaded through the UI are lost on restart.
+      - name: data
+        emptyDir: {}
+      terminationGracePeriodSeconds: 30
