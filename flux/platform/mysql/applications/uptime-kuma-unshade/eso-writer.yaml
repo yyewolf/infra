@@ -1,0 +1,35 @@
+# The identity the SecretStore authenticates as when it writes the database
+# credentials into the `unshade` namespace. One per app, never shared — see
+# applications/uptime-kuma.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: eso-push-writer-uptime-kuma-unshade
+  namespace: mysql
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: eso-push-writer
+  namespace: unshade
+rules:
+- apiGroups: [""]
+  resources: [secrets]
+  verbs: [get, list, watch, create, update, patch]
+- apiGroups: [authorization.k8s.io]
+  resources: [selfsubjectrulesreviews]
+  verbs: [create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: eso-push-writer
+  namespace: unshade
+subjects:
+- kind: ServiceAccount
+  name: eso-push-writer-uptime-kuma-unshade
+  namespace: mysql
+roleRef:
+  kind: Role
+  name: eso-push-writer
+  apiGroup: rbac.authorization.k8s.io

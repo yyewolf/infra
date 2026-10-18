@@ -45,6 +45,7 @@ resources:
 - platform/postgres/applications/jellystat/ks.yaml
 - platform/postgres/applications/kagent/ks.yaml
 - platform/mysql/applications/uptime-kuma/ks.yaml
+- platform/mysql/applications/uptime-kuma-unshade/ks.yaml
 - platform/mysql/applications/cloudbeaver/ks.yaml
 - apps/cloudbeaver/ks.yaml
 - apps/cyberchef/ks.yaml

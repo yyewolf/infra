@@ -1,0 +1,29 @@
+apiVersion: mysql.cnmsql.co/v1alpha1
+kind: DatabaseUser
+metadata:
+  name: uptime-kuma-unshade
+  namespace: mysql
+spec:
+  cluster:
+    name: mysql
+  name: unshade_uptime
+
+  # '%' for the same reason as applications/uptime-kuma: the pod IP changes on
+  # every reschedule. The password is what separates this tenant from the
+  # other one, since both reach mysql-rw:3306 under identical network rules.
+  host: "%"
+
+  passwordSecret:
+    name: uptime-kuma-unshade-db-credentials
+    key: password
+
+  # Its own database and nothing else — in particular, not
+  # nounoursdestavernes_uptime. DDL included, because Uptime Kuma creates its
+  # schema and runs knex migrations at startup.
+  grants:
+  # Quoted: `on` is a YAML 1.1 boolean.
+  - "on": unshade_uptime.*
+    privileges:
+    - ALL
+
+  reclaimPolicy: retain

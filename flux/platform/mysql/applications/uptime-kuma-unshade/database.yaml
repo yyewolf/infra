@@ -1,0 +1,20 @@
+# The second Uptime Kuma tenant of platform/mysql. Same shape as
+# applications/uptime-kuma: a database on the shared cluster, declared here in
+# the `mysql` namespace, owned by its own login and by nothing else.
+apiVersion: mysql.cnmsql.co/v1alpha1
+kind: Database
+metadata:
+  name: uptime-kuma-unshade
+  namespace: mysql
+spec:
+  cluster:
+    name: mysql
+
+  # Tenant-prefixed and underscored, for the same reasons as
+  # `nounoursdestavernes_uptime` — see applications/uptime-kuma.
+  name: unshade_uptime
+
+  characterSet: utf8mb4
+  collation: utf8mb4_0900_ai_ci
+
+  reclaimPolicy: retain
