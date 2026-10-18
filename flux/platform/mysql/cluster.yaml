@@ -25,8 +25,10 @@ spec:
   # `imageName`, so the exact build is pinned there by tag and digest and
   # Renovate bumps it in one place. The series is what this Cluster commits
   # to: the operator probes each image and refuses one whose server version is
-  # not 8.4.x. Moving to another series is a major-version upgrade, not a line
-  # change here.
+  # not 9.7.x. Changing it is a major-version upgrade, one series at a time
+  # (8.0 -> 8.4 -> 9.7) and only forward: the operator backs up first (see
+  # `upgrade` below), and the only way back is restoring that backup into a
+  # new cluster. Moved from 8.4 on 2026-10-18.
   #
   # amd64 and arm64 since the 2026-09 images; it still only runs on cp-0/1/2,
   # see `nodeSelector` below.
@@ -34,7 +36,7 @@ spec:
     apiGroup: mysql.cnmsql.co
     kind: ClusterImageCatalog
     name: cnmsql-mysql-bookworm
-    series: "8.4"
+    series: "9.7"
 
   # Roll updates without being asked, moving the primary by switchover rather
   # than restarting it in place.

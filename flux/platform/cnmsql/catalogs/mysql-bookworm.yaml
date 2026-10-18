@@ -8,7 +8,7 @@
 # the operator probes the new image, then replaces the replica, switches over
 # and replaces the old primary.
 #
-# Only 8.4 is in use (platform/mysql). 8.0 and 9.7 are kept so this stays the
+# Only 9.7 is in use (platform/mysql). 8.0 and 8.4 are kept so this stays the
 # same catalog upstream publishes.
 apiVersion: mysql.cnmsql.co/v1alpha1
 kind: ClusterImageCatalog
