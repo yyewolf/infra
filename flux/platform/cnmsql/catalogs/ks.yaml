@@ -1,0 +1,20 @@
+# Separate from the `cnmsql` Kustomization for two reasons. A
+# ClusterImageCatalog is rejected until the operator's CRD exists, so this has
+# to wait for the chart. And it is cluster-scoped: the `namespace: cnmsql` in
+# ../kustomization.yaml would be stamped onto it, because kustomize does not
+# know the scope of a custom resource.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: cnmsql-catalogs
+  namespace: flux-system
+spec:
+  dependsOn:
+  - name: cnmsql
+  interval: 10m
+  path: ./flux/platform/cnmsql/catalogs
+  prune: true
+  retryInterval: 1m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

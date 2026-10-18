@@ -1,0 +1,25 @@
+# Vendored from github.com/cnmsql/containers, catalogs/catalog-mysql-bookworm.yaml.
+# Upstream regenerates that file after every image build; here Renovate bumps
+# each line instead (see the cnmsql-instance rule in renovate.json), so a new
+# image is a reviewed PR rather than an unattended roll of the database.
+#
+# Each image is an immutable `<version>-<build time>-bookworm` tag pinned by
+# digest. Changing the line a Cluster's series points at rolls that Cluster:
+# the operator probes the new image, then replaces the replica, switches over
+# and replaces the old primary.
+#
+# Only 8.4 is in use (platform/mysql). 8.0 and 9.7 are kept so this stays the
+# same catalog upstream publishes.
+apiVersion: mysql.cnmsql.co/v1alpha1
+kind: ClusterImageCatalog
+metadata:
+  name: cnmsql-mysql-bookworm
+spec:
+  flavor: mysql
+  images:
+    - series: "8.0"
+      image: ghcr.io/cnmsql/cnmsql-instance:8.0.46-202610091632-bookworm@sha256:c76cb4c66da0be799890e6d8c39f815a9518bf9585cc21bac2d7fa2e104c50a0
+    - series: "8.4"
+      image: ghcr.io/cnmsql/cnmsql-instance:8.4.11-202610091632-bookworm@sha256:325d92c652114c12133b10403641cf2e6e22a7951711371906a9095df93ae54a
+    - series: "9.7"
+      image: ghcr.io/cnmsql/cnmsql-instance:9.7.2-202610091632-bookworm@sha256:78ad9731e4db031cb71c6b1805e7d9bd3985c3a744f64bd24e6d0ce6540a1d97

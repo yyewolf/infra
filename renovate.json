@@ -64,6 +64,20 @@
       "groupName": "docker dependencies"
     },
     {
+      "description": "The vendored cnmsql instance catalog (flux/platform/cnmsql/catalogs). Its tags are `<version>-<build time>-bookworm`; under docker versioning the build time reads as a fixed suffix and nothing would ever update, so the timestamp is the `build` component here. The moving tags (`8.4`, `8.4.11-bookworm`) and the distroless images do not match and are ignored.",
+      "matchFileNames": ["flux/platform/cnmsql/catalogs/**"],
+      "matchPackageNames": ["ghcr.io/cnmsql/cnmsql-instance"],
+      "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)-(?<build>\\d{12})-(?<compatibility>bookworm)$",
+      "groupName": "cnmsql instance images"
+    },
+    {
+      "description": "A catalog entry is a series (8.0, 8.4, 9.7): moving one to another minor or major would be a major-version upgrade of every Cluster on it, so only patch and build updates are proposed.",
+      "matchFileNames": ["flux/platform/cnmsql/catalogs/**"],
+      "matchPackageNames": ["ghcr.io/cnmsql/cnmsql-instance"],
+      "matchUpdateTypes": ["major", "minor"],
+      "enabled": false
+    },
+    {
       "description": "Substrate follows kagent, not its own releases. Its version is whatever kagent's go.mod pins (`replace github.com/agent-substrate/substrate => github.com/kagent-dev/substrate <version>`), because the kagent controller is a substrate API client and substrate changes its protos between pre-releases. Bumped on its own, 0.3 -> 0.6 failed every time and left the release in a rollback loop for two weeks. Move these by hand with a kagent bump; see flux/platform/substrate/ocirepository.yaml.",
       "matchPackageNames": ["ghcr.io/kagent-dev/substrate/**"],
       "enabled": false

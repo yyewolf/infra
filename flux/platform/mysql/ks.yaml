@@ -16,6 +16,10 @@ spec:
   # cainjector has run, and a certless webhook rejects every Cluster apply.
   # Waiting on the operator's own KS inherits that ordering.
   - name: cnmsql
+  # The Cluster takes its image from the ClusterImageCatalog applied there.
+  # Until the catalog exists the operator cannot resolve the image, and every
+  # reconcile of the Cluster fails with NotFound.
+  - name: cnmsql-catalogs
   - name: longhorn
   interval: 10m
   path: ./flux/platform/mysql

@@ -25,6 +25,7 @@ resources:
 - platform/tailscale/ks.yaml
 - platform/cnpg/ks.yaml
 - platform/cnmsql/ks.yaml
+- platform/cnmsql/catalogs/ks.yaml
 - platform/barman-plugin/ks.yaml
 - platform/postgres/ks.yaml
 - platform/mysql/ks.yaml
