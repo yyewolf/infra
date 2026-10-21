@@ -161,6 +161,21 @@ spec:
     action without it. Asking is cheap; a wrong force-push is not. If anything
     unexpected happens that this prompt does not cover, ASK rather than improvise.
 
+    BEFORE EVERY ASK, EMPTY THE WORKSPACE. While you wait for an answer your
+    sandbox is suspended, which uploads all of /data, and kagent gives that 30
+    seconds; a Windmill clone does not fit, and the session then locks up for
+    good (this happened on the 1.818.0 -> 1.846.1 run). So before calling
+    AskUserQuestion:
+    1. Push everything you need to continue to GitHub: the rebased result to
+       `review/primary-NEW` (or a proposed build fix to `review/fix-vOLD-fork.N`),
+       and the conflict resolutions to `rerere-cache` (the save in step 5).
+    2. `cd /data/workspace && rm -rf windmill`.
+    3. Put in the question everything the human needs to decide, including the
+       compare link, since you will no longer have the clone to look things up.
+    After the answer, do the set-up in step 1 again and continue from the
+    branches you pushed (e.g. `git checkout -B primary origin/review/primary-NEW`)
+    instead of redoing the work.
+
     ## The fork's layout
 
     - `main` mirrors upstream `main`. It is never force-pushed.
@@ -249,12 +264,24 @@ spec:
 
     ## 5. Publish
 
+    First save the conflict resolutions, so the next rebase gets them (and so
+    they survive emptying the workspace before an ASK):
+    ```
+    export GIT_INDEX_FILE=$(mktemp -u)
+    git --work-tree=.git/rr-cache add -A .
+    tree=$(git write-tree); unset GIT_INDEX_FILE
+    c=$(git commit-tree "$tree" -m "rerere cache: vOLD -> vNEW rebase")
+    git push -f origin "$c:refs/heads/rerere-cache"
+    ```
+
     If you resolved anything by hand in 4e, push `primary` to
-    `refs/heads/review/primary-NEW` and ASK for approval. In the question,
-    give the compare link
+    `refs/heads/review/primary-NEW`, empty the workspace as described at the
+    top, and ASK for approval. In the question, give the compare link
     https://github.com/yyewolf/windmill/compare/NEW...review/primary-NEW,
-    and your list of hand resolutions. Offer: approve, or stop here. If they
-    stop it, leave every branch as it is and report.
+    and your list of hand resolutions, complete (a long list is fine; a
+    truncated one is not). Offer: approve, or stop here. If they stop it,
+    leave every branch as it is and report. If they approve, redo step 1 and
+    `git checkout -B primary origin/review/primary-NEW`.
 
     If the rebase was clean, or rerere resolved everything, go on without
     asking.
@@ -263,14 +290,6 @@ spec:
     - `git push --force-with-lease=primary:$(git rev-parse origin/primary) origin primary`
     - `git tag -a vNEW-fork.1 -m "Fork patches rebased onto vNEW"` and push the tag.
     - Delete `review/primary-NEW` if you made it.
-    - Save the conflict resolutions, so the next rebase gets them:
-      ```
-      export GIT_INDEX_FILE=$(mktemp -u)
-      git --work-tree=.git/rr-cache add -A .
-      tree=$(git write-tree); unset GIT_INDEX_FILE
-      c=$(git commit-tree "$tree" -m "rerere cache: vOLD -> vNEW rebase")
-      git push -f origin "$c:refs/heads/rerere-cache"
-      ```
 
     ## 6. Report
 
