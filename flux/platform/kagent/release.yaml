@@ -347,3 +347,35 @@ spec:
           memory: 64Mi
         limits:
           memory: 256Mi
+
+  # -----------------------------------------------------------------------
+  # The built-in tool server's URL, and why it is a patch
+  # -----------------------------------------------------------------------
+  # Substrate 0.6 answers an actor's DNS only for names its egress policy
+  # allows, and it does not expand search domains for them — "use full DNS
+  # names in custom model, MCP, and telemetry URLs" (kagent's helm/README.md
+  # at v1.0.0-alpha17). The chart honours that for its own controller URL
+  # (`global.clusterDomain`), but toolserver-kagent.yaml still hardcodes
+  #
+  #   url: "http://{{ $toolsFullname }}.{{ $toolsNamespace }}:8084/mcp"
+  #
+  # i.e. `kagent-tools.kagent`, with no value to change it. Every turn of an
+  # agent that lists the tool server then fails before the model is called:
+  #
+  #   failed to list MCP tools: ... dial tcp: lookup kagent-tools.kagent on
+  #   169.254.17.1:53: no such host
+  #
+  # The claude harness only fails once it actually calls a tool, which is how
+  # this got past a "reply with ok" check. The patch makes the name full; the
+  # host and port are unchanged, so the egress rule compiled from it still
+  # matches. Drop it once the chart builds this URL with clusterDomain.
+  postRenderers:
+  - kustomize:
+      patches:
+      - target:
+          kind: RemoteMCPServer
+          name: kagent-tool-server
+        patch: |
+          - op: replace
+            path: /spec/url
+            value: http://kagent-tools.kagent.svc.cluster.local:8084/mcp
