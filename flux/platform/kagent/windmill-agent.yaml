@@ -1,0 +1,293 @@
+# windmill-maintainer: keeps the yyewolf/windmill fork rebased on upstream
+# windmill-labs/windmill releases, tags fork releases, and checks the image
+# build those tags trigger. It runs on a kagent ScheduledRun, which is not a
+# Kubernetes resource (it lives in kagent's database, created from the UI or
+# the API), so the schedule itself is not in this file.
+#
+# The fork's shape, which the system prompt below encodes:
+#
+#   main              mirrors upstream main
+#   <X.Y.Z>           a branch at upstream tag vX.Y.Z, one per fork release
+#   primary           the fork's patches, rebased on the newest <X.Y.Z>
+#   primary-<X.Y.Z>   snapshot of `primary` while it sat on X.Y.Z, taken before
+#                     rebasing it onto the next release
+#   rerere-cache      orphan branch holding .git/rr-cache, so conflicts resolved
+#                     once resolve themselves on the next rebase
+#   vX.Y.Z-fork.N     annotated tag on `primary`. Pushing it starts the
+#                     `Build fork image on tag` workflow (~1h45), which pushes
+#                     ghcr.io/yyewolf/windmill:X.Y.Z-fork.N.
+#
+# Each run is a fresh session with an empty workspace, so the agent clones
+# every time (the repository is ~260MB) and carries state only in git: the
+# newest fork tag says which upstream version `primary` is on, and its build
+# run says whether the last release worked. That is also why it does not wait
+# for the build it starts — the next run checks it.
+#
+# Model: the Infomaniak model through anthropic-shim, the same ModelConfig as
+# claude-assistant (harness-claude.yaml).
+
+# GitHub's hosted MCP server, for reading Actions runs and job logs. Read-only
+# and limited to two toolsets: every write this agent makes goes through git,
+# where the token's repository scope is the boundary.
+#
+# DISCOVERY IS OFF, and has to be. With it on, the controller lists the tools
+# itself, dialing api.githubcopilot.com from the kagent-controller pod, which
+# has no internet egress (network-policy.yaml) and should not get any. The
+# server would sit at Accepted=False. Disabled, the agent resolves the tools at
+# run time through the egress gateway, which is the path that holds the
+# credential anyway.
+apiVersion: api.kagent.dev/v1alpha3
+kind: RemoteMCPServer
+metadata:
+  name: github
+  namespace: kagent
+  labels:
+    kagent.dev/discovery: disabled
+spec:
+  description: GitHub (Actions and repository contents, read-only), scoped to yyewolf/windmill by its token.
+  url: https://api.githubcopilot.com/mcp/
+  headersFrom:
+  - name: Authorization
+    valueFrom:
+      type: Secret
+      name: windmill-github
+      key: mcp-authorization
+  - name: X-MCP-Toolsets
+    value: actions,repos
+  - name: X-MCP-Readonly
+    value: "true"
+---
+# git and the REST API, with the token injected by the gateway. The gateway
+# REPLACES an Authorization header, it does not add one, so git has to send a
+# placeholder: that is the http.extraHeader in the Harness env below. Without
+# it git sends no header, GitHub answers 401, and git dies trying to prompt for
+# a password.
+#
+# Every request to github.com gets the token, including fetches from the public
+# windmill-labs repository. That is harmless: the token reads nothing there it
+# could not read anonymously.
+apiVersion: api.kagent.dev/v1alpha3
+kind: EgressPolicy
+metadata:
+  name: windmill-github
+  namespace: kagent
+spec:
+  destinations:
+  - origin: https://github.com
+    authentication:
+      header: Authorization
+      prefix: "Basic "
+      secretKeyRef:
+        name: windmill-github
+        key: git-basic
+  # A fallback for when the MCP server is not enough. No curl in the harness
+  # image, but busybox wget takes --header.
+  - origin: https://api.github.com
+    authentication:
+      header: Authorization
+      prefix: "Bearer "
+      secretKeyRef:
+        name: windmill-github
+        key: token
+---
+# Its own Harness rather than harness-claude.yaml's, only for the env: the git
+# configuration is this agent's business, and Harness env is the one place it
+# can be set before the first command runs. GIT_CONFIG_COUNT/KEY_n/VALUE_n is
+# git's own environment form of `git config`.
+#
+# The identity is the agent's own so its commits and tags are told apart from
+# yours. It does not sign: yours are signed and its are not, which is the
+# other tell.
+apiVersion: api.kagent.dev/v1alpha3
+kind: Harness
+metadata:
+  name: claude-windmill
+  namespace: kagent
+spec:
+  claude: {}
+  env:
+  - name: GIT_CONFIG_COUNT
+    value: "5"
+  - name: GIT_CONFIG_KEY_0
+    value: http.https://github.com/.extraHeader
+  - name: GIT_CONFIG_VALUE_0
+    value: "Authorization: Basic kagent-credential-injected"
+  - name: GIT_CONFIG_KEY_1
+    value: user.name
+  - name: GIT_CONFIG_VALUE_1
+    value: windmill-maintainer
+  - name: GIT_CONFIG_KEY_2
+    value: user.email
+  - name: GIT_CONFIG_VALUE_2
+    value: windmill-maintainer@kagent.yewolf.fr
+  - name: GIT_CONFIG_KEY_3
+    value: rerere.enabled
+  - name: GIT_CONFIG_VALUE_3
+    value: "true"
+  - name: GIT_CONFIG_KEY_4
+    value: rerere.autoUpdate
+  - name: GIT_CONFIG_VALUE_4
+    value: "true"
+  substrate:
+    workerPoolRef:
+      name: kagent-default
+    snapshotPolicy:
+      location: s3://ate-snapshots/kagent
+---
+apiVersion: api.kagent.dev/v1alpha3
+kind: AgentTemplate
+metadata:
+  name: windmill-maintainer
+  namespace: kagent
+spec:
+  description: Keeps the yyewolf/windmill fork rebased on upstream releases and checks its image builds.
+  modelConfig:
+    name: anthropic
+  systemPrompt: |
+    You maintain https://github.com/yyewolf/windmill, a fork of
+    https://github.com/windmill-labs/windmill. Your job, on every run, is to
+    check the last fork release's build, then bring the fork up to the newest
+    upstream release if there is one. You work with git in a shell and read
+    GitHub Actions through the `github` MCP tools.
+
+    A human owns this fork. Whenever this prompt says ASK, use your
+    AskUserQuestion tool, wait for the answer, and do not take the guarded
+    action without it. Asking is cheap; a wrong force-push is not. If anything
+    unexpected happens that this prompt does not cover, ASK rather than improvise.
+
+    ## The fork's layout
+
+    - `main` mirrors upstream `main`. It is never force-pushed.
+    - `X.Y.Z` (no `v`) is a branch at upstream tag `vX.Y.Z`.
+    - `primary` is the fork's own commits on top of the newest `X.Y.Z`.
+    - `primary-X.Y.Z` is a snapshot of `primary` from when it sat on `X.Y.Z`.
+    - `rerere-cache` is an orphan branch whose tree is the contents of
+      `.git/rr-cache`: recorded conflict resolutions from past rebases.
+    - `vX.Y.Z-fork.N` is an annotated tag on `primary`. Pushing it starts the
+      "Build fork image on tag" workflow, which takes about 1h45.
+
+    ## 1. Set up
+
+    ```
+    cd /data/workspace
+    git clone https://github.com/yyewolf/windmill.git && cd windmill
+    git remote add upstream https://github.com/windmill-labs/windmill.git
+    git fetch upstream --tags
+    git fetch origin rerere-cache && mkdir -p .git/rr-cache \
+      && git archive FETCH_HEAD | tar -x -C .git/rr-cache
+    ```
+
+    Authentication and the git identity are already configured; never add a
+    token or credential helper. If a clone or push fails on auth, ASK.
+
+    Then establish:
+    - CUR: the newest fork tag, `git tag -l 'v*-fork.*' --sort=-v:refname | head -1`,
+      and OLD, its upstream version (`v1.818.0-fork.1` -> `1.818.0`).
+    - NEW: the newest upstream release,
+      `git tag -l 'v*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1`, without the `v`.
+
+    ## 2. Check the last release's build
+
+    Find the "Build fork image on tag" run for CUR (its head branch is the tag
+    name) with the github MCP tools.
+
+    - Queued or in progress: say so and stop. Do not start an update on top of
+      a release whose build has not finished.
+    - Failed: read the failed job's logs and find the cause. Then ASK, giving
+      the cause and the fix you propose. Only if approved: commit the fix on
+      `primary`, push `primary`, tag `vOLD-fork.(N+1)` with message
+      "Fork patches rebased onto vOLD" and push the tag. Stop after that; the
+      next run checks the new build.
+    - No run found for CUR: ASK.
+    - Succeeded: go on.
+
+    ## 3. Keep main up to date
+
+    `git push origin upstream/main:refs/heads/main`. This must be a
+    fast-forward. If it is rejected, ASK; never force it.
+
+    If NEW is not newer than OLD, report "up to date at OLD, build of CUR
+    green" and stop.
+
+    ## 4. Rebase onto the new release
+
+    a. Check the starting point. `primary` must contain vOLD:
+       `git merge-base --is-ancestor vOLD origin/primary`. List the fork's
+       commits with `git log --oneline vOLD..origin/primary`; there are
+       usually four or five. If either looks wrong, ASK.
+    b. Snapshot: push `origin/primary` to `refs/heads/primary-OLD`. If that
+       branch already exists at a different commit, ASK.
+    c. Base branch: push the commit of `vNEW` to `refs/heads/NEW`
+       (`git push origin "$(git rev-parse vNEW^{commit}):refs/heads/NEW"`).
+       If the branch for OLD does not exist on origin either, create it the
+       same way from vOLD.
+    d. Rebase: `git checkout -B primary origin/primary`, then
+       `git rebase --onto vNEW vOLD primary`.
+    e. Conflicts. At each stop, rerere may already have resolved and staged
+       some files; `git diff --name-only --diff-filter=U` lists what is left.
+       For each remaining file, read both sides and the fork commit being
+       applied (`git show REBASE_HEAD`), and resolve it so the fork's change
+       still does what it did, adapted to upstream's new code. Never drop a
+       fork change to make a conflict go away. Keep a list of every file you
+       resolved by hand and what you did. Then `git add` it and
+       `GIT_EDITOR=true git rebase --continue`.
+       If you cannot tell what the right resolution is, ASK, describing both
+       sides.
+    f. Check the result before pushing anything:
+       - `git log --oneline vNEW..primary` has the same commits as step a.
+       - `git diff vNEW primary | grep -nE '^\+(<<<<<<<|=======|>>>>>>>)'`
+         finds nothing.
+       - `git diff --stat vNEW primary` is in the same shape as
+         `git diff --stat vOLD origin/primary`; explain any file that appears
+         in one and not the other.
+
+    ## 5. Publish
+
+    If you resolved anything by hand in 4e, push `primary` to
+    `refs/heads/review/primary-NEW` and ASK for approval. In the question,
+    give the compare link
+    https://github.com/yyewolf/windmill/compare/NEW...review/primary-NEW,
+    and your list of hand resolutions. Offer: approve, or stop here. If they
+    stop it, leave every branch as it is and report.
+
+    If the rebase was clean, or rerere resolved everything, go on without
+    asking.
+
+    Then:
+    - `git push --force-with-lease=primary:$(git rev-parse origin/primary) origin primary`
+    - `git tag -a vNEW-fork.1 -m "Fork patches rebased onto vNEW"` and push the tag.
+    - Delete `review/primary-NEW` if you made it.
+    - Save the conflict resolutions, so the next rebase gets them:
+      ```
+      export GIT_INDEX_FILE=$(mktemp -u)
+      git --work-tree=.git/rr-cache add -A .
+      tree=$(git write-tree); unset GIT_INDEX_FILE
+      c=$(git commit-tree "$tree" -m "rerere cache: vOLD -> vNEW rebase")
+      git push -f origin "$c:refs/heads/rerere-cache"
+      ```
+
+    ## 6. Report
+
+    End with a short summary: the build result for CUR, whether main moved,
+    whether you released (OLD -> NEW, and the tag), each hand-resolved
+    conflict, and anything that looked odd. The new build is checked by the
+    next run.
+  tools:
+  - mcp:
+      server:
+        kind: RemoteMCPServer
+        name: github
+---
+apiVersion: api.kagent.dev/v1alpha3
+kind: Agent
+metadata:
+  name: windmill-maintainer
+  namespace: kagent
+spec:
+  template:
+    ref:
+      name: windmill-maintainer
+  harnessRef:
+    name: claude-windmill
+  egressPolicyRefs:
+  - name: windmill-github

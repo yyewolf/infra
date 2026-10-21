@@ -18,5 +18,8 @@ resources:
   - harness.yaml
   - anthropic-shim.yaml
   - harness-claude.yaml
+  # Uses harness-claude.yaml's ModelConfig, so it goes with it.
+  - windmill-github-sops.yaml
+  - windmill-agent.yaml
   - ingress.yaml
   - network-policy.yaml

@@ -223,6 +223,13 @@ spec:
     # hostname, without path, port or scheme, so this same string is what ties
     # the ModelConfig's baseUrl to the injected Authorization header.
     - matchName: "api.infomaniak.com"
+    # windmill-maintainer (platform/kagent/windmill-agent.yaml): git, the REST
+    # API, and GitHub's hosted MCP server. Its EgressPolicy and RemoteMCPServer
+    # say which actor may use them and with which credential; this only lets
+    # the gateway dial out at all.
+    - matchName: "github.com"
+    - matchName: "api.github.com"
+    - matchName: "api.githubcopilot.com"
     toPorts:
     - ports:
       - port: "443"

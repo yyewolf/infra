@@ -1,0 +1,61 @@
+# A fine-grained GitHub token for yyewolf/windmill only, for the
+# windmill-maintainer agent in windmill-agent.yaml. Its grants on that one
+# repository: Contents, Pull requests, Issues, Merge queues and Workflows
+# read/write (Workflows because rebasing `primary` rewrites the commit that
+# adds .github/workflows/fork-docker-image.yml, and GitHub refuses a push that
+# touches workflow files without it); Actions, Commit statuses and Metadata
+# read-only. Nothing else on the account.
+#
+# The same token three times, because each consumer wants a different header
+# value and the gateway can only prepend a literal prefix:
+#
+#   git-basic           base64("x-access-token:<token>"), for git over HTTPS to
+#                       github.com. Git's smart-HTTP endpoints take Basic auth;
+#                       the EgressPolicy adds the "Basic " prefix.
+#   token               the bare token, for api.github.com with "Bearer ".
+#   mcp-authorization   "Bearer <token>", whole. RemoteMCPServer.headersFrom has
+#                       no prefix field, so the value carries it.
+#
+# None of these reach the sandbox. The gateway swaps them in for a placeholder
+# on the way out, exactly as for the model key (see infomaniak-sops.yaml).
+#
+# To rotate: regenerate the token on GitHub, then re-derive all three values.
+# The gateway picks a new value up within five minutes, without a restart.
+apiVersion: v1
+kind: Secret
+metadata:
+    name: windmill-github
+    namespace: kagent
+type: Opaque
+stringData:
+    git-basic: ENC[AES256_GCM,data:m3hajRVqwFEzBYj6GkWGdsOtIXgAwc4ZPTo2QUT6xL0aEnUXcln0wTffXW0nFTMfrtVAHqejEmr7T9Lqd5ijahxV3NeolYLU3BL7tMShIavoUXjGqj/6ZKHmn+Qt56YM9WDe8BlUQQdCRtUsjlGH2OvgB8A1St1OGs8D2YY+tBtbncXlTJGXygdPyElll6wF,iv:AQ8ckgNmSik++npa0EduFy3V32esAhwxO2pbZhGMLXw=,tag:g6o5+Ve9MHGMfms3W6grLQ==,type:str]
+    token: ENC[AES256_GCM,data:Zl3C3/vsKBPUZZJzA19SgZIFuvLPbsuQjdRKzp1TSTsf+9x223yyqvsr81kznhVYmQpgFUJCKdF3OPN4L7/C191dES84xyJwZ2F/fhteUHx7vormXVjQYHZ5XGZ/,iv:bHKdVWSANfLUm08lhasMMt+fYvQz9FHHISz0LsUdt4M=,tag:NfvUkcSrl2TKKgvGEre3QQ==,type:str]
+    mcp-authorization: ENC[AES256_GCM,data:mTS1CLOoKIzGh1mOS7jZLZCcOODF/mlafNqkNkPc0KVOt9ICdHgMqLwU05NAR+xUGFfnXim6N7zLkDUk/nwLbM7eVdpgrEfo4X8r373YW+lDHenW4xpowUnalTlysSbg27GPHw==,iv:bs7swncvBGDgVX46bS3jYTdbFKZmVECT4gTlw4zUTHY=,tag:4gw5kvkETJUMz8xOKEEshA==,type:str]
+sops:
+    encrypted_regex: ^(data|stringData|secrets)$
+    lastmodified: "2026-10-21T18:25:44Z"
+    mac: ENC[AES256_GCM,data:I0leY4FqLwjqL3xAhLHPDJemMWsbIZ4EMrc3rnVBt4B/UCd114LA7NL4upsQAlUGqcI4Doqoshw7AhKYs+PQMnNT2q9digU0JS0fAuuxVXRvVKsFzqVjcbhYrqC2gmq2aZqpgSKwJr2nAOde9oE3eX1AnSolV2iU/arnWNciDVQ=,iv:7VMp87Ap49G3m6pQF4S0e6HorWRiMNIXnK2rlb6IjMI=,tag:rxOZ2HGHeHvaKVfZB7bHWg==,type:str]
+    pgp:
+        - created_at: "2026-10-21T18:25:44Z"
+          enc: |-
+            -----BEGIN PGP MESSAGE-----
+
+            hF4D7/45ZmvAFBwSAQdAYaH8Hli3+/6leTiXRDx4ac5HhLDdd9P8Tk+tQcoKqx8w
+            o8nmbX2+kkju0HRiJQpGVV4QMAQIVdUnejuo862QqYTUmtFxEvKiXXcJ0GuRRHlC
+            0l4B5lCJvq0ntGz6Lw92adttvlWMdqKsXQ/4/sJAiLwqYRC6jr8ppRuuqqvo9PWW
+            CtR2M6YiVm5cD4l9udQrSedEeOH6CUdh6cNXYsNIJ8YYZIHpLLzeThRqQY4OCkSz
+            =tckt
+            -----END PGP MESSAGE-----
+          fp: 459895EB0A5F446D3831E99F95F6A162E4A71B06
+        - created_at: "2026-10-21T18:25:44Z"
+          enc: |-
+            -----BEGIN PGP MESSAGE-----
+
+            hF4D8q6e3Tem1ZoSAQdADVN/MGsF4raML6PJC1pXeiJVagqCue3jEth/EJuqkDUw
+            5rVdZpCjaNGEfHMQXQwF1g7kpElsSE6H97affbSxBv58+bXvyDamG+qQuu3K3nAG
+            0l4BMvFcMhcXA9dxTg8UeWOM6o2foTAW8dluyox24ROnc5mcV/b8zCEmv6eSId3M
+            Gji2nuRdN8e1uiIwuoEg4jAO44qYCy1Da8utkM/VdDDUFInWhOsKvZpWH6jrSjjX
+            =eEWZ
+            -----END PGP MESSAGE-----
+          fp: DF7F5D62376A57228F35FE4C665F8C5B8E0732E5
+    version: 3.13.3
