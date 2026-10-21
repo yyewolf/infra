@@ -108,17 +108,32 @@ spec:
     config:
       database:
         # The roles each pool assumes with `SET ROLE` (alpha13 had one,
-        # `role: kagent_owner`, for everything). Tables live in the `kagent`
-        # schema, owned by `kagent_owner`; `kagent_readwrite` gets DML on them
+        # `role: kagent_owner`, for everything). Tables live in the schema
+        # below, owned by `kagent_owner`; `kagent_readwrite` gets DML on them
         # only through the default privileges in
-        # platform/postgres/applications/kagent/databaserole.yaml. All three
+        # platform/postgres/applications/kagent/databaserole.yaml. Both role
         # names are chart defaults, restated because that directory has to
         # create exactly these and nothing cross-checks the two.
         owner:
           role: kagent_owner
         readWrite:
           role: kagent_readwrite
-        schema: kagent
+        # NOT the chart default `kagent`, and the reason is upstream's: between
+        # alpha13 and alpha17 kagent rewrote `000001_initial.sql` IN PLACE
+        # rather than adding a migration (the immutability check that forbids
+        # that only arrived in alpha17, kagent#3293). A schema that alpha13
+        # migrated therefore reads as fully up to date to alpha17 while having
+        # the old table shapes, and the controller fails at runtime with
+        #
+        #   ERROR: column "claim_token" does not exist (SQLSTATE 42703)
+        #
+        # on a loop, with every Agent at `RuntimePreparationFailed`. There is no
+        # forward migration to run, so this is the same move as alpha13's: a
+        # fresh schema is a fresh goose history. The alpha13 tables stay in
+        # `kagent`, unread. The schema and its grants were created by hand
+        # before this landed (see databaserole.yaml); the next alpha that edits
+        # a released migration gets the same treatment.
+        schema: kagent_alpha17
         # pgvector is in every database on this cluster already:
         # platform/postgres runs `CREATE EXTENSION vchord CASCADE` in
         # `postInitTemplateSQL`, CASCADE pulls in pgvector, and template1 is

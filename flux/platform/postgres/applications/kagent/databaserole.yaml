@@ -61,6 +61,11 @@ spec:
 # controller migrating fine as the owner and then failing its first runtime
 # query with `permission denied for table ...`.
 #
+# SINCE ALPHA17 THE LIVE SCHEMA IS `kagent_alpha17` (see database.yaml). The
+# statements above were run against it too, with `kagent` replaced by
+# `kagent_alpha17`, before the controller first started on it — it was empty
+# then, so the default privileges alone cover it.
+#
 # setup.sql also runs `REVOKE CREATE ON SCHEMA public FROM PUBLIC` for the
 # whole database. That is left out: pgvector lives in `public` here (see
 # `vectorSchema` in platform/kagent/release.yaml), and both roles only need

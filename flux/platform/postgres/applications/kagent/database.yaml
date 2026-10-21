@@ -35,8 +35,15 @@ spec:
   # schema is a fresh goose history, which is why this upgrade did not need the
   # `DROP OWNED BY kagent` reset the earlier alphas did. pgvector stays where
   # template1 put it, in `public` — hence `vectorSchema: public` in the release.
+  #
+  # `kagent_alpha17` is the live one since that upgrade, for the reason in
+  # platform/kagent/release.yaml (`config.database.schema`): upstream rewrote
+  # an already-released migration, so the alpha13 schema could not be carried
+  # forward. Its tables stay in `kagent`, unread.
   schemas:
   - name: kagent
+    owner: kagent_owner
+  - name: kagent_alpha17
     owner: kagent_owner
 ---
 apiVersion: postgresql.cnpg.io/v1
