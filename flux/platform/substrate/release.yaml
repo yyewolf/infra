@@ -61,6 +61,17 @@ spec:
     #
     # The old 0.3 tables are still in `public` and nothing reads them. Dropping
     # them is a separate, later decision.
+    #
+    # THE SCHEMA IS `substrate_0_6`, NOT `substrate`, and the rename is the
+    # upgrade path rather than tidiness. 0.6 "requires a fresh database ...
+    # Substrate does not migrate the previous snapshot metadata" (kagent's
+    # helm/README.md at v1.0.0-alpha17), so the 0.5 rows cannot be read by it.
+    # A new schema is the fresh database without a DROP: the 0.5 tables stay in
+    # `substrate`, unread, the same way the 0.3 ones stayed in `public`. Both
+    # are declared in platform/postgres/applications/kagent/database.yaml, and
+    # the new one needed the default-privileges SQL in databaserole.yaml there
+    # run against it BEFORE this release first started — see the race noted
+    # there.
     postgres:
       readWriteConnectionStringSecretRef:
         name: substrate-db
@@ -70,7 +81,7 @@ spec:
         key: connection-string
       readWriteRole: substrate_readwrite
       ownerRole: substrate_owner
-      schema: substrate
+      schema: substrate_0_6
 
     # ---------------------------------------------------------------------
     # Snapshots: the existing rustfs, not the bundled one
@@ -79,9 +90,10 @@ spec:
     # the rustfs Deployment and its PVC, the bucket-init Job (replaced by
     # bucket-init.yaml here), and — the one that bites — the whole S3 env block
     # on BOTH ate-api-server and atelet. Those five variables are inside
-    # `{{- if .Values.rustfs.enabled }}` in each of those two templates, so with
-    # it off the two components that read and write snapshots have no endpoint,
-    # no region and no credentials at all. They are put back below.
+    # `{{- if .Values.rustfs.enabled }}` in the chart's `substrate.storage.env`
+    # helper, so with it off the two components that read and write snapshots
+    # have no endpoint, no region and no credentials at all. They are put back
+    # below, in `objectStorePlugin.extraEnv`.
     #
     # Leaving it on was not an option regardless of the duplicate storage:
     # the chart takes `rustfs.accessKey`/`secretKey` as plain Helm values and
@@ -91,12 +103,15 @@ spec:
 
     atelet:
       storageBackend: s3
-      # atelet's half of the S3 configuration. It has an `extraEnv` hook, which
-      # ate-api-server does not — that asymmetry is why one of these two lives
-      # in values and the other in the postRenderer at the bottom of this file.
-      # THE TWO LISTS MUST STAY IN STEP. If they drift, the component that kept
-      # the right endpoint works and the other one fails on snapshot IO only,
-      # which presents as agents that start and then cannot be suspended.
+
+    # The S3 configuration, ONCE, for both components. Since 0.6 the chart's
+    # `substrate.storage.env` helper renders this list into ate-api-server and
+    # atelet alike. Until 0.5 it was two lists — `atelet.extraEnv` here and a
+    # postRenderer patch on ate-api-server, which had no env hook — that had to
+    # be kept in step by hand, and drift between them failed on snapshot IO
+    # only. Do not put any of it back into `atelet.extraEnv`: that is appended
+    # after this list and would silently shadow it on one component.
+    objectStorePlugin:
       extraEnv:
         - name: AWS_REGION
           value: us-east-1
@@ -116,6 +131,22 @@ spec:
               key: secret_access_key
 
     ateApi:
+      # 0.6 turns API authorization on, and an empty `bootstrapOwners` grants
+      # global ownership to the chart's own `ate-client` ServiceAccount only.
+      # The kagent controller has to be an owner too — it creates the `kagent`
+      # atespace — and it authenticates with its pod certificate, so it is named
+      # by SPIFFE ID rather than as a ServiceAccount. This is the principal
+      # upstream's `kagent install` grants; it follows the controller's
+      # namespace and ServiceAccount (`kagent-controller`, from the release name
+      # in ../kagent/release.yaml). Setting the list replaces the default, so
+      # `ate-client` is restated.
+      #
+      # A controller missing from this list starts, reports ready, and fails
+      # to create its atespace with a PermissionDenied from ate-api.
+      authorization:
+        bootstrapOwners:
+          - system:serviceaccount:ate-system:ate-client
+          - spiffe://cluster.local/ns/kagent/sa/kagent-controller
       extraArgs:
         # The minimum supported interval for discovering and reconciling actor
         # templates. The chart's own comment calls it the minimum; the upstream
@@ -158,47 +189,3 @@ spec:
         enabled: false
       logs:
         enabled: false
-
-  # -----------------------------------------------------------------------
-  # ate-api-server's S3 configuration, and why it is a patch
-  # -----------------------------------------------------------------------
-  # These five variables are ate-api-server's half of the S3 configuration —
-  # the half with no `extraEnv` hook (see `rustfs.enabled` above). Keep them
-  # identical to `atelet.extraEnv`.
-  #
-  # Until 0.4 this patch also carried the Postgres DSN, because the chart put
-  # it in a ConfigMap. The chart now reads both connection strings from Secret
-  # refs itself, so that half is gone.
-  postRenderers:
-  - kustomize:
-      patches:
-      - target:
-          kind: Deployment
-          name: ate-api-server
-        patch: |
-          apiVersion: apps/v1
-          kind: Deployment
-          metadata:
-            name: ate-api-server
-          spec:
-            template:
-              spec:
-                containers:
-                - name: ate-api-server
-                  env:
-                  - name: AWS_REGION
-                    value: us-east-1
-                  - name: AWS_ENDPOINT_URL
-                    value: http://rustfs.rustfs.svc.cluster.local:9000
-                  - name: AWS_S3_USE_PATH_STYLE
-                    value: "true"
-                  - name: AWS_ACCESS_KEY_ID
-                    valueFrom:
-                      secretKeyRef:
-                        name: substrate-s3
-                        key: access_key_id
-                  - name: AWS_SECRET_ACCESS_KEY
-                    valueFrom:
-                      secretKeyRef:
-                        name: substrate-s3
-                        key: secret_access_key

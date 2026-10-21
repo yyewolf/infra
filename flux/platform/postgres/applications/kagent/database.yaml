@@ -56,6 +56,14 @@ spec:
   # `SET ROLE substrate_owner`, and CREATE in a schema needs the role it runs as
   # to own it (or hold CREATE on it). The 0.3-era tables are still in `public`
   # and unread.
+  #
+  # `substrate_0_6` is the live one. Substrate 0.6 needs a fresh database and
+  # does not migrate 0.5's snapshot metadata, so platform/substrate/release.yaml
+  # points it at a new, empty schema instead of dropping this one: the 0.5-era
+  # tables stay in `substrate`, unread, as the 0.3 ones stayed in `public`.
+  # The next substrate that wants a fresh database gets the same treatment.
   schemas:
   - name: substrate
+    owner: substrate_owner
+  - name: substrate_0_6
     owner: substrate_owner

@@ -1,13 +1,13 @@
 # GHCR-only. The version is not free: it is whatever kagent's go.mod pins
 # (`replace github.com/agent-substrate/substrate => github.com/kagent-dev/substrate
 # <version>` in kagent's go/go.mod at the kagent tag in ../kagent/release.yaml).
-# kagent 1.0.0-alpha13 pins v0.5.0-alpha2. The controller is a substrate API
+# kagent 1.0.0-alpha17 pins v0.6.0-alpha3. The controller is a substrate API
 # client built against that version's protos, and substrate changes them
 # between pre-releases ("upgrade clients and components together") — 0.6.0
 # renumbered proto fields outright.
 #
 # FOUR pins move together and must all name that version: this one,
-# crds/ocirepository.yaml, podcert-ocirepository.yaml, and the ateom
+# crds/ocirepository.yaml, podcert-ocirepository.yaml, and the ateworker
 # `workerImage` in ../kagent/release.yaml. Renovate is told to leave all four
 # alone (renovate.json), because it bumped them independently of kagent from
 # 0.3 to 0.6 and every one of those upgrades failed: the release sat in a
@@ -24,5 +24,5 @@ spec:
     mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
     operation: copy
   ref:
-    tag: 0.5.0-alpha2
-    digest: sha256:361504a126e02473b78a0e9e10b1c613b62a2ec7429419cf6a83e808b9808a34
+    tag: 0.6.0-alpha3
+    digest: sha256:8018556e64337dc89da55fb174924a718e0ecd4542e236ffbb61a6e27c72a5e4

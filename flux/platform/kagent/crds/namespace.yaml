@@ -64,9 +64,20 @@
 # `warn`/`audit` are deliberately left at the cluster default of `restricted`,
 # same as ate-system: the label is meant to buy exactly one thing, and a
 # `kubectl apply` here should still say what falls short.
+#
+# `ate.dev/api-access: "true"` is substrate's, not PodSecurity's. From 0.6 the
+# substrate chart ships its own NetworkPolicies in ate-system, and the one in
+# front of ate-api-server admits other namespaces only when they carry this
+# label (and then only their non-worker pods). Upstream's `kagent install` sets
+# it on this namespace; a Helm install has to. On this cluster the Cilium
+# policies in platform/substrate already admit `kagent` wholesale and Cilium
+# unions allows across policies, so its absence would not cut the controller
+# off today — it is set so the chart's own policy says the same thing ours do,
+# rather than relying on that.
 apiVersion: v1
 kind: Namespace
 metadata:
   name: kagent
   labels:
     pod-security.kubernetes.io/enforce: privileged
+    ate.dev/api-access: "true"

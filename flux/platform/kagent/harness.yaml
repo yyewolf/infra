@@ -20,24 +20,21 @@ metadata:
 spec:
   # The managed kagent runtime adapter. Exactly one of kagent/codex/claude/byo
   # may be set — the CRD has a CEL rule that says so. harness-claude.yaml beside
-  # this file is the claude variant, and is not currently applied.
+  # this file is the claude variant.
   kagent: {}
-  workload:
-    # Digest-pinned because the CRD *requires* it:
-    #   pattern: ^[^[:space:]@]+@sha256:[a-f0-9]{64}$
-    # A tag is rejected at admission. This is the Go ADK image, which is also
-    # what the chart names in `controller.agentImage` for declarative agents.
-    #
-    # It has to be the Go build rather than the Python one, and the reason is
-    # specific to being an actor: an actor starts by restoring its template's
-    # golden memory snapshot, and the Python runtime dies on restore with SIGILL
-    # where a static Go binary comes back. Upstream's setup script carries the
-    # same note.
-    #
-    # Renovate cannot see this (no `image:` key, no `tag:` value), so it moves
-    # by hand alongside `chart.spec.version` in release.yaml. The two must stay
-    # on the same version.
-    image: ghcr.io/kagent-dev/kagent/golang-adk@sha256:ae01c3a6d7e0ed2e044253a26abbfb1a9426f3176363842ca9a954762c274d36
+  # NO `workload.image`, deliberately. Since alpha14 (kagent#3151) the chart
+  # ships a digest-pinned image per built-in harness for its own release
+  # (files/builtin-harness-images.json in the chart) and the controller uses it
+  # when a Harness names none. Until then this field was required, Renovate
+  # could not see it, and it had to be moved by hand in step with the chart
+  # version — exactly the drift the default removes. Setting it again
+  # overrides the default and brings that chore back; `config.harnessImages`
+  # in release.yaml is the place for an override if one is ever needed.
+  #
+  # The default for `kagent` is the Go ADK image, which is the one an actor
+  # needs: an actor starts by restoring its template's golden memory snapshot,
+  # and the Python runtime died on restore with SIGILL where a static Go binary
+  # comes back. alpha14 stopped building the Python image altogether.
   substrate:
     # Must match `substrateWorkerPool.name` in release.yaml. Two independent
     # strings, no cross-validation.

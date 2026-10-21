@@ -40,16 +40,22 @@ spec:
   # deleted by hand. The same trap applies to any future chart that drops a
   # CRD another release still has objects of.
   # -------------------------------------------------------------------------
-  values:
-    # kmcp's CRDs (MCPServer), used by the kagent chart's own toolserver
-    # template. Left on because the kagent release runs the kmcp subchart.
-    kmcp:
-      enabled: true
-    # There used to be a `substrate.enabled` here, adding the ate.dev CRDs
-    # (WorkerPool, SandboxConfig, CSIDriverConfig) as a `substrate-crds`
-    # subchart. 1.0.0-alpha13 dropped that subchart; those CRDs are now the
-    # `substrate-crds` release in platform/substrate/crds. The upgrade that
-    # removed it is exactly the trap described above, one group over: this chart
-    # stopped rendering three CRDs that every WorkerPool and SandboxConfig on the
-    # cluster depends on, so they were annotated `helm.sh/resource-policy: keep`
-    # and handed to the new release before it went out.
+  #
+  # No `values:` any more. The two knobs this chart had are both gone:
+  #
+  #   - `substrate.enabled` added the ate.dev CRDs (WorkerPool, SandboxConfig,
+  #     CSIDriverConfig) as a `substrate-crds` subchart. 1.0.0-alpha13 dropped
+  #     that subchart; those CRDs are now the `substrate-crds` release in
+  #     platform/substrate/crds. The upgrade that removed it is exactly the trap
+  #     described above, one group over: this chart stopped rendering three CRDs
+  #     that every WorkerPool and SandboxConfig on the cluster depends on, so
+  #     they were annotated `helm.sh/resource-policy: keep` and handed to the
+  #     new release before it went out.
+  #
+  #   - `kmcp.enabled` added kmcp's MCPServer CRD (group `kagent.dev`).
+  #     alpha14 removed kmcp outright (kagent#3223), so this chart stops
+  #     rendering it and Helm deletes it — and every MCPServer with it. That was
+  #     checked before the upgrade rather than annotated around: there were
+  #     none. Both tool servers here are RemoteMCPServers in `api.kagent.dev`,
+  #     which this chart still owns, and the `kagent` release's stored manifest
+  #     named no MCPServer, so the trap above does not apply either.

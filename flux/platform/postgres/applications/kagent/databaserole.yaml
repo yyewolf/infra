@@ -11,12 +11,15 @@ spec:
     name: postgres
   name: kagent
   login: true
-  # kagent 1.0.0-alpha13 has the same shape as substrate below: it assumes
-  # `kagent_owner` on every connection (`config.database.role` in
-  # platform/kagent/release.yaml) and keeps its tables in the `kagent` schema
-  # that role owns. NOINHERIT for the same reason as substrate's login.
+  # Since kagent 1.0.0-alpha14 this is the same shape as substrate below, all
+  # the way down: two pools, `SET ROLE kagent_owner` for migrations and
+  # `SET ROLE kagent_readwrite` for everything else
+  # (`config.database.{owner,readWrite}.role` in platform/kagent/release.yaml),
+  # tables in the `kagent` schema that `kagent_owner` owns. One login in both
+  # roles, as for substrate. NOINHERIT for the same reason as substrate's login.
   inRoles:
   - kagent_owner
+  - kagent_readwrite
   inherit: false
   passwordSecret:
     name: kagent-db-credentials
@@ -30,6 +33,47 @@ spec:
   cluster:
     name: postgres
   name: kagent_owner
+  login: false
+---
+# kagent's read/write role, and it has the same gap as `substrate_readwrite`
+# below: CNPG creates the role but cannot grant it anything on the tables
+# `kagent_owner` creates. Upstream's go/core/pkg/postgressetup/setup.sql (at
+# v1.0.0-alpha17) does it with default privileges; these are its statements,
+# run once by hand as superuser against the `kagent` database:
+#
+#   REVOKE ALL ON SCHEMA kagent FROM PUBLIC;
+#   GRANT USAGE ON SCHEMA kagent TO kagent_readwrite;
+#   ALTER DEFAULT PRIVILEGES FOR ROLE kagent_owner IN SCHEMA kagent
+#     GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO kagent_readwrite;
+#   ALTER DEFAULT PRIVILEGES FOR ROLE kagent_owner IN SCHEMA kagent
+#     GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO kagent_readwrite;
+#   ALTER DEFAULT PRIVILEGES FOR ROLE kagent_owner IN SCHEMA kagent
+#     GRANT EXECUTE ON ROUTINES TO kagent_readwrite;
+#   ALTER DEFAULT PRIVILEGES FOR ROLE kagent_owner IN SCHEMA kagent
+#     GRANT USAGE ON TYPES TO kagent_readwrite;
+#   -- the alpha13 tables already exist, so default privileges alone miss them:
+#   GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA kagent TO kagent_readwrite;
+#   GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA kagent TO kagent_readwrite;
+#   GRANT EXECUTE ON ALL ROUTINES IN SCHEMA kagent TO kagent_readwrite;
+#
+# Unlike substrate's, the ON ALL half is not optional here: this schema was
+# populated by alpha13, before the role existed. The symptom without it is the
+# controller migrating fine as the owner and then failing its first runtime
+# query with `permission denied for table ...`.
+#
+# setup.sql also runs `REVOKE CREATE ON SCHEMA public FROM PUBLIC` for the
+# whole database. That is left out: pgvector lives in `public` here (see
+# `vectorSchema` in platform/kagent/release.yaml), and both roles only need
+# USAGE on it, which PUBLIC keeps.
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: kagent-readwrite
+  namespace: postgres
+spec:
+  cluster:
+    name: postgres
+  name: kagent_readwrite
   login: false
 ---
 apiVersion: postgresql.cnpg.io/v1
@@ -80,6 +124,11 @@ spec:
 #   GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA substrate TO substrate_readwrite;
 #   GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA substrate TO substrate_readwrite;
 #   GRANT EXECUTE ON ALL ROUTINES IN SCHEMA substrate TO substrate_readwrite;
+#
+# SINCE SUBSTRATE 0.6 THE LIVE SCHEMA IS `substrate_0_6` (see database.yaml),
+# so these statements apply with `substrate` replaced by `substrate_0_6`. They
+# were run against it before 0.6 first started, which is what avoids the race
+# below; the ON ALL half is still the fix if they ever were not.
 #
 # A rebuilt cluster needs it again. Default privileges only cover tables
 # created *afterwards*, and the race is real: on 2026-10-15 a crash-looping

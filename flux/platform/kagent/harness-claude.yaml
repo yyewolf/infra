@@ -67,9 +67,8 @@ metadata:
   namespace: kagent
 spec:
   claude: {}
-  workload:
-    # Same digest rule as the kagent harness, same version as the chart.
-    image: ghcr.io/kagent-dev/kagent/claude-harness@sha256:ceaf7caa7366b96c11cb85ad0bad435a35fcd2704c657b895ee3e73978045db8
+  # No `workload.image`: the chart supplies the claude-harness image for its
+  # own release. See the note in harness.yaml.
   substrate:
     workerPoolRef:
       name: kagent-default

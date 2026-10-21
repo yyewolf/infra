@@ -3,14 +3,16 @@
 # form most of platform/ uses. Renovate's flux manager reads
 # `OCIRepository.spec.ref.tag`, so it is still pinned and still bumped.
 #
-# The chart carries `kmcp-crds` as a vendored subchart (see charts/ inside the
-# package), conditional on `kmcp.enabled`. Until 1.0.0-alpha13 it also carried
-# `substrate-crds`; that is now its own release in platform/substrate/crds.
+# Until 1.0.0-alpha13 the chart carried `substrate-crds` as a vendored
+# subchart; that is now its own release in platform/substrate/crds. Until
+# alpha14 it also carried `kmcp-crds` — see release.yaml for what dropping it
+# deleted.
 #
-# Moves together with ../release.yaml's chart version, the Harness images in
-# ../harness.yaml and ../harness-claude.yaml, and — because kagent pins one
-# substrate version in its go.mod — with every substrate pin. renovate.json
-# groups the kagent half and holds the substrate half back.
+# Moves together with ../release.yaml's chart version and — because kagent pins
+# one substrate version in its go.mod — with every substrate pin. renovate.json
+# groups the kagent half and holds the substrate half back. The Harness images
+# no longer move with it by hand: since alpha14 the chart supplies them (see
+# ../harness.yaml).
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
 metadata:
@@ -22,5 +24,5 @@ spec:
     mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
     operation: copy
   ref:
-    tag: 1.0.0-alpha13
-    digest: sha256:dc9e500921b7fe206232e60998bebf746457047f6f83c5a016931e756c791edc
+    tag: 1.0.0-alpha17
+    digest: sha256:c0881dac83bc2a850e70c79d0b0f58f4ac438f8e0c7d8252ce39b5129505619e

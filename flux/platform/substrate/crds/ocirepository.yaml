@@ -11,5 +11,5 @@ spec:
   # Must equal the substrate version kagent is built against — see the note in
   # ../ocirepository.yaml. Renovate is told to leave it alone.
   ref:
-    tag: 0.5.0-alpha2
-    digest: sha256:328bd7a125d4e3f223309851cee74c8cb7a53c5613523f7d2bb7cd5b56aebc49
+    tag: 0.6.0-alpha3
+    digest: sha256:f1ddcea3c47f63d08a353e3dbb5ad7bcb94b638394978d64188b846beee90809

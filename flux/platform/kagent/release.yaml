@@ -61,7 +61,7 @@ spec:
   chart:
     spec:
       chart: kagent
-      version: 1.0.0-alpha13
+      version: 1.0.0-alpha17
       sourceRef:
         kind: HelmRepository
         name: kagent
@@ -87,19 +87,37 @@ spec:
     # ref directly (a secretKeyRef env on the controller), which is what the
     # `urlFile` + hand-mounted volume used to emulate — the reason was the same
     # both times: `url` would be a Helm value, i.e. a password in git.
+    #
+    # Since alpha14 there are TWO refs, the same split substrate made in 0.4
+    # (see platform/substrate/release.yaml): an OWNER connection that runs
+    # migrations as `kagent_owner`, and a READ/WRITE connection that serves
+    # every runtime query as `kagent_readwrite`. Both name the same Secret, for
+    # the same reason substrate's do — one login (`kagent`) is a member of both
+    # roles, and the `SET ROLE` the controller issues per pool is what separates
+    # the privilege sets. Upstream's setup.sql creates a login per role; two
+    # here would be a second password to rotate and nothing else.
     database:
       postgres:
-        connectionStringSecretRef:
+        ownerConnectionStringSecretRef:
+          name: kagent-db
+          key: url
+        readWriteConnectionStringSecretRef:
           name: kagent-db
           key: url
 
     config:
       database:
-        # alpha13 runs `SET ROLE kagent_owner` on every connection and puts its
-        # tables in the `kagent` schema, which that role owns. Both are chart
-        # defaults, restated because platform/postgres/applications/kagent has
-        # to create exactly these names and nothing cross-checks the two.
-        role: kagent_owner
+        # The roles each pool assumes with `SET ROLE` (alpha13 had one,
+        # `role: kagent_owner`, for everything). Tables live in the `kagent`
+        # schema, owned by `kagent_owner`; `kagent_readwrite` gets DML on them
+        # only through the default privileges in
+        # platform/postgres/applications/kagent/databaserole.yaml. All three
+        # names are chart defaults, restated because that directory has to
+        # create exactly these and nothing cross-checks the two.
+        owner:
+          role: kagent_owner
+        readWrite:
+          role: kagent_readwrite
         schema: kagent
         # pgvector is in every database on this cluster already:
         # platform/postgres runs `CREATE EXTENSION vchord CASCADE` in
@@ -121,6 +139,12 @@ spec:
       #
       # Every Harness names its pool in `spec.substrate.workerPoolRef`; there
       # is no default pool.
+      #
+      # `actorJwtIssuer` (alpha17) is left at its default,
+      # `https://idp.ate-system.svc`, which is what substrate's
+      # `ateApi.actorJWTIssuer` defaults to as well. The controller verifies the
+      # JWT an actor presents on every TaskStore call against that issuer's
+      # discovery document, so setting either side alone breaks every turn.
       substrate:
         apiEndpoint: dns:///api.ate-system.svc:443
         routerUrl: http://atenet-router.ate-system.svc:80
@@ -167,7 +191,10 @@ spec:
       # Renovate DOES see this line and is told to leave it alone — bumped on
       # its own to v0.6.0, the worker crash-looped on `--dns-egress-policy is
       # required`, a flag only a 0.6 ate-controller passes.
-      workerImage: ghcr.io/kagent-dev/substrate/ateom-gvisor:v0.5.0-alpha2@sha256:5869cdace628f93d39d913e41f91f2862db8bb7ca8ae2c6c756ee31015b3d719
+      #
+      # The image was renamed in 0.6: `ateom-gvisor` -> `ateworker-gvisor`.
+      # The old name has no 0.6 tags, so bumping only the tag is a pull error.
+      workerImage: ghcr.io/kagent-dev/substrate/ateworker-gvisor:v0.6.0-alpha3@sha256:56e6231c3ed48d54afd3068b6313a1545df1277e0ac1faa6090085cc480d573e
       sandboxClass: gvisor
 
     # ---------------------------------------------------------------------
@@ -267,8 +294,8 @@ spec:
         limits:
           memory: 512Mi
 
-    kmcp:
-      enabled: true
+    # (`kmcp.enabled` used to sit here. alpha14 removed kmcp from the chart;
+    # see ./crds/release.yaml for why that was safe on this cluster.)
 
     # No Grafana on this cluster — the chart's default points the MCP server at
     # `grafana.kagent:3000`, which resolves to nothing.
