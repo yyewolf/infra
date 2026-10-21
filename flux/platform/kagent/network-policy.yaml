@@ -266,3 +266,33 @@ spec:
     - ports:
       - port: "443"
         protocol: TCP
+---
+# The Discord gateway (platform/a2a-discord-gtw) into the controller's A2A port,
+# and it is the same grant as kagent-ui's above with the same caveat: the
+# controller trusts whoever reaches 8083 as admin. What bounds it there is the
+# tailnet; what bounds it here is the bot's `allowed_user_ids` — the bot only
+# relays messages and button presses from those Discord users. Widening that
+# list, or adding a namespace to this selector, is granting admin over every
+# agent.
+#
+# 8083 only: the A2A gateway is all the bot uses (SendMessage, ListTasks,
+# GetTask, agent cards). It never needs the UI or the database.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: a2a-discord-gtw
+  namespace: kagent
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: kagent
+      app.kubernetes.io/instance: kagent
+      app.kubernetes.io/component: controller
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: a2a-discord-gtw
+    toPorts:
+    - ports:
+      - port: "8083"
+        protocol: TCP
