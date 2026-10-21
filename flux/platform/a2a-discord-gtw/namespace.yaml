@@ -1,0 +1,14 @@
+# Its own namespace rather than `kagent`, for two reasons. kagent's runs
+# `privileged` (gVisor worker pods) and this pod needs none of that, so here it
+# can be `restricted`, which the chart's pod already satisfies (non-root 65532,
+# read-only root, no capabilities, RuntimeDefault seccomp). And kagent's
+# namespace-wide network baseline would hand this pod everything the agents'
+# worker pods can reach; a separate namespace keeps it to the chart's own
+# CiliumNetworkPolicy and the one ingress rule kagent grants it
+# (platform/kagent/network-policy.yaml).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: a2a-discord-gtw
+  labels:
+    pod-security.kubernetes.io/enforce: restricted

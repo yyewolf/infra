@@ -21,6 +21,7 @@ resources:
 - platform/substrate/crds/ks.yaml
 - platform/substrate/ks.yaml
 - platform/kagent/ks.yaml
+- platform/a2a-discord-gtw/ks.yaml
 - platform/metrics-server/ks.yaml
 - platform/tailscale/ks.yaml
 - platform/cnpg/ks.yaml

@@ -1,0 +1,16 @@
+# GHCR only, published by the a2a-discord-gtw release workflow with each tag.
+# Chart version and image version are the same number (appVersion = version),
+# so moving this tag moves the bot. Renovate reads the tag.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: a2a-discord-gtw
+spec:
+  interval: 1h
+  url: oci://ghcr.io/yyewolf/charts/a2a-discord-gtw
+  layerSelector:
+    mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+    operation: copy
+  ref:
+    tag: 0.2.0
+    digest: sha256:24fadcf95f8ef8ba05463fded82378059ab8a8cfffc26cfa276662d3016b6f42

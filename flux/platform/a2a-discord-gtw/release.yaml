@@ -1,0 +1,63 @@
+# a2a-discord-gtw: kagent's agents in Discord. One channel per agent under the
+# "agents" category, one thread per conversation, questions and tool approvals
+# answered with buttons. Source: https://github.com/yyewolf/a2a-discord-gtw
+#
+# ONE BOT TOKEN, ONE CONNECTION. Two processes on the same token both receive
+# every message and both answer, so nothing else may run with this token —
+# not a second replica (the chart pins 1 and Recreate), and not a local
+# `a2a-discord-gtw serve` left running on a laptop.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: a2a-discord-gtw
+  namespace: a2a-discord-gtw
+spec:
+  interval: 30m
+  chartRef:
+    kind: OCIRepository
+    name: a2a-discord-gtw
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    discordToken:
+      existingSecret: discord-token
+    config:
+      discord:
+        guild_id: "1027556538560282765"
+        # The "agents" category. The bot creates a channel per agent here and
+        # needs Manage Channels on this category only — granted to the bot user
+        # as a category permission override, not on its server role.
+        category_id: "1562536781361188945"
+        # Yewolf. THIS LIST IS THE ACCESS CONTROL: kagent's API is
+        # unauthenticated in this cluster (it trusts X-User-Id), so whoever the
+        # bot listens to can drive every agent below.
+        allowed_user_ids: ["144472011924570113"]
+      kagent:
+        # The chart default, restated because it is load-bearing: the full
+        # name, since short names do not resolve from sandboxed workloads and
+        # it keeps this file greppable next to platform/kagent.
+        url: http://kagent-controller.kagent.svc.cluster.local:8083
+      # Empty user: kagent's default identity, which is also who owns schedules
+      # created in its UI — so the watcher can see their tasks.
+      agents:
+      - name: claude-assistant
+        ref: kagent/claude-assistant
+      # watch: tasks the bot did not start (the kagent ScheduledRun) show up in
+      # #windmill-maintainer, and its questions ping with buttons.
+      - name: windmill-maintainer
+        ref: kagent/windmill-maintainer
+        watch: true
+    persistence:
+      # Replicated, not the cluster default (longhorn-yolo, one replica). The
+      # SQLite file is the thread <-> kagent conversation map: lose it and every
+      # existing thread stops reaching its agent. 100Mi is plenty.
+      storageClass: longhorn
+    networkPolicy:
+      # Egress to kube-dns (L7), the kagent controller on 8083 and Discord's
+      # FQDNs; ingress only for the kubelet's probes. kagent's side of the
+      # controller hop is its own policy in platform/kagent/network-policy.yaml.
+      enabled: true

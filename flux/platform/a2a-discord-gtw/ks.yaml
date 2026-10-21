@@ -1,0 +1,24 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: a2a-discord-gtw
+  namespace: flux-system
+spec:
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-gpg
+  dependsOn:
+  # The bot talks to the kagent controller and is useless without it, and the
+  # ingress rule that lets it in lives in platform/kagent.
+  - name: kagent
+  # The chart's CiliumNetworkPolicy, and the PVC for its SQLite state.
+  - name: cilium
+  - name: longhorn
+  interval: 10m
+  path: ./flux/platform/a2a-discord-gtw
+  prune: true
+  retryInterval: 1m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
