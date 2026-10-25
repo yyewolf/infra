@@ -1,0 +1,110 @@
+# One replica over an RWO world volume: at-most-one is the guarantee that
+# matters, since two Java processes sharing one region-file directory corrupts
+# the world — same argument as the servarr sqlite StatefulSets, and the reason
+# this is not a Deployment whose strategy could drift into a rolling update.
+#
+# No nodeSelector: WaitForFirstConsumer provisions the claim where the pod
+# schedules, and longhorn-yolo's nvme pool only exists on the LAN nodes.
+# edge-0 is excluded by its taint long before storage even comes into it.
+#
+# The container runs as uid 1000 (the image's own convention); the entrypoint
+# detects non-root and skips its root->1000 handoff. fsGroup matches so the
+# kubelet hands /data to the group, and OnRootMismatch keeps first-boot chown
+# from ever walking a large world again after the first.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: minecraft
+spec:
+  replicas: 1
+  serviceName: minecraft
+  selector:
+    matchLabels:
+      app: minecraft
+  template:
+    metadata:
+      labels:
+        app: minecraft
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      automountServiceAccountToken: false
+      containers:
+      - name: minecraft
+        image: mirror.gcr.io/itzg/minecraft-server:2026.10.0-java25@sha256:5a2ab74ae179c11e2dbbce67f307cdcf2c1257b3abb0f654d3a310b3d8ea57da
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: [ "ALL" ]
+          seccompProfile:
+            type: RuntimeDefault
+        ports:
+        - containerPort: 25565
+          name: minecraft
+        env:
+        - name: EULA
+          value: "TRUE"
+        - name: TYPE
+          value: PAPER
+        # Year-based Minecraft versions; Paper has had a stable 26.3 since
+        # release. Renovate reads the tag under docker versioning, which
+        # treats `-java25` as a compatibility suffix and never moves it.
+        - name: VERSION
+          value: "26.3"
+        # Heap only; the pod limit is 4Gi so metaspace and direct buffers
+        # have room above it.
+        - name: MEMORY
+          value: 3G
+        - name: USE_AIKAR_FLAGS
+          value: "true"
+        - name: TZ
+          value: Europe/Paris
+        - name: MOTD
+          value: yewolf.fr
+        - name: DIFFICULTY
+          value: normal
+        # WHITELIST both seeds the list and switches the white-list server
+        # property on. OPS bypass the whitelist, so Yewolf can join before
+        # anyone else is listed and /whitelist add friends in-game; changes
+        # made in-game persist to whitelist.json on the volume. Names are
+        # resolved to UUIDs at every startup via playerdb.co (Mojang's API is
+        # the fallback provider) — both hosts are in the egress policy.
+        - name: WHITELIST
+          value: Yewolf
+        - name: OPS
+          value: Yewolf
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        resources:
+          requests:
+            cpu: 500m
+            memory: 3Gi
+          limits:
+            cpu: "4"
+            memory: 4Gi
+        readinessProbe:
+          tcpSocket:
+            port: 25565
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: 25565
+          periodSeconds: 10
+        # First boot downloads Paper and generates the world; give it a wide
+        # berth before liveness starts judging.
+        startupProbe:
+          tcpSocket:
+            port: 25565
+          periodSeconds: 10
+          failureThreshold: 60
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: minecraft-data

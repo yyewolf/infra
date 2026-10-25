@@ -1,0 +1,59 @@
+# Ingress from the internet only, on the game port. `world` rather than a
+# 0.0.0.0/0 toCIDR rule: the entity expands to world, world-ipv4 and
+# world-ipv6, which is what makes the v6 half of the shared edge address work
+# — same lesson as the uctf acme-dns policy.
+#
+# Egress is the one place this app is not the hermit portfoliosh is: the itzg
+# entrypoint downloads the Paper jar on every start and resolves the
+# WHITELIST/OPS usernames to UUIDs, so the download chain (PaperMC + Mojang)
+# and the UUID providers are enumerated below. toFQDNs needs L7 DNS visibility
+# to populate, which is why the kube-dns rule carries rules.dns and why it
+# must remain this policy's only DNS egress rule.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: minecraft
+spec:
+  endpointSelector:
+    matchLabels:
+      app: minecraft
+  ingress:
+  - fromEntities:
+    - world
+    toPorts:
+    - ports:
+      - port: "25565"
+        protocol: TCP
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+      rules:
+        dns:
+        - matchPattern: "*"
+  - toFQDNs:
+    # PaperMC: build lookup and jar download (v3), legacy v2 API still
+    # consulted by some paths, and the maven repo the artifacts come from.
+    - matchName: fill.papermc.io
+    - matchName: api.papermc.io
+    - matchName: repo.papermc.io
+    # Mojang: version manifest, vanilla jars and libraries paperclip pulls at
+    # first run.
+    - matchName: piston-meta.mojang.com
+    - matchName: piston-data.mojang.com
+    - matchName: libraries.minecraft.net
+    # WHITELIST/OPS username -> UUID resolution: playerdb.co is the image's
+    # default provider, api.mojang.com the USER_API_PROVIDER=mojang fallback.
+    - matchName: playerdb.co
+    - matchName: api.mojang.com
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP

@@ -34,7 +34,14 @@ spec:
           # toHost into the `uctf` namespace and share the edge IP directly —
           # bypassing Envoy's non-transparent UDP proxy, which is what makes
           # WireGuard viable through it (peers see the real client IP, not
-          # Envoy's). The OpenStack security group has to admit each port too
-          # (53 done, 51820 pending).
+          # Envoy's). apps/minecraft uses the same path for its game port: a
+          # raw TCP workload gets nothing from an Envoy hop, so its
+          # LoadBalancer Service claims this key from the `minecraft`
+          # namespace. Cilium requires sharing-cross-namespace on BOTH
+          # services, so this list is the consent for every consumer outside
+          # envoy-gateway-system — a namespace missing here cannot claim the
+          # edge IP, which is the direct-LB equivalent of the Gateway's
+          # allowedListeners. The OpenStack security group has to admit each
+          # port too (53 done, 51820 pending).
           lbipam.cilium.io/sharing-key: "edge-0"
-          lbipam.cilium.io/sharing-cross-namespace: "uctf"
+          lbipam.cilium.io/sharing-cross-namespace: "uctf,minecraft"

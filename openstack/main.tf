@@ -476,6 +476,34 @@ resource "openstack_networking_secgroup_rule_v2" "sieve_v6" {
   description       = "Stalwart ManageSieve over IPv6"
 }
 
+# Minecraft — TCP 25565 for the game server in flux/apps/minecraft. This is
+# the direct-LoadBalancer path, not the Gateway: the app's Service shares the
+# edge IPs via the Envoy service's sharing-key (consented in
+# platform/envoy-proxy/envoyproxy.yaml) and Cilium translates straight to the
+# pod. Nothing else listens here; closing this rule closes the game port at
+# Neutron no matter what Cilium says. Both families: the edge is dual-stack.
+resource "openstack_networking_secgroup_rule_v2" "minecraft_v4" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 25565
+  port_range_max    = 25565
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = openstack_networking_secgroup_v2.edge.id
+  description       = "Minecraft game port"
+}
+
+resource "openstack_networking_secgroup_rule_v2" "minecraft_v6" {
+  direction         = "ingress"
+  ethertype         = "IPv6"
+  protocol          = "tcp"
+  port_range_min    = 25565
+  port_range_max    = 25565
+  remote_ip_prefix  = "::/0"
+  security_group_id = openstack_networking_secgroup_v2.edge.id
+  description       = "Minecraft game port over IPv6"
+}
+
 # An explicit port rather than letting Nova create one, so the addresses are a
 # first-class output and the security group is attached before the instance
 # ever boots.

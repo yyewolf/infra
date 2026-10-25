@@ -63,6 +63,7 @@ resources:
 - apps/servarr/storage/ks.yaml
 - apps/servarr/ks.yaml
 - apps/k7/ks.yaml
+- apps/minecraft/ks.yaml
 - apps/immich/storage/ks.yaml
 - apps/immich/ks.yaml
 - apps/paperless/storage/ks.yaml

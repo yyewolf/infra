@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: minecraft-data
+spec:
+  # longhorn-yolo on purpose: one replica, best-effort locality, nvme pool.
+  # This is disposable data by explicit decision — no replication, no backups
+  # — so losing the node's disk loses the world. `longhorn` (3 replicas) is
+  # the one-line flip if that ever stops being true.
+  storageClassName: longhorn-yolo
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi

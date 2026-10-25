@@ -1,0 +1,45 @@
+# A LoadBalancer that shares the edge IPs with Envoy's own service rather than
+# proxying through it — the uctf acme-dns/WireGuard pattern, this time for a
+# plain TCP game port that Envoy has nothing to add to. Cilium translates the
+# shared address straight to the pod wherever it runs.
+#
+# The consent model lives in these annotations: the sharing-key must match the
+# one on Envoy's service, and Cilium requires sharing-cross-namespace on BOTH
+# sides — this one naming envoy-gateway-system, and Envoy's listing minecraft
+# (platform/envoy-proxy/envoyproxy.yaml). A namespace absent from Envoy's list
+# cannot claim the edge IP, which is the same guarantee allowedListeners gives
+# the Gateway path.
+#
+# No `io.cilium/lb-ipam-ips` here: services sharing a key inherit the key's IP
+# set, which is the same pair of addresses Envoy requests.
+#
+# external-dns's `service` source turns the hostname annotation into
+# play.yewolf.fr A/AAAA records built from the status addresses.
+apiVersion: v1
+kind: Service
+metadata:
+  name: minecraft
+  annotations:
+    lbipam.cilium.io/sharing-key: "edge-0"
+    lbipam.cilium.io/sharing-cross-namespace: "envoy-gateway-system"
+    external-dns.alpha.kubernetes.io/hostname: play.yewolf.fr
+spec:
+  type: LoadBalancer
+  # Both families: SingleStack would allocate only the v4 half of the shared
+  # set and v6 clients would have no record to resolve.
+  ipFamilyPolicy: RequireDualStack
+  ipFamilies:
+  - IPv4
+  - IPv6
+  # Cluster, not Local: the pod runs on a LAN node, so Local would drop
+  # everything — edge-0 is the only node that holds the edge IPs, and it holds
+  # no backend. The cost is SNAT at edge-0, so the server sees every player as
+  # one source address; the whitelist is the actual gate.
+  externalTrafficPolicy: Cluster
+  ports:
+  - name: minecraft
+    port: 25565
+    targetPort: minecraft
+    protocol: TCP
+  selector:
+    app: minecraft
