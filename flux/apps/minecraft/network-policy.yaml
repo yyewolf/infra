@@ -53,6 +53,8 @@ spec:
     # default provider, api.mojang.com the USER_API_PROVIDER=mojang fallback.
     - matchName: playerdb.co
     - matchName: api.mojang.com
+    - matchName: discovery.minecraftservices.com
+    - matchName: raw.githubusercontent.com
     toPorts:
     - ports:
       - port: "443"

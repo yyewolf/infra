@@ -10,9 +10,6 @@
 # cannot claim the edge IP, which is the same guarantee allowedListeners gives
 # the Gateway path.
 #
-# No `io.cilium/lb-ipam-ips` here: services sharing a key inherit the key's IP
-# set, which is the same pair of addresses Envoy requests.
-#
 # external-dns's `service` source turns the hostname annotation into
 # play.yewolf.fr A/AAAA records built from the status addresses.
 apiVersion: v1
@@ -21,7 +18,11 @@ metadata:
   name: minecraft
   annotations:
     lbipam.cilium.io/sharing-key: "edge-0"
-    lbipam.cilium.io/sharing-cross-namespace: "envoy-gateway-system"
+    lbipam.cilium.io/sharing-cross-namespace: "envoy-gateway-system,uctf"
+    # Same request as the uctf consumers and Envoy's own service. Sharing by
+    # key alone left this Service pending on this cluster's LB-IPAM; an
+    # explicit request joins the key's IP set immediately.
+    io.cilium/lb-ipam-ips: "83.228.250.128,2001:1600:16:10::227"
     external-dns.alpha.kubernetes.io/hostname: play.yewolf.fr
 spec:
   type: LoadBalancer
