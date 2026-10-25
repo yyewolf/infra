@@ -53,6 +53,9 @@ spec:
     # default provider, api.mojang.com the USER_API_PROVIDER=mojang fallback.
     - matchName: playerdb.co
     - matchName: api.mojang.com
+    # online-mode session verification. Missing here does not stop the server
+    # booting — every login dies with "Authentication servers are down".
+    - matchName: sessionserver.mojang.com
     - matchName: discovery.minecraftservices.com
     - matchName: raw.githubusercontent.com
     toPorts:
