@@ -31,6 +31,18 @@ machine:
       enabled: true
       forwardKubeDNSToHost: true
 
+  kubelet:
+    extraConfig:
+      # Double the kubelet's default of 110. The ceiling is the node's podCIDR,
+      # not this number: kube-controller-manager hands each node a /24
+      # (--node-cidr-mask-size-ipv4=24, its default), which is 254 addresses
+      # less cilium_host's router IP and the health endpoint. 220 leaves ~30 of
+      # slack for pods whose IP is still held while they terminate — a CI burst
+      # of short-lived woodpecker steps is exactly that. Going past ~250 needs
+      # a wider mask, and a podCIDR is immutable once assigned, so that would
+      # only reach nodes that join afterwards.
+      maxPods: 220
+
   sysctls:
     # Cilium and most ingress paths want a larger conntrack table and inotify
     # budget than the defaults give on a node running a few hundred pods.

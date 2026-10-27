@@ -10,6 +10,18 @@ name: ng
 talos_version: v1.14.0
 kubernetes_version: 1.37.1
 
+# The machine-config layout 'gen config' generates, which is NOT talos_version.
+# From the 1.14 contract on, gen config splits the install, kubelet, cluster
+# network and hostDNS settings out of v1alpha1 into their own documents
+# (UnattendedInstallConfig, KubeletConfig, KubeNetworkConfig, ...), and every
+# patch here still writes those under v1alpha1 — so the render carries each
+# setting twice and the node refuses it with "... is already set in v1alpha1
+# config". The running nodes are all single-document v1alpha1. Left unset, the
+# contract is whatever talosctl client happens to run, which is how this broke.
+# Moving to v1.14 means porting patches/ and talos.sh's generated patch to the
+# new documents first.
+config_contract: v1.13
+
 # Where './talos.sh installer' pushes the images it builds for nodes carrying
 # extensions the Image Factory does not have. Tagged <talos_version>-<node>
 # there, but nodes are pointed at the pushed digest, not the tag: the tag moves

@@ -442,7 +442,7 @@ cmd_render() {
         for n in "${targets[@]}"; do require_node "$n"; done
     fi
 
-    local name vip gateway subnet subnet6 gateway6 wg_subnet wg_mtu version k8s
+    local name vip gateway subnet subnet6 gateway6 wg_subnet wg_mtu version k8s contract
     name="$(cfg .name)"
     vip="$(cfg .network.vip)"
     gateway="$(cfg .network.gateway)"
@@ -453,6 +453,10 @@ cmd_render() {
     wg_mtu="$(cfg '.network.wg_mtu // 1420')"
     version="$(cfg .talos_version)"
     k8s="$(cfg .kubernetes_version)"
+    # Required, not defaulted: an unset contract means "whatever talosctl is
+    # installed", and a client upgrade then silently changes the config layout.
+    contract="$(cfg '.config_contract // ""')"
+    [ -n "$contract" ] || die "cluster.yaml has no config_contract"
 
     local prefix="${subnet##*/}"
     local prefix6="${subnet6##*/}"
@@ -484,6 +488,7 @@ cmd_render() {
     rm -rf "$OUT/base"
     talosctl gen config "$name" "https://$vip:6443" \
         --with-secrets "$plain" \
+        --talos-version "$contract" \
         --kubernetes-version "$k8s" \
         --output-types controlplane,worker,talosconfig \
         --output "$OUT/base" \
