@@ -17,12 +17,18 @@ spec:
         app: yt-dlp-webui
     spec:
       automountServiceAccountToken: false
+      # MeTube's entrypoint only chowns and drops to PUID when started as root;
+      # started as 1000 it skips that and runs directly, so ALL can stay dropped.
       securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        fsGroup: 1000
         seccompProfile:
           type: RuntimeDefault
       containers:
-      - name: yt-dlp-webui
-        image: ghcr.io/marcopiovanello/yt-dlp-web-ui@sha256:a8ae96007ee3f306a1079b4edb81a6b87dc685a6e8b822cd52aa0b026cf10ff3
+      - name: metube
+        image: ghcr.io/alexta69/metube:2026.10.27@sha256:845a67373a9f9e62b88e5f9067867202200d63db3615a051acbd77b09e86b9ce
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
@@ -31,11 +37,14 @@ spec:
           seccompProfile:
             type: RuntimeDefault
         ports:
-        - containerPort: 3033
+        - containerPort: 8081
         readinessProbe:
           httpGet:
             path: /
-            port: 3033
+            port: 8081
+        volumeMounts:
+        - name: downloads
+          mountPath: /downloads
         resources:
           requests:
             cpu: 100m
@@ -43,3 +52,11 @@ spec:
           limits:
             cpu: 2000m
             memory: 2Gi
+      # Downloads are deliberately throwaway: grab the file, and the next restart
+      # clears it. The cap matters because this lives on the node's EPHEMERAL
+      # partition, and filling that takes the kubelet with it; past it the pod is
+      # evicted and comes back empty.
+      volumes:
+      - name: downloads
+        emptyDir:
+          sizeLimit: 20Gi
