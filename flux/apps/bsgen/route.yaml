@@ -1,0 +1,65 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: bsgen
+spec:
+  parentRefs:
+  - name: envoy-gateway
+    namespace: envoy-gateway-system
+    sectionName: yewolf.fr-tls
+  hostnames:
+  - "bsgen.yewolf.fr"
+  rules:
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: bsgen
+      port: 80
+      weight: 1
+    # Gradio streams progress over a long-lived SSE connection for the whole
+    # generation, which runs for minutes with replays on.
+    timeouts:
+      request: 0s
+      backendRequest: 0s
+    matches:
+    - path:
+        type: PathPrefix
+        value: /
+---
+# The app has no login of its own and every request is minutes of CPU, so it
+# sits behind authentik. Needs this namespace in the ReferenceGrant in
+# apps/authentik/reference-grant.yaml, and a forward_domain provider for
+# bsgen.yewolf.fr in authentik's database.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: bsgen-ext-auth
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: bsgen
+  extAuth:
+    headersToExtAuth:
+    - cookie
+    - authorization
+    - proxy-authorization
+    - accept
+    - x-forwarded-proto
+    - x-forwarded-for
+    - x-real-ip
+    http:
+      backendRefs:
+      - group: ""
+        kind: Service
+        name: ak-outpost-proxy
+        namespace: authentik
+        port: 9000
+      path: /outpost.goauthentik.io/auth/envoy
+      headersToBackend:
+      - x-authentik-uid
+      - x-authentik-username
+      - x-authentik-name
+      - x-authentik-email
+      - x-authentik-groups
+      - x-authentik-entitlements

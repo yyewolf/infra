@@ -80,4 +80,5 @@ resources:
 - apps/vocard/ks.yaml
 - apps/webmail/ks.yaml
 - apps/ytdlp/ks.yaml
+- apps/bsgen/ks.yaml
 - apps/ssarchiver/ks.yaml

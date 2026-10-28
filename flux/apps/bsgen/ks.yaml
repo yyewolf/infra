@@ -1,0 +1,19 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: bsgen
+  namespace: flux-system
+spec:
+  dependsOn:
+  - name: envoy-proxy
+  # authentik for the ReferenceGrant that lets this route's SecurityPolicy reach
+  # ak-outpost-proxy. Without it applied first the ext_authz filter is dropped
+  # and the route serves unauthenticated until the grant catches up.
+  - name: authentik
+  interval: 10m
+  path: ./flux/apps/bsgen
+  prune: true
+  retryInterval: 1m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

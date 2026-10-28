@@ -1,0 +1,69 @@
+# Built from the fork at github.com/yyewolf/bsgen (a Dockerfile and a workflow on
+# top of upstream). CPU-only torch, since no node here has a GPU runtime; a 60 s
+# song takes ~15 s on 4 cores, ~70 s more with a replay. The models are baked
+# into the image, so the pod needs no egress at all.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bsgen
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bsgen
+  template:
+    metadata:
+      labels:
+        app: bsgen
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: bsgen
+        image: ghcr.io/yyewolf/bsgen:latest@sha256:952a6fb4f58e8e52ec4918058468396515116c5f3d7282362e2fba8d329b722a
+        env:
+        # torch sizes its thread pool from the node's core count, not the
+        # limit; keep the two equal or it oversubscribes and gets throttled.
+        - name: OMP_NUM_THREADS
+          value: "4"
+        ports:
+        - name: http
+          containerPort: 7860
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 7860
+        resources:
+          requests:
+            cpu: 100m
+            memory: 512Mi
+          limits:
+            cpu: 4000m
+            memory: 4Gi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        # Uploaded songs (GRADIO_TEMP_DIR) and numba's cache.
+        - name: tmp
+          mountPath: /tmp
+        # Generated maps. The app never deletes them, so they last until the
+        # pod restarts; the size limit evicts it before that becomes a problem.
+        - name: out
+          mountPath: /app/out
+      volumes:
+      - name: tmp
+        emptyDir:
+          sizeLimit: 2Gi
+      - name: out
+        emptyDir:
+          sizeLimit: 2Gi

@@ -1,0 +1,8 @@
+# `restricted` because the pod already meets it: non-root, every capability
+# dropped, read-only root filesystem.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bsgen
+  labels:
+    pod-security.kubernetes.io/enforce: restricted

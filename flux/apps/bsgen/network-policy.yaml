@@ -1,0 +1,25 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: bsgen
+spec:
+  endpointSelector:
+    matchLabels:
+      app: bsgen
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: envoy-gateway-system
+    toPorts:
+    - ports:
+      - port: "7860"
+        protocol: TCP
+  - fromEntities:
+    - host
+    - remote-node
+    - health
+  # An empty egress list turns enforcement on and permits nothing. The models are
+  # baked into the image and HF_HUB_OFFLINE is set, so the pod resolves no names
+  # and dials nothing. A failed Hugging Face fetch here means the image lost its
+  # models, not that this policy needs a rule.
+  egress: []

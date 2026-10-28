@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: bsgen
+spec:
+  selector:
+    app: bsgen
+  ports:
+  - name: http
+    port: 80
+    targetPort: 7860
+  type: ClusterIP

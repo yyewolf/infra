@@ -24,6 +24,9 @@ spec:
   - group: gateway.envoyproxy.io
     kind: SecurityPolicy
     namespace: ytdlp
+  - group: gateway.envoyproxy.io
+    kind: SecurityPolicy
+    namespace: bsgen
   to:
   - group: ""
     kind: Service
