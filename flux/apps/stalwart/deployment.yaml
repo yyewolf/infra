@@ -80,6 +80,16 @@ spec:
         # Keep it equal to the hostname in route.yaml and certificate.yaml.
         - name: STALWART_HOSTNAME
           value: mail.yewolf.fr
+        # The HTTPS base URL, which v1 no longer derives correctly for us: it
+        # defaults to https://$STALWART_HOSTNAME, but on 443 mail.yewolf.fr is
+        # the *webmail* (apps/webmail) and Stalwart's own HTTP is
+        # stalwart.yewolf.fr (route.yaml). It is the OAuth issuer and every
+        # endpoint it advertises, and v1 recognises its own WebUI only when the
+        # UI's client_id is on this host — on any other host the login falls
+        # through to Client ID Metadata Documents and fails with "Client
+        # metadata documents are disabled". Keep it equal to route.yaml.
+        - name: STALWART_PUBLIC_URL
+          value: https://stalwart.yewolf.fr
         volumeMounts:
         - name: config
           mountPath: /etc/stalwart/config.json
