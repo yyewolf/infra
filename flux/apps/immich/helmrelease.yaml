@@ -23,6 +23,9 @@ spec:
         containers:
           main:
             image:
+              # One tag for both images: the chart leaves the repository to
+              # each subchart, so server and machine-learning always match.
+              # renovate: datasource=docker depName=ghcr.io/immich-app/immich-server
               tag: v3.3.3
             env:
               REDIS_HOSTNAME: redis.album.svc

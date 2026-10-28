@@ -3,6 +3,8 @@
   "extends": [
     "config:best-practices"
   ],
+  "prConcurrentLimit": 20,
+  "prHourlyLimit": 0,
   "kubernetes": {
     "managerFilePatterns": [
       "/.*\\.yaml$/"
@@ -39,7 +41,7 @@
   ],
   "packageRules": [
     {
-      "matchFileNames": ["flux/apps/uctf/**"],
+      "matchFileNames": ["flux/apps/uctf/**", "archive/**"],
       "enabled": false
     },
     {
@@ -47,21 +49,61 @@
       "pinDigests": false
     },
     {
-      "matchDepNames": ["immich", "woodpecker"],
+      "description": "Charts from an OCI HelmRepository via chart.spec. chart.spec.version cannot carry a digest, so the `version@sha256:...` pin best-practices proposes would break the HelmRelease.",
+      "matchManagers": ["flux"],
+      "matchDepNames": ["immich", "woodpecker", "kagent"],
       "pinDigests": false
     },
     {
-      "matchCategories": [
-        "docker"
-      ],
-      "enabled": true
+      "description": "Platform and infrastructure: one PR per component (its chart plus the images pinned beside it), never merged automatically.",
+      "matchFileNames": ["flux/platform/**", "flux/infrastructure/**"],
+      "matchUpdateTypes": ["minor", "patch", "digest", "pin", "pinDigest"],
+      "groupName": "{{{replace '^flux/(?:platform|infrastructure)/([^/]+)/.*$' '$1' packageFile}}}"
     },
     {
-      "matchManagers": [
-        "docker"
+      "description": "Flux's own controllers and CLI move together.",
+      "matchPackageNames": ["fluxcd/flux2", "ghcr.io/fluxcd/**"],
+      "groupName": "flux"
+    },
+    {
+      "description": "router/ and openstack/ providers, one PR, never merged automatically.",
+      "matchManagers": ["terraform"],
+      "groupName": "terraform providers"
+    },
+    {
+      "description": "Apps: every non-major update in one PR, merged automatically once it is 3 days old and checks pass. A branch only automerges if every update in it does, so the rules below that hold something for review must also move it out of this group.",
+      "matchFileNames": ["flux/apps/**"],
+      "matchUpdateTypes": ["minor", "patch", "digest", "pin", "pinDigest"],
+      "groupName": "apps (non-major)",
+      "automerge": true,
+      "minimumReleaseAge": "3 days",
+      "minimumReleaseAgeBehaviour": "timestamp-optional"
+    },
+    {
+      "description": "A pre-1.0 minor is a breaking release by semver: held for review, one PR per app.",
+      "matchFileNames": ["flux/apps/**"],
+      "matchUpdateTypes": ["minor"],
+      "matchCurrentVersion": "/^v?0\\./",
+      "groupName": "{{{replace '^flux/apps/([^/]+)/.*$' '$1' packageFile}}} (minor)",
+      "automerge": false
+    },
+    {
+      "description": "Critical apps are never merged automatically: they gate other things (authentik, registry, woodpecker), hold data nothing regenerates (vaultwarden, immich, paperless, dawarich, stalwart, rustfs), or put breaking changes in calver minors (home-assistant, esphome). One PR per app.",
+      "matchFileNames": [
+        "flux/apps/authentik/**",
+        "flux/apps/dawarich/**",
+        "flux/apps/home-assistant/**",
+        "flux/apps/immich/**",
+        "flux/apps/paperless/**",
+        "flux/apps/registry/**",
+        "flux/apps/rustfs/**",
+        "flux/apps/stalwart/**",
+        "flux/apps/vaultwarden/**",
+        "flux/apps/woodpecker/**"
       ],
-      "enabled": true,
-      "groupName": "docker dependencies"
+      "matchUpdateTypes": ["minor", "patch", "digest", "pin", "pinDigest"],
+      "groupName": "{{{replace '^flux/apps/([^/]+)/.*$' '$1' packageFile}}}",
+      "automerge": false
     },
     {
       "description": "The vendored cnmsql instance catalog (flux/platform/cnmsql/catalogs). Its tags are `<version>-<build time>-bookworm`; under docker versioning the build time reads as a fixed suffix and nothing would ever update, so the timestamp is the `build` component here. The moving tags (`8.4`, `8.4.11-bookworm`) and the distroless images do not match and are ignored.",

@@ -2,6 +2,10 @@ apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 metadata:
   name: woodpecker
+  # Redundant with the kustomization's namespace, but Renovate only reads the
+  # file: without it the HelmRelease's sourceRef matches nothing and the chart
+  # is never updated.
+  namespace: woodpecker
 spec:
   interval: 24h
   type: oci
