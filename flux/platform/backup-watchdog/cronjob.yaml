@@ -67,6 +67,14 @@ spec:
                 secretKeyRef:
                   name: notify-url
                   key: PHONE
+            # Second channel, added while the LTE gateway is down. Kept as a
+            # parallel delivery rather than a replacement so the SMS resumes on
+            # its own when the gateway comes back.
+            - name: DISCORD_URL
+              valueFrom:
+                secretKeyRef:
+                  name: discord-webhook
+                  key: URL
             # kubectl writes its discovery cache under $HOME, and the root
             # filesystem is read-only.
             - name: HOME
@@ -287,14 +295,45 @@ spec:
               # another go. No --retry-delay, so the waits stay exponential
               # (1s, 2s, 4s…) rather than flat — the gateway talks to a
               # modem, and hammering it every second helps nobody.
-              echo "Sending report ($(printf "%s" "$report" | jq -r '.sms | length') chars)..."
-              curl --fail-with-body -sS \
+              #
+              # Discord takes the full report when it fits its 2000-character
+              # content limit and falls back to the short form when it does
+              # not; an oversized body is a 400, not a truncation.
+              printf "%s" "$report" \
+                | jq -c '{ content: (if (.full | length) <= 2000 then .full else .sms end) }' \
+                >/tmp/discord.json
+
+              # Each channel is tried independently and the run fails only if
+              # neither delivered. The cost: while one channel is down the Job
+              # still succeeds, so a dead SMS gateway shows up only as a missing
+              # text and a "SMS delivery failed" line in the log.
+              delivered=0
+              echo "Sending report to Discord..."
+              if curl --fail-with-body -sS \
+                   --retry 5 --retry-all-errors --retry-max-time 120 \
+                   --connect-timeout 10 --max-time 30 \
+                   -H "Content-Type: application/json" \
+                   -X POST --data @/tmp/discord.json \
+                   "$DISCORD_URL"; then
+                delivered=1
+              else
+                echo "Discord delivery failed"
+              fi
+
+              echo "Sending report via SMS ($(printf "%s" "$report" | jq -r '.sms | length') chars)..."
+              if curl --fail-with-body -sS \
                    --retry 7 --retry-all-errors --retry-max-time 300 \
                    --connect-timeout 10 --max-time 60 \
                    -H "Content-Type: application/json" \
                    -H "Authorization: $TOKEN" \
                    -X POST --data @/tmp/payload.json \
-                   "$NOTIFY_URL"
+                   "$NOTIFY_URL"; then
+                delivered=1
+              else
+                echo "SMS delivery failed"
+              fi
+
+              [ "$delivered" = 1 ]
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true

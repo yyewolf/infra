@@ -14,8 +14,9 @@ spec:
   - name: cilium
   # Not because reconciliation would fail without it — the CronJob applies
   # fine — but because the egress proxy for lte.goby-beaufort.ts.net is the
-  # only path the report has out of the cluster, and it is created by the
-  # operator that Kustomization installs.
+  # SMS path out of the cluster, and it is created by the operator that
+  # Kustomization installs. (Discord, the temporary second channel, goes
+  # straight out and needs nothing from it.)
   - name: tailscale
   interval: 10m
   path: ./flux/platform/backup-watchdog

@@ -20,10 +20,11 @@ spec:
     - ports:
       - port: "6443"
         protocol: TCP
-  # DNS. Plain allow rather than the L7-inspecting form used where a toFQDNs
-  # rule follows: the notification target below is an in-cluster endpoint
-  # matched by label, so there is no FQDN entry needing DNS answers to
-  # populate it.
+  # DNS, in the L7-inspecting form because the discord.com rule at the bottom
+  # is a toFQDNs: Cilium learns its addresses only from DNS answers it has
+  # seen, so without `rules.dns` the FQDN entry never populates and the POST
+  # is dropped while the name still resolves fine. It must stay the only DNS
+  # rule — a second, plain allow lets lookups bypass inspection.
   - toEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: kube-system
@@ -34,6 +35,9 @@ spec:
         protocol: UDP
       - port: "53"
         protocol: TCP
+      rules:
+        dns:
+        - matchPattern: "*"
   # The notification. NOTIFY_URL points at `lte.tailscale.svc:8080`, an
   # ExternalName the operator repoints at the egress proxy it creates for
   # lte.goby-beaufort.ts.net — so the packet that actually leaves this pod is
@@ -50,4 +54,12 @@ spec:
     toPorts:
     - ports:
       - port: "8080"
+        protocol: TCP
+  # The Discord webhook — the second report channel added while the LTE
+  # gateway is down. Remove together with discord-sops.yaml and DISCORD_URL.
+  - toFQDNs:
+    - matchName: discord.com
+    toPorts:
+    - ports:
+      - port: "443"
         protocol: TCP

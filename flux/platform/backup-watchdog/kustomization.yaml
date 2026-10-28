@@ -6,5 +6,6 @@ resources:
   - namespace.yaml
   - rbac.yaml
   - notify-sops.yaml
+  - discord-sops.yaml
   - cronjob.yaml
   - network-policy.yaml
