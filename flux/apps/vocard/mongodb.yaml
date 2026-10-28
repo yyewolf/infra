@@ -57,7 +57,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: mongodb
-        image: mirror.gcr.io/mongo:9.0.4@sha256:741da947cd8d22a4f564ece5e03c8fd93394c16ae469253b12472fe1a81412fa
+        image: mirror.gcr.io/mongo:9.0.4@sha256:452bdaf2127b8ff851e31410a267809b9829eded219979f2210e7c7efb85a058
         # The root account the entrypoint creates on an empty data directory.
         # It is only ever created once — changing these later renames nothing,
         # it just stops matching what is in the database.
