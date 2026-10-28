@@ -2,6 +2,34 @@
 # holds the mail *and* the server's entire configuration (see configmap.yaml), so
 # losing the node that holds it loses both. 20Gi against ~100Mi of mail is
 # headroom for the full-text index and years of growth; the class expands.
+#
+# This is the v1 store. v1 cannot open a v0.16 store (new key layout, and it
+# refuses with a schema-version error), so the upgrade was a copy by
+# `stalwart-migrate` into this claim rather than an image bump on the old one.
+# It is named as a *new* claim and not swapped in under the old name, because
+# the old claim is the rollback: see stalwart-data below.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: stalwart-data-v1
+  labels:
+    recurring-job-group.longhorn.io/stalwart-backup: enabled
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 20Gi
+---
+# The v0.16 store, frozen at the moment of the final migration run. Nothing
+# mounts it any more: the migrate pod only ever mounted it read-only, so it is
+# byte-for-byte what v0.16.27 last wrote, and until v1 has served real mail it
+# is a complete rollback — point the Deployment back at this claim and the old
+# image. Once v1 has accepted mail, going back means `stalwart-migrate rollback`
+# into a *new* empty claim instead (it needs stalwart-migrate-state for
+# --forward-state). Delete this claim, and the state one, when v0.16 is retired;
+# the class is Retain, so the PV and its Longhorn volume have to go by hand.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -15,3 +43,22 @@ spec:
   resources:
     requests:
       storage: 20Gi
+---
+# stalwart-migrate's state directory: the recorded `prepare` answers, the
+# per-account progress database and the run reports. It is what `rollback
+# --forward-state` reads to restore v0.16 settings exactly rather than
+# converting them back from their v1 form, so it lives as long as stalwart-data
+# does. It must be outside both stores, hence its own claim. answers.toml can
+# hold secrets copied out of the v0.16 settings, which is a second reason it is
+# not an emptyDir someone might `kubectl cp` out of carelessly.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: stalwart-migrate-state
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 1Gi

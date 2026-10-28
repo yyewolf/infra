@@ -47,7 +47,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: stalwart
-        image: mirror.gcr.io/stalwartlabs/stalwart:v0.16.27@sha256:c429b311c93db5606598abc1c68225a85a6953183848ae01bee9c6a98885836c
+        image: mirror.gcr.io/stalwartlabs/stalwart:v1.0.0@sha256:baafeacd6cbde77acdd94af49972d41c6709e54a376df48e18a9fe3f445eb3d5
         args:
         - --config
         - /etc/stalwart/config.json
@@ -122,8 +122,11 @@ spec:
         configMap:
           name: stalwart-config
       - name: data
+        # v1's store. stalwart-data is the frozen v0.16 one — see pvc.yaml.
+        # Pointing this back at it is only a rollback together with the
+        # v0.16.27 image: v1 refuses a v0.16 store and the reverse.
         persistentVolumeClaim:
-          claimName: stalwart-data
+          claimName: stalwart-data-v1
       - name: tls
         secret:
           secretName: stalwart-tls
