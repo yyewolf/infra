@@ -7,6 +7,12 @@ spec:
   chartRef:
     kind: OCIRepository
     name: k7
+  install:
+    strategy:
+      name: RetryOnFailure
+  upgrade:
+    strategy:
+      name: RetryOnFailure
   values:
     # Without this the chart names everything `<release>-<chart>` — `k7-k7`.
     # The Ingress backend, the network policy selector and the PVC name all

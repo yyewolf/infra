@@ -23,6 +23,12 @@ spec:
         kind: HelmRepository
         name: kyverno
       interval: 12h
+  install:
+    strategy:
+      name: RetryOnFailure
+  upgrade:
+    strategy:
+      name: RetryOnFailure
   # Deliberately close to stock. The chart already ships what this repo would
   # otherwise spell out by hand: a memory limit and CPU request per controller
   # with no CPU limit, CRDs installed with the release, and each of the four

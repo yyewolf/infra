@@ -8,8 +8,12 @@ spec:
     kind: OCIRepository
     name: plugin-barman-cloud
   install:
+    strategy:
+      name: RetryOnFailure
     crds: CreateReplace
   upgrade:
+    strategy:
+      name: RetryOnFailure
     crds: CreateReplace
   values:
     # Chart defaults are what this needs: one replica of the plugin, a

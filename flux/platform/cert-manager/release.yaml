@@ -12,5 +12,11 @@ spec:
         kind: HelmRepository
         name: cert-manager
       interval: 12h
+  install:
+    strategy:
+      name: RetryOnFailure
+  upgrade:
+    strategy:
+      name: RetryOnFailure
   values:
     installCRDs: true

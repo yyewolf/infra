@@ -12,6 +12,12 @@ spec:
         kind: HelmRepository
         name: external-secrets
       interval: 12h
+  install:
+    strategy:
+      name: RetryOnFailure
+  upgrade:
+    strategy:
+      name: RetryOnFailure
   values:
     # The chart installs its CRDs by default; keep it explicit so a future
     # values override cannot silently drop them.

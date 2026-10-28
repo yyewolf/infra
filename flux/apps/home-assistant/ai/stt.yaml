@@ -32,7 +32,7 @@ spec:
         kubernetes.io/hostname: w-1
       containers:
       - name: stt
-        image: ghcr.io/tboby/wyoming-onnx-asr:latest@sha256:9b2ccdd52c7aa83e36a2d674de749c4c01bd6bb1e23ea45dd85befb9fc013340
+        image: ghcr.io/tboby/wyoming-onnx-asr:v0.5.0@sha256:9b2ccdd52c7aa83e36a2d674de749c4c01bd6bb1e23ea45dd85befb9fc013340
         securityContext:
           allowPrivilegeEscalation: false
           capabilities: { drop: [ ALL ] }

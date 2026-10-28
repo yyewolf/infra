@@ -13,12 +13,16 @@ spec:
         name: longhorn
       interval: 12h
   install:
+    strategy:
+      name: RetryOnFailure
     crds: CreateReplace
     # The chart lays down CRDs, a webhook and three DaemonSets that all have to
     # settle before the driver deployer will register the CSI driver. The stock
     # 5m is not enough on a cold cluster that is still pulling the images.
     timeout: 10m
   upgrade:
+    strategy:
+      name: RetryOnFailure
     crds: CreateReplace
     timeout: 10m
   values:

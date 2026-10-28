@@ -12,6 +12,12 @@ spec:
         kind: HelmRepository
         name: descheduler
       interval: 12h
+  install:
+    strategy:
+      name: RetryOnFailure
+  upgrade:
+    strategy:
+      name: RetryOnFailure
   values:
     # A CronJob, not a Deployment: rebalancing is not latency-sensitive and a
     # one-shot pod every 30 minutes costs nothing between runs. Deployment mode

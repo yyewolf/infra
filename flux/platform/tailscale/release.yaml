@@ -12,6 +12,12 @@ spec:
         kind: HelmRepository
         name: tailscale
       interval: 12h
+  install:
+    strategy:
+      name: RetryOnFailure
+  upgrade:
+    strategy:
+      name: RetryOnFailure
   values:
     # The chart renders the tailscale.com CRDs as ordinary templates (not from
     # crds/), so Helm owns them and upgrades apply cleanly. Nothing to set on

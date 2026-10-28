@@ -13,8 +13,12 @@ spec:
         name: keda
       interval: 12h
   install:
+    strategy:
+      name: RetryOnFailure
     crds: CreateReplace
   upgrade:
+    strategy:
+      name: RetryOnFailure
     crds: CreateReplace
   values:
     # The metrics adapter registers as an APIService, so the apiserver has to

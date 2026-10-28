@@ -12,6 +12,12 @@ spec:
         kind: HelmRepository
         name: metrics-server
       interval: 12h
+  install:
+    strategy:
+      name: RetryOnFailure
+  upgrade:
+    strategy:
+      name: RetryOnFailure
   values:
     # defaultArgs replaces the chart's built-in defaults, so every flag
     # the chart ships must be listed here. Talos kubelets use self-signed

@@ -13,8 +13,12 @@ spec:
         name: cloudnative-pg
       interval: 12h
   install:
+    strategy:
+      name: RetryOnFailure
     crds: CreateReplace
   upgrade:
+    strategy:
+      name: RetryOnFailure
     crds: CreateReplace
   values:
     # Cluster-wide: the operator reconciles Clusters in every namespace, so an

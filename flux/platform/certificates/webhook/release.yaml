@@ -10,6 +10,12 @@ spec:
       sourceRef:
         kind: GitRepository
         name: infomaniak-webhook
+  install:
+    strategy:
+      name: RetryOnFailure
+  upgrade:
+    strategy:
+      name: RetryOnFailure
   values:
     groupName: acme.infomaniak.com
     secretsNames:

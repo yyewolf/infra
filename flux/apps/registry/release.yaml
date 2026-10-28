@@ -11,6 +11,12 @@ spec:
       sourceRef:
         kind: HelmRepository
         name: harbor
+  install:
+    strategy:
+      name: RetryOnFailure
+  upgrade:
+    strategy:
+      name: RetryOnFailure
   values:
     expose:
       type: clusterIP
@@ -19,6 +25,14 @@ spec:
       tls:
         enabled: false
     externalURL: https://registry.yewolf.fr
+    # Every Deployment here that mounts a claim (jobservice, registry) mounts an
+    # RWO one, so a rolling update starts the new pod while the old one still
+    # holds the volume. If the scheduler picks another node, the new pod sits
+    # in ContainerCreating on Multi-Attach forever and the upgrade times out —
+    # 1.19.4 stalled 12 days that way, with jobservice's claim on cp-2 and the
+    # new pod on w-1. Recreate trades a few seconds of downtime for that.
+    updateStrategy:
+      type: Recreate
     persistence:
       enabled: true
       persistentVolumeClaim:

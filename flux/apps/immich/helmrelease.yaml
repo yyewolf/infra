@@ -13,6 +13,12 @@ spec:
         kind: HelmRepository
         name: immich-charts
         namespace: album
+  install:
+    strategy:
+      name: RetryOnFailure
+  upgrade:
+    strategy:
+      name: RetryOnFailure
   values:
     controllers:
       main:

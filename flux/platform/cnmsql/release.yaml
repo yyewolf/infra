@@ -8,8 +8,12 @@ spec:
     kind: OCIRepository
     name: cnmsql
   install:
+    strategy:
+      name: RetryOnFailure
     crds: CreateReplace
   upgrade:
+    strategy:
+      name: RetryOnFailure
     crds: CreateReplace
   values:
     manager:

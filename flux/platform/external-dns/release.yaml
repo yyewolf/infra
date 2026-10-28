@@ -13,8 +13,12 @@ spec:
         name: external-dns
       interval: 12h
   install:
+    strategy:
+      name: RetryOnFailure
     crds: CreateReplace
   upgrade:
+    strategy:
+      name: RetryOnFailure
     crds: CreateReplace
   values:
     logLevel: info

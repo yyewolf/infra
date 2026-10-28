@@ -12,8 +12,12 @@ spec:
   # directory, so `install.crds` does not apply and kustomize-controller's
   # normal apply handles them.
   install:
+    strategy:
+      name: RetryOnFailure
     crds: CreateReplace
   upgrade:
+    strategy:
+      name: RetryOnFailure
     crds: CreateReplace
   # -------------------------------------------------------------------------
   # The 1.0.0-alpha1 -> alpha5 upgrade moved every kagent CRD except kmcp's

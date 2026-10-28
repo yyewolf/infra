@@ -12,6 +12,12 @@ spec:
         kind: HelmRepository
         name: skyhook
       interval: 12h
+  install:
+    strategy:
+      name: RetryOnFailure
+  upgrade:
+    strategy:
+      name: RetryOnFailure
   values:
     # Radar holds its informer cache, SSE streams and exec sessions in-process,
     # so a second replica is a different view of the cluster, not a spare.

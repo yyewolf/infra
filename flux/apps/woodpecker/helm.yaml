@@ -26,6 +26,12 @@ spec:
         kind: HelmRepository
         name: woodpecker
         namespace: woodpecker
+  install:
+    strategy:
+      name: RetryOnFailure
+  upgrade:
+    strategy:
+      name: RetryOnFailure
   values:
     agent:
       enabled: true

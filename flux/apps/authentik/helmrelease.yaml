@@ -13,6 +13,12 @@ spec:
         kind: HelmRepository
         name: authentik
         namespace: authentik
+  install:
+    strategy:
+      name: RetryOnFailure
+  upgrade:
+    strategy:
+      name: RetryOnFailure
   values:
     authentik:
       error_reporting:

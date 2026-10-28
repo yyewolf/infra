@@ -18,3 +18,9 @@ spec:
   chartRef:
     kind: OCIRepository
     name: substrate-crds
+  install:
+    strategy:
+      name: RetryOnFailure
+  upgrade:
+    strategy:
+      name: RetryOnFailure
