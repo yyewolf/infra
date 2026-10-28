@@ -6,6 +6,11 @@ metadata:
     app: rustfs
 spec:
   replicas: 1
+  # The data claim is RWO, so a rolling update starts the new pod while the old
+  # one still holds the volume, and a new pod scheduled to another node waits
+  # on Multi-Attach forever. Same reason as harbor's updateStrategy.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: rustfs
