@@ -1,0 +1,22 @@
+# Scaling half of the pair. `interceptorRoute` must equal the InterceptorRoute's
+# metadata.name: if the route is missing when KEDA reconciles this, the scaler
+# returns an empty metric spec and the HPA silently falls back to a CPU metric,
+# which never scales up from zero.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: bsgen
+spec:
+  scaleTargetRef:
+    name: bsgen
+  minReplicaCount: 0
+  maxReplicaCount: 1
+  # An open tab holds the progress SSE stream, which keeps concurrency above
+  # zero for the whole generation. The cooldown is the window to download the
+  # result afterwards: out/ is an emptyDir and goes with the pod.
+  cooldownPeriod: 900
+  triggers:
+    - type: external-push
+      metadata:
+        scalerAddress: keda-add-ons-http-external-scaler.keda:9090
+        interceptorRoute: bsgen

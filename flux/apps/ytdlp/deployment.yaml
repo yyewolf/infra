@@ -38,10 +38,13 @@ spec:
             type: RuntimeDefault
         ports:
         - containerPort: 8081
+        # Tight period: this is the pod the interceptor waits on during a cold
+        # start, so every second here is a second of placeholder.
         readinessProbe:
           httpGet:
             path: /
             port: 8081
+          periodSeconds: 2
         volumeMounts:
         - name: downloads
           mountPath: /downloads

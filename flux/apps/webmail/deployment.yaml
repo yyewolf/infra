@@ -52,11 +52,13 @@ spec:
           mountPath: /app/data
         - name: tmp
           mountPath: /tmp
+        # Tight period: this is the pod the interceptor waits on during a cold
+        # start, so every second here is a second of placeholder.
         readinessProbe:
           httpGet:
             path: /api/health
             port: 3000
-          periodSeconds: 10
+          periodSeconds: 2
         livenessProbe:
           httpGet:
             path: /api/health

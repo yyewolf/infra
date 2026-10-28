@@ -7,9 +7,13 @@ spec:
     matchLabels:
       app: bsgen
   ingress:
+  # The interceptor is the only client: the HTTPRoute points at it, not at
+  # this pod.
   - fromEndpoints:
     - matchLabels:
-        io.kubernetes.pod.namespace: envoy-gateway-system
+        io.kubernetes.pod.namespace: keda
+        app.kubernetes.io/part-of: keda-add-ons-http
+        app.kubernetes.io/component: interceptor
     toPorts:
     - ports:
       - port: "7860"

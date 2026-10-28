@@ -6,6 +6,11 @@ metadata:
 spec:
   dependsOn:
   - name: envoy-proxy
+  # keda for the InterceptorRoute/ScaledObject CRDs and the ReferenceGrant
+  # this route needs; booting-up for the placeholder the cold-start fallback
+  # points at.
+  - name: keda
+  - name: booting-up
   # authentik for the ReferenceGrant that lets this route's SecurityPolicy reach
   # ak-outpost-proxy. Without it applied first the ext_authz filter is dropped
   # and the route serves unauthenticated until the grant catches up.

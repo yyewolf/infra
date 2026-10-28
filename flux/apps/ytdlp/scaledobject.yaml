@@ -1,0 +1,22 @@
+# Scaling half of the pair. `interceptorRoute` must equal the InterceptorRoute's
+# metadata.name: if the route is missing when KEDA reconciles this, the scaler
+# returns an empty metric spec and the HPA silently falls back to a CPU metric,
+# which never scales up from zero.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: yt-dlp-webui
+spec:
+  scaleTargetRef:
+    name: yt-dlp-webui
+  minReplicaCount: 0
+  maxReplicaCount: 1
+  # A download keeps running after the tab closes, but the interceptor only
+  # counts open requests, so it is invisible here: scaling in kills it and
+  # the emptyDir holding the file. The cooldown is the grace period for that.
+  cooldownPeriod: 1800
+  triggers:
+    - type: external-push
+      metadata:
+        scalerAddress: keda-add-ons-http-external-scaler.keda:9090
+        interceptorRoute: yt-dlp-webui

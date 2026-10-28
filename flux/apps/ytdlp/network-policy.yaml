@@ -7,9 +7,17 @@ spec:
     matchLabels:
       app: yt-dlp-webui
   ingress:
+  # The interceptor is the only client: the HTTPRoute points at it, not at
+  # this pod.
   - fromEndpoints:
     - matchLabels:
-        io.kubernetes.pod.namespace: envoy-gateway-system
+        io.kubernetes.pod.namespace: keda
+        app.kubernetes.io/part-of: keda-add-ons-http
+        app.kubernetes.io/component: interceptor
+    toPorts:
+    - ports:
+      - port: "8081"
+        protocol: TCP
   - fromEntities:
     - host
     - remote-node
