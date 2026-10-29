@@ -24,5 +24,6 @@ resources:
   # The server is apps/mail-mcp; these are kagent's handle on it.
   - mail-mcp-sops.yaml
   - mail-mcp.yaml
+  - mail-triage.yaml
   - ingress.yaml
   - network-policy.yaml

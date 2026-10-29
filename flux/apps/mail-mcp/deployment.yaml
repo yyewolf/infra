@@ -33,7 +33,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: mail-mcp
-        image: ghcr.io/yyewolf/jmap-mcp:0.6.5-1@sha256:05f8305e1e8fbfd7ba0d0ea0d616a7d7e30691b15dac918fa1cf90f7efff3128
+        image: ghcr.io/yyewolf/jmap-mcp:0.6.5-2@sha256:969e1eb7f7f8d26c52607188b85bb21021b799234cd67c2ab18daab5f717762e
         args:
         - --allow-net=0.0.0.0:8080,stalwart.stalwart.svc.cluster.local:8080
         - --allow-env=JMAP_INTERNAL_URL,JMAP_PUBLIC_URL,JMAP_USERNAME,JMAP_PASSWORD,JMAP_ACCOUNT_ID,JMAP_MCP_DEBUG,MCP_TOKEN

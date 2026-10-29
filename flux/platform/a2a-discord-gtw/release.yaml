@@ -51,6 +51,11 @@ spec:
       - name: windmill-maintainer
         ref: kagent/windmill-maintainer
         watch: true
+      # Same, for the ScheduledRun of #mail-triage. Its important-mail ping is
+      # a tool approval (notify_important), which is what @-mentions you.
+      - name: mail-triage
+        ref: kagent/mail-triage
+        watch: true
     persistence:
       # Replicated, not the cluster default (longhorn-yolo, one replica). The
       # SQLite file is the thread <-> kagent conversation map: lose it and every

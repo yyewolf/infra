@@ -29,6 +29,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { connectJmap, type JmapConnection } from "@wyattjoh/jmap";
+import { z } from "zod";
 
 import deno from "../deno.json" with { type: "json" };
 import { registerEmailTools } from "./tools/email.ts";
@@ -188,6 +189,77 @@ const registerAllowedTools = (server: McpServer, connection: JmapConnection) => 
     },
   });
   registerEmailTools(filtered, connection);
+  registerTriageTools(server, connection);
+};
+
+// Upstream can only set $seen and $flagged. The triage agent needs its own
+// tags, from a fixed list, to mark what it has handled and how it classified
+// it. They go through guardedFetch like everything else.
+const TAGS = [
+  "triaged",
+  "important",
+  "admin",
+  "money",
+  "useless",
+  "unsubscribe",
+] as const;
+
+const textResult = (value: unknown) => ({
+  content: [{ type: "text" as const, text: JSON.stringify(value) }],
+});
+
+const TagEmailsSchema = z.object({
+  ids: z.array(z.string()).min(1).max(100),
+  add: z.array(z.enum(TAGS)).default([]),
+  remove: z.array(z.enum(TAGS)).default([]),
+});
+
+const NotifyImportantSchema = z.object({
+  emails: z.array(z.object({
+    from: z.string(),
+    subject: z.string(),
+    category: z.enum(["admin", "money"]),
+    why: z.string().describe("One sentence: what the user has to know or do."),
+  })).min(1).max(20),
+});
+
+const registerTriageTools = (server: McpServer, connection: JmapConnection) => {
+  server.tool(
+    "tag_emails",
+    `Add or remove triage tags on emails. Tags: ${TAGS.join(", ")}.`,
+    TagEmailsSchema.shape,
+    async ({ ids, add, remove }: z.infer<typeof TagEmailsSchema>) => {
+      const patch: Record<string, true | null> = {};
+      for (const t of add) patch[`keywords/${t}`] = true;
+      for (const t of remove) patch[`keywords/${t}`] = null;
+      try {
+        const [result] = await connection.client.api.Email.set({
+          accountId: connection.accountId,
+          update: Object.fromEntries(ids.map((id) => [id, patch])),
+        });
+        return textResult({
+          updated: Object.keys(result.updated ?? {}),
+          notUpdated: result.notUpdated ?? {},
+        });
+      } catch (error) {
+        return {
+          ...textResult(`Error tagging emails: ${(error as Error).message}`),
+          isError: true,
+        };
+      }
+    },
+  );
+
+  // Does nothing by itself. The AgentTemplate marks it requireApproval, so a
+  // call becomes an approval request, which a2a-discord-gtw posts with an
+  // @-mention: that request IS the notification. Approving or denying only
+  // acknowledges it.
+  server.tool(
+    "notify_important",
+    "Notify the user about important emails (administration or money). One call per run, listing every important email found.",
+    NotifyImportantSchema.shape,
+    () => Promise.resolve(textResult("The user has seen the notification.")),
+  );
 };
 
 const connection = await connectJmap({
