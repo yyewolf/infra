@@ -47,7 +47,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: stalwart
-        image: mirror.gcr.io/stalwartlabs/stalwart:v1.0.0@sha256:baafeacd6cbde77acdd94af49972d41c6709e54a376df48e18a9fe3f445eb3d5
+        image: mirror.gcr.io/stalwartlabs/stalwart:v1.0.1@sha256:b9da4df8b4efc06bc926dd6e990bdeb0ad7b9261a7c3893d74b0461a00bb389b
         args:
         - --config
         - /etc/stalwart/config.json
