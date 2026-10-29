@@ -62,6 +62,13 @@ const READ_METHODS = new Set([
 ]);
 
 const BLOCKED_ROLES = new Set(["trash", "junk"]);
+
+// create_folder may make a top-level folder, or a subfolder of a top-level
+// folder that has no role — so at most two levels, and never inside Inbox,
+// Trash, Junk, Drafts, Sent or the like. MAX_MAILBOXES caps the whole account,
+// which is what bounds an email that talks the agent into making folders.
+const MAX_MAILBOXES = 60;
+const FOLDER_NAME = /^[\p{L}\p{N}][\p{L}\p{N} &'.,-]{0,39}$/u;
 const BLOCKED_KEYWORDS = new Set(["$deleted"]);
 
 const env = (name: string): string => {
@@ -79,6 +86,10 @@ const authorization = "Basic " +
 
 // Filled in at startup, before the server accepts a request.
 const blockedMailboxIds = new Set<string>();
+// Ids of top-level folders with no role: the only valid parents. Kept up to
+// date as folders are created, like the total; a restart recounts both.
+const parentIds = new Set<string>();
+let mailboxCount = 0;
 
 class Refused extends Error {}
 
@@ -123,6 +134,41 @@ const checkEmailSet = (args: Record<string, unknown>) => {
   }
 };
 
+// Mailbox/set may only create, at top level or under a role-less top-level
+// folder, with a plain name, up to MAX_MAILBOXES in all. No update (that would
+// allow renaming or re-parenting any folder, Inbox included), no destroy, no
+// back-references.
+const checkMailboxSet = (args: Record<string, unknown>) => {
+  for (const key of Object.keys(args)) {
+    if (!["accountId", "create"].includes(key)) {
+      throw new Refused(`Mailbox/set ${key} is not allowed`);
+    }
+  }
+  const create = Object.values(
+    (args.create ?? {}) as Record<string, Record<string, unknown>>,
+  );
+  for (const mb of create) {
+    for (const key of Object.keys(mb)) {
+      if (!["name", "parentId", "isSubscribed"].includes(key)) {
+        throw new Refused(`a new folder may not set ${key}`);
+      }
+    }
+    const parent = mb.parentId ?? null;
+    if (parent !== null && !parentIds.has(parent as string)) {
+      throw new Refused(
+        "folders may only be created at top level or inside a top-level " +
+          "folder that is not a system folder",
+      );
+    }
+    if (typeof mb.name !== "string" || !FOLDER_NAME.test(mb.name)) {
+      throw new Refused(`folder name must be 1-40 plain characters`);
+    }
+  }
+  if (mailboxCount + create.length > MAX_MAILBOXES) {
+    throw new Refused(`the mailbox already has ${mailboxCount} folders`);
+  }
+};
+
 const checkApiBody = (body: string) => {
   const req = JSON.parse(body) as { methodCalls?: unknown[] };
   for (const call of req.methodCalls ?? []) {
@@ -130,6 +176,10 @@ const checkApiBody = (body: string) => {
     if (READ_METHODS.has(method)) continue;
     if (method === "Email/set") {
       checkEmailSet(args);
+      continue;
+    }
+    if (method === "Mailbox/set") {
+      checkMailboxSet(args);
       continue;
     }
     throw new Refused(`JMAP method ${method} is not allowed`);
@@ -223,6 +273,15 @@ const NotifyImportantSchema = z.object({
   })).min(1).max(20),
 });
 
+const CreateFolderSchema = z.object({
+  name: z.string().regex(FOLDER_NAME).describe(
+    "Short generic category, e.g. 'Bank', 'Subscriptions', 'Shipping'",
+  ),
+  parentId: z.string().optional().describe(
+    "Id of a top-level, non-system folder to create it in. Omit for a top-level folder.",
+  ),
+});
+
 const registerTriageTools = (server: McpServer, connection: JmapConnection) => {
   server.tool(
     "tag_emails",
@@ -260,6 +319,48 @@ const registerTriageTools = (server: McpServer, connection: JmapConnection) => {
     NotifyImportantSchema.shape,
     () => Promise.resolve(textResult("The user has seen the notification.")),
   );
+
+  server.tool(
+    "create_folder",
+    "Create a folder, at top level or inside a top-level non-system folder " +
+      "(two levels at most). Returns the new folder's id, or the existing " +
+      "one if a folder of that name is already there.",
+    CreateFolderSchema.shape,
+    async ({ name, parentId: parent }: z.infer<typeof CreateFolderSchema>) => {
+      const parentId = parent ?? null;
+      try {
+        const [existing] = await connection.client.api.Mailbox.get({
+          accountId: connection.accountId,
+          properties: ["id", "name", "parentId"],
+        });
+        const same = existing.list.find((mb) =>
+          (mb.parentId ?? null) === parentId &&
+          mb.name.toLowerCase() === name.toLowerCase()
+        );
+        if (same) return textResult({ id: same.id, created: false });
+
+        const [result] = await connection.client.api.Mailbox.set({
+          accountId: connection.accountId,
+          create: { new: { name, parentId, isSubscribed: true } },
+        });
+        const id = result.created?.new?.id;
+        if (!id) {
+          return {
+            ...textResult({ notCreated: result.notCreated }),
+            isError: true,
+          };
+        }
+        mailboxCount++;
+        if (parentId === null) parentIds.add(id);
+        return textResult({ id, created: true });
+      } catch (error) {
+        return {
+          ...textResult(`Error creating folder: ${(error as Error).message}`),
+          isError: true,
+        };
+      }
+    },
+  );
 };
 
 const connection = await connectJmap({
@@ -270,11 +371,13 @@ const connection = await connectJmap({
 
 const [mailboxes] = await connection.client.api.Mailbox.get({
   accountId: connection.accountId,
-  properties: ["id", "role"],
+  properties: ["id", "role", "name", "parentId"],
 });
 for (const mb of mailboxes.list) {
   if (mb.role && BLOCKED_ROLES.has(mb.role)) blockedMailboxIds.add(mb.id);
+  if (!mb.parentId && !mb.role) parentIds.add(mb.id);
 }
+mailboxCount = mailboxes.list.length;
 if (blockedMailboxIds.size === 0) {
   // Without these ids the Trash/Junk rule silently matches nothing.
   throw new Error("found no Trash or Junk mailbox; refusing to start");
@@ -300,7 +403,11 @@ const handleMcp = async (req: Request): Promise<Response> => {
 // apart.
 const mcpAuthorization = `Bearer ${env("MCP_TOKEN")}`;
 
-Deno.serve({ hostname: "0.0.0.0", port: 8080 }, (req) => {
+// PORT only so a second copy can run beside the server for testing the guard
+// in-cluster (`kubectl exec`); Deno's --allow-net still has to admit it.
+const port = Number(Deno.env.get("PORT") ?? "8080");
+
+Deno.serve({ hostname: "0.0.0.0", port }, (req) => {
   const { pathname } = new URL(req.url);
   if (pathname === "/healthz") return new Response("ok");
   if (pathname !== "/mcp") return new Response("not found", { status: 404 });
