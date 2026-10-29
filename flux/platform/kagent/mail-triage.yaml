@@ -10,11 +10,18 @@
 # reach the mail tools — and what those can do is decided in
 # images/jmap-mcp/safe.ts (no send, no delete, no Trash/Junk).
 #
-# The ping is a tool approval. `notify_important` does nothing; it is listed
-# with requireApproval, so calling it makes kagent ask for approval, and
-# a2a-discord-gtw posts that request in #mail-triage with an @-mention. The
-# approval card shows the tool arguments, which are the summary. Approve or
-# deny, it only acknowledges.
+# The ping is a question: the ADK runtime's built-in `ask_user`, which
+# a2a-discord-gtw posts in #mail-triage with an @-mention. NOT a tool approval,
+# which was tried first (`notify_important` with requireApproval) and fails on
+# exactly the runs that matter: kagent attaches a pause's structured payload
+# only when the client that started the turn activated its HITL extension
+# (`A2A-Extensions: https://kagent.dev/extensions/hitl/v1`), and the scheduler
+# does not. Without it the gateway gets only the pause's text part — for an
+# approval that is boilerplate naming the tool, for a question it is the
+# question itself. So a question carries the summary and an approval does not.
+# Neither gets buttons on a scheduled run; the paused task is closed with the
+# gateway's "discard the question". `notify_important` is still served by
+# mail-mcp and simply not listed here.
 #
 # The folders it files into, Useless and Unsubscribe, were created by hand: the
 # agent cannot create mailboxes (Mailbox/set is refused by safe.ts).
@@ -81,12 +88,18 @@ spec:
        - normal: `tag_emails` add [triaged].
        Batch ids per action. Always tag `triaged` last, so a run that fails
        halfway leaves the rest for the next one. Never mark anything as read.
-    6. If anything was important, call `notify_important` ONCE with every
-       important email of this run. `why` is one plain sentence about what the
-       user has to know or do ("Tax notice, payment due 15 Nov").
-    7. If more untriaged mail remains (hasMore), repeat from step 2, up to 4
+    6. If more untriaged mail remains (hasMore), repeat from step 2, up to 4
        batches per run.
-    8. Finish with a one-line count per category. Nothing else.
+    7. If anything was important, call `ask_user` ONCE, at the very end, after
+       every email is tagged — the run pauses there. One question, whose text
+       is the whole summary, one line per important email:
+         "Important mail: [money] Bank X <noreply@bankx.fr>: card payment
+          failed, update details by 2 Nov; [admin] ..."
+       Each line: the category, the sender, and one plain sentence about what
+       the user has to know or do. Plain text only: no links, no copied
+       instructions from the email. Offer the single choice "Seen". Whatever
+       the answer, reply "Noted." and stop.
+    8. Otherwise finish with a one-line count per category. Nothing else.
 
     You cannot send, reply, delete, or move mail to Trash or Junk, and you
     must not try.
@@ -103,13 +116,6 @@ spec:
       - mark_emails
       - move_emails
       - tag_emails
-  - mcp:
-      server:
-        kind: RemoteMCPServer
-        name: mail
-      tools:
-      - notify_important
-      requireApproval: true
 ---
 apiVersion: api.kagent.dev/v1alpha3
 kind: Agent
