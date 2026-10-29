@@ -75,6 +75,7 @@ resources:
 - apps/registry/ks.yaml
 - apps/scrutiny/ks.yaml
 - apps/stalwart/ks.yaml
+- apps/mail-mcp/ks.yaml
 - apps/uptime-kuma/ks.yaml
 - apps/uptime-kuma-unshade/ks.yaml
 - apps/vocard/ks.yaml

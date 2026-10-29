@@ -1,0 +1,79 @@
+# jmap-mcp in front of Stalwart, for the mail-triage agent. The image is
+# images/jmap-mcp: upstream's tool code behind safe.ts, which allows reads and
+# keyword/mailbox changes and refuses everything else at the JMAP method level
+# (no send, no delete, no Trash/Junk, no Sieve). Read safe.ts's header before
+# changing what the agent can do — the policy lives there, not here.
+#
+# The credential is a Stalwart app password for contact@yewolf.fr, i.e. the
+# whole him@yewolf.fr account. It is not scoped down on the Stalwart side;
+# safe.ts is what scopes it.
+#
+# The Deno permission flags below are the in-process copy of network-policy.yaml:
+# the one host it may dial and the one port it listens on. They are not
+# decoration — the npm dependencies run with these permissions too.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mail-mcp
+  labels:
+    app: mail-mcp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mail-mcp
+  template:
+    metadata:
+      labels:
+        app: mail-mcp
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: mail-mcp
+        image: ghcr.io/yyewolf/jmap-mcp:0.6.5-1@sha256:05f8305e1e8fbfd7ba0d0ea0d616a7d7e30691b15dac918fa1cf90f7efff3128
+        args:
+        - --allow-net=0.0.0.0:8080,stalwart.stalwart.svc.cluster.local:8080
+        - --allow-env=JMAP_INTERNAL_URL,JMAP_PUBLIC_URL,JMAP_USERNAME,JMAP_PASSWORD,JMAP_ACCOUNT_ID,JMAP_MCP_DEBUG,MCP_TOKEN
+        - packages/jmap-mcp/src/safe.ts
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1993
+          runAsGroup: 1993
+          capabilities:
+            drop:
+            - ALL
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        # Plain HTTP inside the cluster, to Stalwart's management port — the
+        # same hop the webmail takes. The session document still advertises
+        # the public URL, and safe.ts rewrites it back to this one.
+        - name: JMAP_INTERNAL_URL
+          value: http://stalwart.stalwart.svc.cluster.local:8080
+        - name: JMAP_PUBLIC_URL
+          value: https://stalwart.yewolf.fr
+        envFrom:
+        - secretRef:
+            name: mail-mcp
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          periodSeconds: 30
+        resources:
+          requests:
+            cpu: 10m
+            memory: 64Mi
+          limits:
+            memory: 256Mi

@@ -234,6 +234,17 @@ spec:
     - ports:
       - port: "443"
         protocol: TCP
+  # The mail MCP server (apps/mail-mcp), in the cluster. The gateway is the MCP
+  # client and injects its bearer token; apps/mail-mcp's policy admits this pod
+  # and nothing else on 8080.
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: mail-mcp
+        app: mail-mcp
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
 ---
 # The third policy is atelet's, and it is the registry allow-list for the whole
 # agent platform rather than a one-off for the gVisor download.

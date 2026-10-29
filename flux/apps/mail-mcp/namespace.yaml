@@ -1,0 +1,13 @@
+# Its own namespace rather than `kagent` or `stalwart`, for the same reason
+# a2a-discord-gtw has one: kagent's namespace-wide baseline would hand this pod
+# everything the agents' worker pods can reach, and this pod holds a credential
+# to a whole mailbox. Here it gets exactly two peers (Stalwart and kagent's
+# egress gateway) and nothing else.
+#
+# `restricted` because the pod already meets it.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mail-mcp
+  labels:
+    pod-security.kubernetes.io/enforce: restricted

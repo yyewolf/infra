@@ -56,6 +56,15 @@ spec:
     - ports:
       - port: "8080"
         protocol: TCP
+  # The mail MCP server, JMAP on the management port (apps/mail-mcp).
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: mail-mcp
+        app: mail-mcp
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
   - fromEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: stalwart

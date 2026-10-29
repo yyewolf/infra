@@ -94,3 +94,4 @@ passwords
 kubeconfig
 
 migrate/
+.decrypted~*

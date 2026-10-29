@@ -1,0 +1,37 @@
+# The header kagent's egress gateway sends to mail-mcp. Same token as
+# MCP_TOKEN in apps/mail-mcp/credentials-sops.yaml — rotate both together.
+apiVersion: v1
+kind: Secret
+metadata:
+    name: mail-mcp
+type: Opaque
+stringData:
+    authorization: ENC[AES256_GCM,data:I1PCX9jwfSYSRCVAdKZLdmyXKXFdPptT6Af13IQj5DNAzNkYugsAG1LNET8BIiFc6bq3mmb0o3fZxrXXwPmkr/UxXdSDKG4=,iv:/Vqls8zH/MOD43URpqz45FNhDHt49KtDE5Apd5HNCJM=,tag:5x+Gbgci/JE8BAgeGJId9Q==,type:str]
+sops:
+    encrypted_regex: ^(data|stringData|secrets)$
+    lastmodified: "2026-10-29T22:04:52Z"
+    mac: ENC[AES256_GCM,data:EHaaR8ELbxBEnlpy4CavmP/DSM9SZeZQGYtJSTVI19eCRwSNTDDZD0XGkaH1RGzGYdgxrgvf4bh7HZw0wAXoFevZtZK9v40VrNv8BKj0FKnGalcuUi0s6P69eyci5bWXiv0KpdwaqPekCSXvEq9SI1BZ5IYW/R22I71HuCveelA=,iv:UeeI+i0uBRqSc9S8gYW0lZxF0NaAN2Y9WeMn+nLnbEc=,tag:+HbXFtvMko9PCFUxyeIUMA==,type:str]
+    pgp:
+        - created_at: "2026-10-29T22:04:52Z"
+          enc: |-
+            -----BEGIN PGP MESSAGE-----
+
+            hF4D7/45ZmvAFBwSAQdAumI6/UfHvD8M8UX+UIQSU4eSzOJOUMDEDznbkevb0zkw
+            b8IYPar2N0PLZvaB9wSLhnUbatYwV8NccXBz2qHoCHk9b0B+9I76lFNZP9f49lbx
+            0l4BZi8mfqcWhgxfHTql1dMwjRUbyEfPnl0sBMdn+sNNSQFbyMXWtDUt4M9Z0JAr
+            70LllgMQIAewcggsJyokaWxYhsjkgJv5uKGgPg3HyC8V90je7dZLgiXXhWJJdGc5
+            =zJ0b
+            -----END PGP MESSAGE-----
+          fp: 459895EB0A5F446D3831E99F95F6A162E4A71B06
+        - created_at: "2026-10-29T22:04:52Z"
+          enc: |-
+            -----BEGIN PGP MESSAGE-----
+
+            hF4D8q6e3Tem1ZoSAQdADrw0zEuXjoqyLaPbKfxHZ4Fg5xDpDAxK0SiGIQqzYw4w
+            Z9uhLUiKUlhp9Osw6yKuS0LuTh1KSp/MVMvtIvguaezep7jlY2x6cvGLT0QEcwO+
+            0l4B8DjF9ULr9T0ru6QNeQg0Xwz7E9AN/zqmAGtzy1Wa9rNlcOd1n4WQ4dH9twU9
+            R4DRm26ihM0IhGwG6RUl9g1DEV6npasLQsKhcps1ARcU3uMqg5zwfiFJ/R2NBr7c
+            =Q6oP
+            -----END PGP MESSAGE-----
+          fp: DF7F5D62376A57228F35FE4C665F8C5B8E0732E5
+    version: 3.13.3

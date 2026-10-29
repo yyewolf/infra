@@ -1,0 +1,22 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: mail-mcp
+  namespace: flux-system
+spec:
+  # credentials-sops.yaml — without this the encrypted Secret is applied
+  # verbatim and the server logs in with a ciphertext string.
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-gpg
+  dependsOn:
+  # safe.ts reads the mailbox list at startup and refuses to start without it.
+  - name: stalwart
+  interval: 10m
+  path: ./flux/apps/mail-mcp
+  prune: true
+  retryInterval: 1m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

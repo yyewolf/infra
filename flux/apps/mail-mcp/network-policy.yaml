@@ -1,0 +1,52 @@
+# Two peers and nothing else. No world egress at all: everything this pod does
+# is a JMAP call to Stalwart, and Stalwart is in the cluster.
+#
+# Ingress is kagent's egress gateway, not the agent. An actor's MCP calls are
+# proxied by atenet-egress, which is also what injects the MCP_TOKEN header
+# from the RemoteMCPServer (platform/kagent/mail-mcp.yaml). The matching egress
+# rule is in platform/substrate/network-policy.yaml (`substrate-egress`); Cilium
+# needs both, and a missing one there shows up as a 503 from the gateway.
+#
+# `host` is for the kubelet's probes. A gVisor sandbox on the same node also
+# arrives as `host` (an actor is not its worker pod's endpoint, see AGENTS.md),
+# which is why the server additionally requires the bearer token. `remote-node`
+# is deliberately absent.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: mail-mcp
+spec:
+  endpointSelector:
+    matchLabels:
+      app: mail-mcp
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: ate-system
+        app: atenet-egress
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
+  - fromEntities:
+    - host
+    - health
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: stalwart
+        app: stalwart
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP

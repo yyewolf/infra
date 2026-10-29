@@ -21,5 +21,8 @@ resources:
   # Uses harness-claude.yaml's ModelConfig, so it goes with it.
   - windmill-github-sops.yaml
   - windmill-agent.yaml
+  # The server is apps/mail-mcp; these are kagent's handle on it.
+  - mail-mcp-sops.yaml
+  - mail-mcp.yaml
   - ingress.yaml
   - network-policy.yaml

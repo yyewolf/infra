@@ -1,0 +1,29 @@
+# The mailbox, through apps/mail-mcp. What an agent can do with it is decided
+# there (images/jmap-mcp/safe.ts), not by which tools an AgentTemplate lists:
+# reads, keywords and moves between ordinary folders, and nothing that sends,
+# deletes or touches Trash, Junk or Sieve.
+#
+# The full name, because short names do not resolve from sandboxed workloads.
+# The Authorization header is injected by the egress gateway, which is the MCP
+# client; the actor never holds the token.
+#
+# DISCOVERY IS OFF, as for windmill-agent.yaml's `github`: with it on, the
+# controller would list the tools itself from kagent-controller, which would
+# need its own path to mail-mcp and its own copy of the token. Disabled, tools
+# resolve at run time through the gateway.
+apiVersion: api.kagent.dev/v1alpha3
+kind: RemoteMCPServer
+metadata:
+  name: mail
+  namespace: kagent
+  labels:
+    kagent.dev/discovery: disabled
+spec:
+  description: The Stalwart mailbox (all forwarded Gmail accounts). Read, tag and file mail; cannot send, delete, or move to Trash/Junk.
+  url: http://mail-mcp.mail-mcp.svc.cluster.local:8080/mcp
+  headersFrom:
+  - name: Authorization
+    valueFrom:
+      type: Secret
+      name: mail-mcp
+      key: authorization
