@@ -10,7 +10,7 @@
 # Build and push (from the repo root):
 #   docker buildx build --platform linux/amd64 --push \
 #     -t ghcr.io/yyewolf/jmap-mcp:0.6.5-1 images/jmap-mcp
-ARG DENO_IMAGE=docker.io/denoland/deno:2.9.5@sha256:b429777c3dcff34a6488f365a1537db1640b2d48379b60f5e6206be034472463
+ARG DENO_IMAGE=docker.io/denoland/deno:2.9.8@sha256:a0d88a7fcbd44f062cba2748e19df67d30290ad12aa203c7c1e0b12462c483f0
 
 FROM ${DENO_IMAGE}
 
