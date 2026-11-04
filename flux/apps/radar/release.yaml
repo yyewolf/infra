@@ -28,6 +28,15 @@ spec:
     auth:
       mode: none
 
+    # Since 1.19.0 an unauthenticated Radar answers only localhost, IPs, its
+    # Service names and these hosts (DNS-rebinding guard). The tailscale
+    # Ingress passes the browser's Host through, so the device name has to be
+    # listed or every request is refused. Exact name, not *.goby-beaufort.ts.net:
+    # any other tailnet device rebinding to Radar is exactly what this blocks.
+    # Track ingress.yaml's tls.hosts on a rename.
+    allowedHosts:
+      - radar.goby-beaufort.ts.net
+
     rbac:
       helm: true
       podExec: true
