@@ -1,3 +1,15 @@
+# Neither Immich pod gets general internet egress. Everything the server
+# needs is in-cluster (Postgres, Redis, the ML pod, and authentik via the
+# Envoy hairpin below); reverse geocoding ships inside the image, and map
+# tiles are fetched by the browser and the mobile app, not by the server. The
+# one thing the server loses is the GitHub version check, so turn it off under
+# Administration → Settings → Version Check rather than let it fail forever.
+#
+# The machine-learning pod's only legitimate outbound need is Hugging Face,
+# and only when a model is not yet in /cache — see `immich-ml-models` below.
+# This exists because a stock immich-machine-learning image phones home
+# (ONNX Runtime telemetry to mobile.events.data.microsoft.com was observed
+# from a default install): that is now a drop, not a request.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -22,6 +34,10 @@ spec:
     - remote-node
     - health
   egress:
+  # L7 DNS visibility: required for the toFQDNs rule in `immich-ml-models` to
+  # populate, and what makes a dropped phone-home show up in Hubble with the
+  # name it tried to resolve. Must stay the only DNS egress rule — a plain
+  # allow beside it lets lookups bypass inspection.
   - toEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: kube-system
@@ -32,6 +48,9 @@ spec:
         protocol: UDP
       - port: "53"
         protocol: TCP
+      rules:
+        dns:
+        - matchPattern: "*"
   - toEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: album
@@ -42,6 +61,8 @@ spec:
     - ports:
       - port: "5432"
         protocol: TCP
+  # Public hostnames (e.g. an OIDC issuer on yewolf.fr) hairpin through the edge's
+  # externalIPs, which Cilium translates to the Envoy pod before policy runs.
   - toEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: envoy-gateway-system
@@ -51,11 +72,36 @@ spec:
         protocol: TCP
       - port: "10080"
         protocol: TCP
-  - toEntities:
-    - world
+---
+# Model downloads, machine-learning only. Cilium unions egress across the
+# policies selecting an endpoint, so the ML pod gets this plus the baseline
+# above and the server gets none of it. Never add `world` to `immich` to fix
+# a download: that hands the internet back to both pods.
+#
+# huggingface.co serves the API and the redirects; the weights come from
+# either the LFS CDN (cdn-lfs*.hf.co) or the Xet CAS (cas-server / cas-bridge
+# / transfer .xethub.hf.co — the current cache was filled via cas-server). A
+# `*` in matchPattern does not cross a dot, hence one line per depth.
+#
+# A model missing from /cache that cannot be fetched fails the first smart
+# search or face job after a model change, not at startup. Check with
+# `hubble observe --from-pod album/<ml-pod> --verdict DROPPED` on its node.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: immich-ml-models
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/instance: immich
+      app.kubernetes.io/name: machine-learning
+  egress:
+  - toFQDNs:
+    - matchName: huggingface.co
+    - matchPattern: "*.huggingface.co"
+    - matchPattern: "*.hf.co"
+    - matchPattern: "*.xethub.hf.co"
     toPorts:
     - ports:
       - port: "443"
-        protocol: TCP
-      - port: "80"
         protocol: TCP
