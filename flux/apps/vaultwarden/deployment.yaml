@@ -28,7 +28,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: vaultwarden
-        image: mirror.gcr.io/vaultwarden/server:1.37.4@sha256:2bb2e0344616c62a6d76ea10558497499f8ed3f731400e143dc7bf17b757b5b9
+        image: mirror.gcr.io/vaultwarden/server:1.37.5@sha256:f8863ab2519364bfc657144006682a830784e0bb501606d5e34516ee76b60b5c
         securityContext:
           allowPrivilegeEscalation: false
           runAsNonRoot: true
