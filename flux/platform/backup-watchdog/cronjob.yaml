@@ -57,6 +57,8 @@ spec:
                 secretKeyRef:
                   name: notify-url
                   key: URL
+            # Raw bearer token for the gateway's POST /sms; the script adds
+            # the "Bearer " prefix.
             - name: TOKEN
               valueFrom:
                 secretKeyRef:
@@ -112,10 +114,10 @@ spec:
               # accept the trailing Z and would silently produce garbage
               # ages rather than an error.
               # Two renderings of the same data: the long one goes to the pod
-              # logs, the short one to the SMS. The gateway answers 500 on an
-              # oversized body, so the message that matters most — the one
-              # sent the morning something is broken — is the one that must
-              # stay small.
+              # logs, the short one to the SMS. The new gateway splits long
+              # texts into up to 10 parts, but the message that matters most —
+              # the one sent the morning something is broken — is the one that
+              # must stay small regardless.
               report=$(jq -cn \
                 --argjson now "$(date -u +%s)" \
                 --argjson stale "$(( STALE_HOURS * 3600 ))" \
@@ -286,7 +288,7 @@ spec:
               # invalid body the first time a backup name or an error
               # message contained a quote.
               printf "%s" "$report" \
-                | jq -c --arg number "$PHONE" '{ message: .sms, number: $number }' \
+                | jq -c --arg number "$PHONE" '{ text: .sms, to: $number }' \
                 >/tmp/payload.json
 
               # --retry-all-errors because the interesting failures here are
@@ -321,11 +323,16 @@ spec:
               fi
 
               echo "Sending report via SMS ($(printf "%s" "$report" | jq -r '.sms | length') chars)..."
+              # The gateway answers 202 with the outbox id — queuing, not
+              # delivery: actual sending goes through the modem asynchronously
+              # (3 attempts, 30s apart) and arriving texts surface in Discord
+              # via the ltegtw bridge anyway, so the Job does not poll the
+              # outbox.
               if curl --fail-with-body -sS \
                    --retry 7 --retry-all-errors --retry-max-time 300 \
                    --connect-timeout 10 --max-time 60 \
                    -H "Content-Type: application/json" \
-                   -H "Authorization: $TOKEN" \
+                   -H "Authorization: Bearer $TOKEN" \
                    -X POST --data @/tmp/payload.json \
                    "$NOTIFY_URL"; then
                 delivered=1

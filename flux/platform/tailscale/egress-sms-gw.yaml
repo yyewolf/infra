@@ -1,0 +1,24 @@
+# The consumer half of the platform's SMS path: the LTE gateway is a device on
+# the tailnet (lte-gateway.goby-beaufort.ts.net, tag:sms), not a workload in
+# this cluster. Same mechanism as the egress-lte.yaml this replaces: the
+# operator watches for the annotation, creates an egress proxy for the named
+# host and overwrites externalName with the proxy's in-cluster address — a pod
+# dialling sms-gw.tailscale.svc/sms reaches the gateway's POST /sms without
+# knowing any of that. This is what backup-watchdog's morning report is sent
+# through.
+#
+# Until the operator has registered the proxy, the name resolves to the
+# placeholder and every POST fails DNS — a first-reconcile symptom, not a
+# misconfiguration. The proxy is tagged tag:sms so the gateway's ACL — which
+# admits only tag:sms sources — lets it through; the ltegtw server pod reaches
+# the same gateway over its own sidecar under the same grant.
+apiVersion: v1
+kind: Service
+metadata:
+  name: sms-gw
+  annotations:
+    tailscale.com/tailnet-fqdn: lte-gateway.goby-beaufort.ts.net
+    tailscale.com/tags: "tag:sms"
+spec:
+  type: ExternalName
+  externalName: placeholder

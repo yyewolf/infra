@@ -38,22 +38,23 @@ spec:
       rules:
         dns:
         - matchPattern: "*"
-  # The notification. NOTIFY_URL points at `lte.tailscale.svc:8080`, an
+  # The notification. NOTIFY_URL points at `sms-gw.tailscale.svc/sms`, an
   # ExternalName the operator repoints at the egress proxy it creates for
-  # lte.goby-beaufort.ts.net — so the packet that actually leaves this pod is
-  # addressed to a proxy pod in the tailscale namespace, not to the tailnet.
-  # That is why this is a toEndpoints rule and not toFQDNs: by the time policy
-  # is evaluated the destination is an in-cluster endpoint. The proxy end of
-  # this already admits it, via `fromEntities: cluster` in the tailscale
-  # policy. The proxy label is the only one that does not name the Service it
-  # was created for, so it is the only one stable enough to match on here.
+  # lte-gateway.goby-beaufort.ts.net — so the packet that actually leaves this
+  # pod is addressed to a proxy pod in the tailscale namespace, not to the
+  # tailnet. That is why this is a toEndpoints rule and not toFQDNs: by the
+  # time policy is evaluated the destination is an in-cluster endpoint. The
+  # proxy end of this already admits it, via `fromEntities: cluster` in the
+  # tailscale policy. The proxy label is the only one that does not name the
+  # Service it was created for, so it is the only one stable enough to match
+  # on here.
   - toEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: tailscale
         tailscale.com/managed: "true"
     toPorts:
     - ports:
-      - port: "8080"
+      - port: "80"
         protocol: TCP
   # The Discord webhook — the second report channel added while the LTE
   # gateway is down. Remove together with discord-sops.yaml and DISCORD_URL.
