@@ -1,0 +1,120 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ltegtw-server
+spec:
+  replicas: 1
+  # The Discord bot half is a singleton — two replicas would both answer
+  # messages and both join the voice channel. Recreate so a rollout never
+  # overlaps.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ltegtw-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ltegtw-server
+    spec:
+      # Nothing here talks to the API server (the state store is the PVC).
+      automountServiceAccountToken: false
+      containers:
+      # The server itself: unprivileged, writes nothing (config is mounted
+      # read-only, recordings are disabled).
+      - name: ltegtw-server
+        # renovate: datasource=docker depName=ghcr.io/yyewolf/lte-gateway-server
+        image: ghcr.io/yyewolf/lte-gateway-server@sha256:ce3c08b375abc4d13fa3ff384119bc1c4cc280be42a6418f9d20f90126fe93ea
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 10001
+          runAsGroup: 10001
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+        volumeMounts:
+          - name: config
+            mountPath: /config
+            readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 512Mi
+      # The server is designed to run ON the tailnet (its compose file uses
+      # host networking for exactly this): the gateway sends call audio back
+      # to the address the server connected FROM, so the node that dials the
+      # gateway must be the node that receives RTP on :4000. Operator egress
+      # proxies cannot do that — they only DNAT cluster→tailnet, and inbound
+      # tailnet→cluster forwarding does not exist in any of their shapes
+      # (plain ExternalName egress or ProxyGroup alike). So the pod joins the
+      # tailnet itself and both halves of the audio flow terminate on its own
+      # tailscale0. The gateway's RTP target is then this node's tailnet IP,
+      # reachable under the same tag:sms → tag:sms ACL grant as before.
+      - name: tailscale
+        # renovate: datasource=docker depName=ghcr.io/tailscale/tailscale
+        image: ghcr.io/tailscale/tailscale@sha256:72c1e19e0aedca96b8533bbb0b4368564410ff20b17e53b804eb6c1f04a31be4
+        # NET_ADMIN opens the tun device; MKNOD lets containerboot's
+        # ensureTunFile create /dev/net/tun if the runtime did not provision
+        # it. Not privileged in the securityContext sense, so
+        # require-kata-for-privileged never fires.
+        securityContext:
+          capabilities:
+            add: [NET_ADMIN, MKNOD]
+        env:
+          # Kube-Secret state store OFF: containerboot defaults TS_KUBE_SECRET
+          # to "tailscale" under Kubernetes and then demands API server access
+          # it does not have. State lives on the PVC below instead.
+          - name: TS_KUBE_SECRET
+            value: ""
+          - name: TS_STATE_DIR
+            value: /var/lib/tailscale
+          # Reusable tag:sms authkey, precreated in the admin console. With
+          # the state PVC below it is consumed exactly once; expiry only
+          # matters if the PVC is lost.
+          - name: TS_AUTHKEY
+            valueFrom:
+              secretKeyRef:
+                name: ltegtw-tailscale-authkey
+                key: authkey
+          - name: TS_AUTH_ONCE
+            value: "true"
+          - name: TS_HOSTNAME
+            value: ltegtw-server
+          - name: TS_USERSPACE
+            value: "false"
+          # Cluster DNS stays authoritative in this pod; MagicDNS is not
+          # needed (the config dials the gateway by 100.x IP).
+          - name: TS_EXTRA_ARGS
+            value: --accept-dns=false
+        volumeMounts:
+          - name: tailscale-state
+            mountPath: /var/lib/tailscale
+        resources:
+          requests:
+            cpu: 20m
+            memory: 64Mi
+          limits:
+            memory: 256Mi
+      volumes:
+        - name: config
+          secret:
+            secretName: ltegtw-config
+        # Node identity persists across reschedules, so the tailnet does not
+        # accumulate a stale ltegtw-server-1 every time the pod moves.
+        - name: tailscale-state
+          persistentVolumeClaim:
+            claimName: ltegtw-tailscale-state
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ltegtw-tailscale-state
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 1Gi

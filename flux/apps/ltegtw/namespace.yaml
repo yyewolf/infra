@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ltegtw
+  labels:
+    # privileged PSA for one workload only: the tailscaled sidecar in the
+    # server pod, which needs NET_ADMIN to run a tun device. Same trade as
+    # servarr for gluetun. Nothing here sets securityContext.privileged, so
+    # require-kata-for-privileged never fires and no Kyverno exclusion is
+    # needed — the sidecar runs unprivileged-in-the-VM sense, just above
+    # baseline.
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/warn: privileged

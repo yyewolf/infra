@@ -1,0 +1,21 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: ltegtw
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./flux/apps/ltegtw
+  prune: true
+  retryInterval: 1m
+  decryption:
+    # config-sops.yaml and authkey-sops.yaml are reconciled from git, so Flux
+    # needs the PGP key to decrypt them. Without this the encrypted Secrets
+    # are applied verbatim and the server dies parsing `ENC[AES256...` as
+    # YAML config.
+    provider: sops
+    secretRef:
+      name: sops-gpg
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

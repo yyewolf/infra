@@ -83,3 +83,4 @@ resources:
 - apps/ytdlp/ks.yaml
 - apps/bsgen/ks.yaml
 - apps/ssarchiver/ks.yaml
+- apps/ltegtw/ks.yaml

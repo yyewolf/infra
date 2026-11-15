@@ -1,0 +1,62 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: ltegtw-server
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: ltegtw-server
+  ingress: []
+  # Nothing dials this pod in-cluster: the gateway's RTP enters through the
+  # sidecar's tailscale0 (invisible to Cilium, like every tailscale0 path),
+  # and there are no probes or Services. The empty list keeps the endpoint in
+  # ingress default-deny rather than unrestricted.
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+      rules:
+        dns:
+        - matchPattern: "*"
+  # Discord REST and WSS, plus the tailscale control plane. DERP relays are
+  # also dialed on 443 but by literal IP from the derpmap — no lookup happens
+  # for Cilium to observe, which is why this is world and not toFQDNs.
+  - toEntities:
+    - world
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP
+  # Discord voice: joining a channel opens a second WSS to the media server
+  # Discord assigns per call (c-*.discord.media). The port is Discord's to
+  # choose — 443, 2083 and 2096 all showed up within the first few calls — so
+  # the FQDN is the access control, not the port. The FQDN only resolves at
+  # call time, so this entry stays empty until the DNS rule above has seen a
+  # lookup for it.
+  - toFQDNs:
+    - matchName: discord.media
+    - matchPattern: "*.discord.media"
+    toPorts:
+    - ports:
+      - port: "1"
+        endPort: 65535
+        protocol: TCP
+  # Discord voice media transport: UDP to a literal IP:port learned in the
+  # voice handshake. Also covers the WireGuard tunnel itself — the gateway
+  # traffic (REST on 80, RTP on 4000) rides encapsulated inside this UDP flow
+  # to the peer's endpoint, so no rule for 100.64/10 is needed or even
+  # observable at this endpoint.
+  - toEntities:
+    - world
+    toPorts:
+    - ports:
+      - port: "1"
+        endPort: 65535
+        protocol: UDP
