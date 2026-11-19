@@ -32,7 +32,7 @@ spec:
       automountServiceAccountToken: false
       containers:
       - name: create-bucket
-        image: amazon/aws-cli:2.40.2@sha256:acc32af784911165a8e78b63950625d174ba79b800a66a436c974689c87cd755
+        image: amazon/aws-cli:2.41.1@sha256:538a9a80bc7c78e3228bc65100404a5dbd89ad812a547004c05ea20109543432
         command: ["/bin/sh", "-c"]
         args:
         - |
