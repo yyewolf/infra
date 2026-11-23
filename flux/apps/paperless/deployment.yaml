@@ -85,16 +85,25 @@ spec:
         - name: data
           mountPath: /usr/src/paperless/export
           subPath: export
+        # PAPERLESS_URL becomes Django's ALLOWED_HOSTS, and the kubelet probes
+        # the pod IP, which is not in it: without this Host header every probe
+        # is a 400 DisallowedHost and the pod is restarted forever.
         startupProbe:
           httpGet:
             path: /
             port: 8000
+            httpHeaders:
+            - name: Host
+              value: paperless.yewolf.fr
           periodSeconds: 10
           failureThreshold: 30
         readinessProbe:
           httpGet:
             path: /
             port: 8000
+            httpHeaders:
+            - name: Host
+              value: paperless.yewolf.fr
           periodSeconds: 10
         resources:
           requests:

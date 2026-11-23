@@ -6,6 +6,12 @@ metadata:
     app: scrutiny
 spec:
   replicas: 1
+  # Recreate, not the default RollingUpdate: both claims are RWO and w-1 is the
+  # only node, so a surge pod lands beside the old one on the same volume and
+  # InfluxDB's boltdb lock keeps it from ever starting ("unable to open
+  # boltdb: timeout"). The rollout then never completes.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: scrutiny

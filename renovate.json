@@ -128,6 +128,12 @@
       "description": "kagent's chart, CRD chart and images must land together, and a pre-1.0 bump can change the database contract (see flux/platform/kagent/release.yaml) - one PR to review, not three to merge in the wrong order.",
       "matchPackageNames": ["kagent", "ghcr.io/kagent-dev/kagent/**"],
       "groupName": "kagent"
+    },
+    {
+      "description": "Held below chart 3.10.0 (Kyverno 1.20) until the three legacy ClusterPolicies in flux/platform/kyverno/policies are migrated to policies.kyverno.io. The chart refuses to install or upgrade while any legacy ClusterPolicy exists, and 1.20 no longer executes them, so 3.10.0 either blocks the HelmRelease or silently drops require-kata-for-privileged and the woodpecker mutations. Remove this rule once the policies are migrated.",
+      "matchManagers": ["flux"],
+      "matchDepNames": ["kyverno"],
+      "allowedVersions": "<3.10.0"
     }
   ]
 }
