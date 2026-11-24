@@ -37,15 +37,17 @@ spec:
       rules:
         dns:
         - matchPattern: "*"
-  # The ScoreSaber API, and the replays themselves, which it streams directly
-  # rather than redirecting to a CDN. The only thing the server fetches: the
-  # avatars and covers on cdn.scoresaber.com, the ArcViewer map downloads and
-  # the API docs assets are all loaded by the browser, and the ArcViewer build
-  # is embedded in the binary.
+  # The ScoreSaber and BeatLeader APIs, and the replays: ScoreSaber streams
+  # them directly rather than redirecting to a CDN, BeatLeader serves its score
+  # replays from api.beatleader.com/replays-storage and cdn.replays.beatleader.com.
+  # The only other things the server fetches: the avatars and covers on
+  # cdn.scoresaber.com, the ArcViewer map downloads and the API docs assets are
+  # all loaded by the browser, and the ArcViewer build is embedded in the binary.
   - toFQDNs:
     - matchName: scoresaber.com
     - matchName: beatleader.com
-    - matchName: api.beatleader.xyz
+    - matchName: api.beatleader.com
+    - matchName: cdn.replays.beatleader.com
     toPorts:
     - ports:
       - port: "443"
