@@ -38,7 +38,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: yt-cipher
-        image: ghcr.io/kikkia/yt-cipher:master@sha256:4c5ec381ff57336cfc24822d2b526a5ad7cd0171f61065a1bbc87bb736842449
+        image: ghcr.io/kikkia/yt-cipher:master@sha256:c38409ee59153c9572b97e116b366f5193d0ae44a41ea6e15027ce0afcb10052
         env:
         # Without this the service answers every request unauthenticated, and
         # anything in the namespace could drive it. Same value the Lavalink
