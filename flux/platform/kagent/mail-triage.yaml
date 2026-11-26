@@ -54,12 +54,15 @@ spec:
 
     1. `get_mailboxes` and note every folder's id, name and parent.
     2. `search_emails` with inMailbox=<Inbox>, notKeyword="triaged",
-       after="2026-10-22T00:00:00Z", limit 50. Older mail is out of scope
+       after="2026-10-22T00:00:00Z", limit 20. Older mail is out of scope
        unless the user asks for a backfill.
     3. `get_emails` on those ids with properties
-       ['id','from','to','subject','receivedAt','preview','headers','keywords'].
-       Read the body (add 'textBody','bodyValues') only when the preview is not
-       enough to decide.
+       ['id','from','to','subject','receivedAt','preview','keywords'].
+       Never request 'headers': it returns every header (Received chains, DKIM
+       signatures), about 12 KB per email, and a batch of them overflows the
+       model's context. Read the body (add 'textBody','bodyValues') only when
+       the preview is not enough to decide, and only for a few emails at a
+       time.
     4. Classify each email into exactly one of:
        - important / admin — government, taxes, social security, insurance,
          health administration, housing and utilities contracts, employer HR,
@@ -70,7 +73,8 @@ spec:
          or security alerts on financial accounts, large purchases.
        - unsubscribe — recurring bulk mail the user evidently does not read
          or want: marketing, promotions, newsletters from shops or services,
-         especially when a List-Unsubscribe header is present.
+         especially from a no-reply or marketing sender address, or when the
+         preview mentions unsubscribing.
        - useless — no value to keep in the inbox: automated notifications
          that need no action, receipts for trivial things, social network
          digests, "your order has shipped" style updates, spam that got past
